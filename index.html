@@ -4444,6 +4444,52 @@ function PageTelChamadosInner() {
       return [];
     }
   };
+  const dados = [...getChamadosLocaisTel().map((ch, i) => ({
+    ...ch,
+    id: ch.id || "L" + i,
+    _local: true
+  })), ...TEL_DADOS].filter(ch => {
+    const b = busca.toLowerCase();
+    if (b && !`${ch.comarca || ""} ${ch.os || ""} ${ch.servico || ""} ${ch.solucao || ""}`.toLowerCase().includes(b)) return false;
+    if (fCt && ch.contrato !== fCt) return false;
+    if (fNivel && ch.nivel !== fNivel) return false;
+    if (fSit && ch.situacao !== fSit) return false;
+    if (fMes && !(ch.dt_chamado || "").slice(5, 7) === fMes) return false;
+    if (fAno && !(ch.dt_chamado || "").startsWith(fAno)) return false;
+    return true;
+  }).sort((a, b) => (b.dt_chamado || "").localeCompare(a.dt_chamado || ""));
+  const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
+  const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
+  const nivelBadge = n => {
+    const map = {
+      critico: "bg-red",
+      importante: "bg-amber",
+      alto: "bg-red",
+      medio: "bg-amber",
+      baixo: "bg-blue"
+    };
+    const lbl = {
+      critico: "🔴 Crítico",
+      importante: "🟡 Importante",
+      alto: "🔴 Alto",
+      medio: "🟠 Médio",
+      baixo: "🟢 Baixo"
+    };
+    return /*#__PURE__*/React.createElement("span", {
+      className: `badge ${map[n] || "bg-gray"}`
+    }, lbl[n] || n || "—");
+  };
+  const sitBadge = s => {
+    const map = {
+      "Atendido": "bg-green",
+      "Em Atraso": "bg-red",
+      "Dentro do Prazo": "bg-blue",
+      "Cancelado": "bg-gray"
+    };
+    return /*#__PURE__*/React.createElement("span", {
+      className: `badge ${map[s] || "bg-gray"}`
+    }, s || "—");
+  };
   const salvarNovoChamado = () => {
     if (!novoCh.comarca || !novoCh.servico) {
       toast("Informe comarca e serviço", "error");
