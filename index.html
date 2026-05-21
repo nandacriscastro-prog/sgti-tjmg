@@ -195,13 +195,11 @@ function getTecnicos() {
 let _geasi_loaded = false;
 let _tel_loaded = false;
 const DATA_BASE = (() => {
-  const host = window.location.hostname;
+  const origin = window.location.origin;
   const path = window.location.pathname;
-  if (host.includes('github.io')) return '/sgti-tjmg/data/';
-  if (host.includes('netlify.app')) return '/data/';
-  // Tentar detectar pelo path
-  if (path.includes('/sgti-tjmg/')) return '/sgti-tjmg/data/';
-  return '/data/';
+  // Pegar o caminho base até o index.html
+  const base = path.endsWith('/') ? path : path.substring(0, path.lastIndexOf('/') + 1);
+  return origin + base + 'data/';
 })();
 function loadStaticData() {
   // CM carrega imediatamente (74KB)
@@ -4360,6 +4358,7 @@ function PageTelHome({
 
 // ── PAGE: TELEFONIA CHAMADOS ──────────────────────────────────
 function PageTelChamados() {
+  // ── TODOS OS HOOKS NO TOPO ──
   const [busca, setBusca] = useState("");
   const [fCt, setFCt] = useState("");
   const [fNivel, setFNivel] = useState("");
@@ -4368,59 +4367,19 @@ function PageTelChamados() {
   const [fAno, setFAno] = useState("");
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
-  const POR_PAG = 30;
-  const dados = TEL_DADOS.filter(c => {
-    const b = busca.toLowerCase();
-    if (b && !`${c.comarca || ""} ${c.os || ""} ${c.servico || ""} ${c.solucao || ""}`.toLowerCase().includes(b)) return false;
-    if (fCt && c.contrato !== fCt) return false;
-    if (fNivel && c.nivel !== fNivel) return false;
-    if (fSit && c.situacao !== fSit) return false;
-    if (fMes && !(c.dt_chamado || "").slice(5, 7) === fMes) return false;
-    if (fAno && !(c.dt_chamado || "").startsWith(fAno)) return false;
-    return true;
-  }).sort((a, b) => (b.dt_chamado || "").localeCompare(a.dt_chamado || ""));
-  const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
-  const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
-  const nivelBadge = n => {
-    const map = {
-      critico: "bg-red",
-      importante: "bg-amber",
-      alto: "bg-red",
-      medio: "bg-amber",
-      baixo: "bg-blue"
-    };
-    const lbl = {
-      critico: "🔴 Crítico",
-      importante: "🟡 Importante",
-      alto: "🔴 Alto",
-      medio: "🟠 Médio",
-      baixo: "🟢 Baixo"
-    };
-    return /*#__PURE__*/React.createElement("span", {
-      className: `badge ${map[n] || "bg-gray"}`
-    }, lbl[n] || n || "—");
-  };
-  const sitBadge = s => {
-    const map = {
-      "Atendido": "bg-green",
-      "Em Atraso": "bg-red",
-      "Dentro do Prazo": "bg-blue",
-      "Cancelado": "bg-gray"
-    };
-    return /*#__PURE__*/React.createElement("span", {
-      className: `badge ${map[s] || "bg-gray"}`
-    }, s || "—");
-  };
   const [telLoading, setTelLoading] = useState(!_tel_loaded && !TEL_DADOS.length);
   const [telErro, setTelErro] = useState("");
+  const [, forceUpdate] = useState(0);
+  const POR_PAG = 30;
   useEffect(() => {
     if (!_tel_loaded && !TEL_DADOS.length) {
       loadTelDados().then(() => {
         setTelLoading(false);
         setTelErro("");
+        forceUpdate(n => n + 1);
       }).catch(e => {
         setTelLoading(false);
-        setTelErro(e.message || "Erro ao carregar");
+        setTelErro(e.message || "Erro ao carregar: " + DATA_BASE + "tel.json");
       });
     } else {
       setTelLoading(false);
