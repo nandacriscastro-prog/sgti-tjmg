@@ -4377,8 +4377,53 @@ const NOVO_CH_EMPTY = {
   servico: "",
   solucao: ""
 };
+
+// Wrapper que carrega dados antes de montar o componente real
 function PageTelChamados() {
-  // ── TODOS OS HOOKS NO TOPO — sem exceção ──
+  const [carregado, setCarregado] = useState(_tel_loaded || TEL_DADOS.length > 0);
+  const [erro, setErro] = useState("");
+  useEffect(() => {
+    if (!_tel_loaded && !TEL_DADOS.length) {
+      loadTelDados().then(() => setCarregado(true)).catch(e => setErro(e.message || "Falha ao carregar"));
+    }
+  }, []);
+  if (!carregado && !erro) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon",
+    style: {
+      animation: "pulse 1s infinite"
+    }
+  }, "\uD83D\uDCDE"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Carregando chamados de telefonia..."));
+  if (erro) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon"
+  }, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Erro ao carregar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "var(--text3)",
+      marginTop: 8
+    }
+  }, erro), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      marginTop: 12
+    },
+    onClick: () => {
+      setErro("");
+      _tel_loaded = false;
+      TEL_DADOS.splice(0);
+      loadTelDados().then(() => setCarregado(true)).catch(e => setErro(e.message));
+    }
+  }, "\u21BB Tentar novamente"));
+  return /*#__PURE__*/React.createElement(PageTelChamadosInner, null);
+}
+function PageTelChamadosInner() {
   const [busca, setBusca] = useState("");
   const [fCt, setFCt] = useState("");
   const [fNivel, setFNivel] = useState("");
@@ -4387,29 +4432,13 @@ function PageTelChamados() {
   const [fAno, setFAno] = useState("");
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
-  const [telLoading, setTelLoading] = useState(!_tel_loaded && !TEL_DADOS.length);
-  const [telErro, setTelErro] = useState("");
-  const [tick, setTick] = useState(0);
   const [modalNovo, setModalNovo] = useState(false);
   const [novoCh, setNovoCh] = useState({
     ...NOVO_CH_EMPTY
   });
   const [salvando, setSalvando] = useState(false);
+  const [tick, setTick] = useState(0);
   const POR_PAG = 30;
-  useEffect(() => {
-    if (!_tel_loaded && !TEL_DADOS.length) {
-      loadTelDados().then(() => {
-        setTelLoading(false);
-        setTelErro("");
-        setTick(t => t + 1);
-      }).catch(e => {
-        setTelLoading(false);
-        setTelErro("Erro: " + DATA_BASE + "tel.json — " + (e.message || "falha"));
-      });
-    } else {
-      setTelLoading(false);
-    }
-  }, []);
   const LOCAIS_KEY = "tel_chamados_novos";
   const getChamadosLocaisTel = () => {
     try {
@@ -4431,8 +4460,7 @@ function PageTelChamados() {
       os: "LOCAL-" + (locais.length + 1),
       _local: true
     };
-    const nova = [novo, ...locais];
-    localStorage.setItem(LOCAIS_KEY, JSON.stringify(nova));
+    localStorage.setItem(LOCAIS_KEY, JSON.stringify([novo, ...locais]));
     TEL_DADOS.unshift(novo);
     setModalNovo(false);
     setNovoCh({
@@ -4442,92 +4470,6 @@ function PageTelChamados() {
     toast("Chamado registrado!", "ok");
     setPag(0);
     setTick(t => t + 1);
-  };
-  if (telLoading) return /*#__PURE__*/React.createElement("div", {
-    className: "empty"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "empty-icon",
-    style: {
-      animation: "pulse 1s infinite"
-    }
-  }, "\uD83D\uDCDE"), /*#__PURE__*/React.createElement("div", {
-    className: "empty-title"
-  }, "Carregando chamados de telefonia..."));
-  if (telErro) return /*#__PURE__*/React.createElement("div", {
-    className: "empty"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "empty-icon"
-  }, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("div", {
-    className: "empty-title"
-  }, "Erro ao carregar dados"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "var(--text3)",
-      marginTop: 8,
-      maxWidth: 400,
-      textAlign: "center"
-    }
-  }, telErro), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    style: {
-      marginTop: 12
-    },
-    onClick: () => {
-      setTelErro("");
-      setTelLoading(true);
-      _tel_loaded = false;
-      TEL_DADOS.splice(0);
-      loadTelDados().then(() => {
-        setTelLoading(false);
-        setTick(t => t + 1);
-      }).catch(e => setTelErro(e.message));
-    }
-  }, "\u21BB Tentar novamente"));
-  const dados = [...getChamadosLocaisTel().map((ch, i) => ({
-    ...ch,
-    id: ch.id || "L" + i,
-    _local: true
-  })), ...TEL_DADOS].filter(c => {
-    const b = busca.toLowerCase();
-    if (b && !`${c.comarca || ""} ${c.os || ""} ${c.servico || ""} ${c.solucao || ""}`.toLowerCase().includes(b)) return false;
-    if (fCt && c.contrato !== fCt) return false;
-    if (fNivel && c.nivel !== fNivel) return false;
-    if (fSit && c.situacao !== fSit) return false;
-    if (fMes && !(c.dt_chamado || "").slice(5, 7) === fMes) return false;
-    if (fAno && !(c.dt_chamado || "").startsWith(fAno)) return false;
-    return true;
-  }).sort((a, b) => (b.dt_chamado || "").localeCompare(a.dt_chamado || ""));
-  const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
-  const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
-  const nivelBadge = n => {
-    const map = {
-      critico: "bg-red",
-      importante: "bg-amber",
-      alto: "bg-red",
-      medio: "bg-amber",
-      baixo: "bg-blue"
-    };
-    const lbl = {
-      critico: "🔴 Crítico",
-      importante: "🟡 Importante",
-      alto: "🔴 Alto",
-      medio: "🟠 Médio",
-      baixo: "🟢 Baixo"
-    };
-    return /*#__PURE__*/React.createElement("span", {
-      className: `badge ${map[n] || "bg-gray"}`
-    }, lbl[n] || n || "—");
-  };
-  const sitBadge = s => {
-    const map = {
-      "Atendido": "bg-green",
-      "Em Atraso": "bg-red",
-      "Dentro do Prazo": "bg-blue",
-      "Cancelado": "bg-gray"
-    };
-    return /*#__PURE__*/React.createElement("span", {
-      className: `badge ${map[s] || "bg-gray"}`
-    }, s || "—");
   };
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
@@ -5047,6 +4989,7 @@ function PageTelChamados() {
 }
 
 // ── PAGE: TELEFONIA SLA ───────────────────────────────────────
+
 function PageTelSLA() {
   const contratos = [["318/2023", "Alctel", "Fixa Convencional"], ["319/2023", "Alctel", "Fixa Convencional"], ["320/2023", "Alctel", "Fixa Convencional"], ["096/2022", "RCE", "VoIP"], ["013/2025", "Telebrás", "VoIP / Horas Corridas"]];
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
