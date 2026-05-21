@@ -4357,6 +4357,26 @@ function PageTelHome({
 }
 
 // ── PAGE: TELEFONIA CHAMADOS ──────────────────────────────────
+// ── ESTADO VAZIO NOVO CHAMADO TELEFONIA ─────────────────────
+const NOVO_CH_EMPTY = {
+  os: "",
+  comarca: "",
+  predio: "",
+  reclamante: "",
+  contato: "",
+  contrato: "013/2025",
+  empresa: "",
+  nivel: "importante",
+  dt_chamado: new Date().toISOString().slice(0, 10),
+  hora: "",
+  dt_prazo: "",
+  hora_prazo: "",
+  dt_visita: "",
+  situacao: "Dentro do Prazo",
+  dias_atraso: "",
+  servico: "",
+  solucao: ""
+};
 function PageTelChamados() {
   // ── TODOS OS HOOKS NO TOPO — sem exceção ──
   const [busca, setBusca] = useState("");
