@@ -208,11 +208,18 @@ function loadStaticData() {
 async function loadGeasiChamados() {
   if (_geasi_loaded || GEASI_CHAMADOS.length) return;
   try {
+    const el = document.getElementById("geasi-ch-data");
+    if (el && el.textContent.length > 10) {
+      GEASI_CHAMADOS = JSON.parse(el.textContent);
+      _geasi_loaded = true;
+      return;
+    }
     const r = await fetch(DATA_BASE + 'geasi_ch.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     GEASI_CHAMADOS = await r.json();
     _geasi_loaded = true;
   } catch (e) {
-    console.warn('Erro ao carregar chamados GEASI:', e);
+    console.warn('Erro ao carregar GEASI:', e);
   }
 }
 async function loadTelDados() {
