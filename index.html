@@ -194,13 +194,8 @@ function getTecnicos() {
 // Flags de carregamento lazy
 let _geasi_loaded = false;
 let _tel_loaded = false;
-const DATA_BASE = (() => {
-  const origin = window.location.origin;
-  const path = window.location.pathname;
-  // Pegar o caminho base até o index.html
-  const base = path.endsWith('/') ? path : path.substring(0, path.lastIndexOf('/') + 1);
-  return origin + base + 'data/';
-})();
+// URL absoluta dos dados — GitHub Pages
+const DATA_BASE = "https://nandacriscastro-prog.github.io/sgti-tjmg/data/";
 function loadStaticData() {
   // CM carrega imediatamente (74KB)
   try {
@@ -4380,12 +4375,14 @@ const NOVO_CH_EMPTY = {
 
 // Wrapper que carrega dados antes de montar o componente real
 function PageTelChamados() {
-  const [carregado, setCarregado] = useState(_tel_loaded || TEL_DADOS.length > 0);
+  const [carregado, setCarregado] = useState(false);
   const [erro, setErro] = useState("");
   useEffect(() => {
-    if (!_tel_loaded && !TEL_DADOS.length) {
-      loadTelDados().then(() => setCarregado(true)).catch(e => setErro(e.message || "Falha ao carregar"));
+    if (_tel_loaded && TEL_DADOS.length > 0) {
+      setCarregado(true);
+      return;
     }
+    loadTelDados().then(() => setCarregado(true)).catch(e => setErro(e.message || "Falha ao carregar " + DATA_BASE + "tel.json"));
   }, []);
   if (!carregado && !erro) return /*#__PURE__*/React.createElement("div", {
     className: "empty"
