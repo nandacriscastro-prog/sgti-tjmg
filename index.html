@@ -3550,6 +3550,7 @@ function PageMedicao({
 
 // ── PAGE: CHAMADOS GEASI ──────────────────────────────────────
 function PageChamados() {
+  // ── TODOS OS HOOKS NO TOPO ──
   const [busca, setBusca] = useState("");
   const [fLote, setFLote] = useState("");
   const [fSis, setFSis] = useState("");
@@ -3559,26 +3560,11 @@ function PageChamados() {
   const [filtroKPI, setFiltroKPI] = useState("");
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
-  const POR_PAG = 30;
-  if (chLoading) return /*#__PURE__*/React.createElement("div", {
-    className: "empty"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "empty-icon",
-    style: {
-      animation: "pulse 1s infinite"
-    }
-  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", {
-    className: "empty-title"
-  }, "Carregando chamados GEASI..."));
-  const todos = [...getChamadosLocais().map((c, i) => ({
-    ...c,
-    id: "L" + (i + 1),
-    _novo: true
-  })), ...GEASI_CHAMADOS].sort((a, b) => (b.dt_chamado || "").localeCompare(a.dt_chamado || ""));
   const [chLoading, setChLoading] = useState(!_geasi_loaded && !GEASI_CHAMADOS.length);
+  const POR_PAG = 30;
   useEffect(() => {
     if (!_geasi_loaded && !GEASI_CHAMADOS.length) {
-      loadGeasiChamados().then(() => setChLoading(false));
+      loadGeasiChamados().then(() => setChLoading(false)).catch(() => setChLoading(false));
     } else {
       setChLoading(false);
     }
@@ -3590,25 +3576,40 @@ function PageChamados() {
       return [];
     }
   }
-  const dados = todos.filter(c => {
+  if (chLoading) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon",
+    style: {
+      animation: "pulse 1s infinite"
+    }
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Carregando chamados GEASI..."));
+  const todos = [...getChamadosLocais().map((ch, i) => ({
+    ...ch,
+    id: "L" + (i + 1),
+    _novo: true
+  })), ...GEASI_CHAMADOS].sort((a, b) => (b.dt_chamado || "").localeCompare(a.dt_chamado || ""));
+  const dados = todos.filter(ch => {
     const b = busca.toLowerCase();
-    if (b && !`${c.comarca || ""} ${c.problema || ""} ${c.sistema || ""} ${c.num_os || ""}`.toLowerCase().includes(b)) return false;
-    if (fLote && c.lote !== fLote) return false;
-    if (fSis && !(c.sistema || "").toUpperCase().includes(fSis)) return false;
-    if (filtroKPI === "SIM" && c.resolvido !== "SIM") return false;
-    if (filtroKPI === "NAO" && c.resolvido === "SIM") return false;
-    if (filtroKPI === "OS" && !c.num_os?.trim()) return false;
-    if (filtroKPI === "GARANTIA" && c.garantia !== "SIM") return false;
-    if (fRes === "SIM" && c.resolvido !== "SIM") return false;
-    if (fRes === "NAO" && c.resolvido === "SIM") return false;
-    if (fMes && !(c.dt_chamado || "").slice(5, 7) === fMes) return false;
-    if (fAno && !(c.dt_chamado || "").startsWith(fAno)) return false;
+    if (b && !`${ch.comarca || ""} ${ch.problema || ""} ${ch.sistema || ""} ${ch.num_os || ""}`.toLowerCase().includes(b)) return false;
+    if (fLote && ch.lote !== fLote) return false;
+    if (fSis && !(ch.sistema || "").toUpperCase().includes(fSis)) return false;
+    if (filtroKPI === "SIM" && ch.resolvido !== "SIM") return false;
+    if (filtroKPI === "NAO" && ch.resolvido === "SIM") return false;
+    if (filtroKPI === "OS" && !ch.num_os?.trim()) return false;
+    if (filtroKPI === "GARANTIA" && ch.garantia !== "SIM") return false;
+    if (fRes === "SIM" && ch.resolvido !== "SIM") return false;
+    if (fRes === "NAO" && ch.resolvido === "SIM") return false;
+    if (fMes && !(ch.dt_chamado || "").slice(5, 7) === fMes) return false;
+    if (fAno && !(ch.dt_chamado || "").startsWith(fAno)) return false;
     return true;
   });
-  const sat = dados.filter(c => c.resolvido === "SIM").length;
-  const abert = dados.filter(c => c.resolvido !== "SIM").length;
-  const comOS = dados.filter(c => c.num_os?.trim()).length;
-  const gar = dados.filter(c => c.garantia === "SIM").length;
+  const sat = dados.filter(ch => ch.resolvido === "SIM").length;
+  const abert = dados.filter(ch => ch.resolvido !== "SIM").length;
+  const comOS = dados.filter(ch => ch.num_os?.trim()).length;
+  const gar = dados.filter(ch => ch.garantia === "SIM").length;
   const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
   const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
   const filtKPI = f => {
@@ -3626,42 +3627,6 @@ function PageChamados() {
     setFiltroKPI("");
     setPag(0);
   };
-  const colsGEASI = [{
-    key: 'dt_chamado',
-    label: 'Data',
-    get: r => fmtDate(r.dt_chamado)
-  }, {
-    key: 'comarca',
-    label: 'Comarca'
-  }, {
-    key: 'unidade',
-    label: 'Unidade'
-  }, {
-    key: 'lote',
-    label: 'Lote'
-  }, {
-    key: 'sistema',
-    label: 'Sistema'
-  }, {
-    key: 'problema',
-    label: 'Problema'
-  }, {
-    key: 'num_os',
-    label: 'Nº OS'
-  }, {
-    key: 'resolvido',
-    label: 'Resolvido'
-  }, {
-    key: 'garantia',
-    label: 'Garantia'
-  }, {
-    key: 'obs',
-    label: 'Solução/Obs'
-  }];
-  const dadosExpGEASI = dados.map(r => ({
-    ...r,
-    dt_chamado: fmtDate(r.dt_chamado)
-  }));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -3944,6 +3909,7 @@ function PageChamados() {
 }
 
 // ── PAGE: TÉCNICOS ────────────────────────────────────────────
+
 function PageTecnicos() {
   const [lista, setLista] = useState(() => getTecnicos());
   const [form, setForm] = useState({
