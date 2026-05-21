@@ -686,7 +686,9 @@ function Topbar({
   setCol,
   page,
   online,
-  onRefresh
+  onRefresh,
+  user,
+  onSair
 }) {
   const par = page.startsWith("tel-") ? "Telefonia" : page === "home" ? "SGTI" : "GEASI";
   return /*#__PURE__*/React.createElement("div", {
@@ -724,7 +726,23 @@ function Topbar({
     title: online ? "Conectado" : "Offline"
   }), /*#__PURE__*/React.createElement("span", {
     className: "tb-status"
-  }, online ? "Online" : "Offline")));
+  }, online ? "Online" : "Offline"), user && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "var(--text3)",
+      marginLeft: 4,
+      borderLeft: "1px solid var(--border)",
+      paddingLeft: 8
+    }
+  }, user.nome.split(" ")[0]), onSair && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    style: {
+      fontSize: 11,
+      color: "var(--accent)",
+      borderColor: "var(--accent)"
+    },
+    onClick: onSair
+  }, "Sair")));
 }
 
 // ── MODAL ─────────────────────────────────────────────────────
@@ -1274,6 +1292,100 @@ td,th{border:1px solid #888;padding:5px 8px;vertical-align:top}
 <div class="footer">Gerado pelo SGTI — ${new Date().toLocaleString("pt-BR")}</div>
 <button class="no-print" onclick="window.print()" style="margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px">🖨️ Imprimir / PDF</button>
 </body></html>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXPORTAÇÃO — Excel (CSV) e PDF
+// ─────────────────────────────────────────────────────────────
+
+function exportarCSV(dados, colunas, nomeArquivo) {
+  const header = colunas.map(c => c.label).join(';');
+  const linhas = dados.map(row => colunas.map(c => {
+    let v = row[c.key] ?? '';
+    v = String(v).replace(/;/g, ',').replace(/\n/g, ' ').replace(/"/g, '""');
+    return `"${v}"`;
+  }).join(';'));
+  const bom = '\uFEFF'; // BOM para Excel abrir com acentos
+  const csv = bom + [header, ...linhas].join('\n');
+  const blob = new Blob([csv], {
+    type: 'text/csv;charset=utf-8'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast('✓ Excel exportado: ' + nomeArquivo + '.csv', 'ok');
+}
+function exportarPDF(titulo, subtitulo, colunas, dados, nomeArquivo) {
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const hora = new Date().toLocaleTimeString('pt-BR');
+  const linhas = dados.map(row => '<tr>' + colunas.map(c => {
+    let v = row[c.key] ?? '—';
+    return `<td>${String(v).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`;
+  }).join('') + '</tr>').join('');
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>${titulo}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:10px;color:#1a1a1a;padding:16px}
+.cab{text-align:center;margin-bottom:12px;border-bottom:2px solid #0f1f3d;padding-bottom:10px}
+.cab h1{font-size:14px;color:#0f1f3d;font-weight:700}
+.cab p{font-size:10px;color:#666;margin-top:3px}
+.meta{display:flex;justify-content:space-between;font-size:9px;color:#888;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:9px}
+th{background:#0f1f3d;color:white;padding:5px 7px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{padding:4px 7px;border-bottom:1px solid #eee;vertical-align:top}
+tr:nth-child(even) td{background:#f8f9fc}
+.total{margin-top:10px;font-size:10px;color:#555;text-align:right}
+@media print{button{display:none}body{padding:8px}}
+</style></head><body>
+<div class="cab"><h1>${titulo}</h1><p>${subtitulo}</p></div>
+<div class="meta"><span>Gerado em: ${hoje} às ${hora}</span><span>Total: ${dados.length} registros</span></div>
+<table><thead><tr>${colunas.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
+<tbody>${linhas}</tbody></table>
+<div class="total">${dados.length} registros exportados</div>
+<button onclick="window.print()" style="margin-top:14px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:11px">🖨️ Imprimir / Salvar PDF</button>
+</body></html>`;
+  const blob = new Blob([html], {
+    type: 'text/html;charset=utf-8'
+  });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank', 'width=1100,height=700');
+  if (w) w.focus();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast('✓ PDF aberto: ' + nomeArquivo, 'ok');
+}
+function BotoesExportar({
+  onExcel,
+  onPDF,
+  total,
+  filtrado
+}) {
+  const label = filtrado < total ? `${filtrado} filtrados` : `${total} registros`;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      alignItems: 'center',
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--text3)',
+      marginRight: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: onExcel,
+    title: "Exportar para Excel/CSV"
+  }, "\uD83D\uDCCA Excel"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: onPDF,
+    title: "Gerar PDF para impress\xE3o"
+  }, "\uD83D\uDCC4 PDF"));
 }
 function abrirJanela(html) {
   const w = window.open("", "_blank", "width=900,height=700");
@@ -2011,13 +2123,59 @@ function PageHistorico({
     satisfatorio: "bg-green",
     insatisfatorio: "bg-red"
   };
+  const colsOS = [{
+    key: 'numero',
+    label: 'Nº OS'
+  }, {
+    key: 'data_os',
+    label: 'Data',
+    get: r => fmtDate(r.data_os)
+  }, {
+    key: 'comarca',
+    label: 'Comarca'
+  }, {
+    key: 'forum',
+    label: 'Fórum'
+  }, {
+    key: 'empresa',
+    label: 'Empresa'
+  }, {
+    key: 'tipo',
+    label: 'Tipo'
+  }, {
+    key: 'prioridade',
+    label: 'Prioridade'
+  }, {
+    key: 'servico',
+    label: 'Serviço'
+  }, {
+    key: 'status',
+    label: 'Status'
+  }, {
+    key: 'avaliacao',
+    label: 'Avaliação'
+  }, {
+    key: 'observacoes',
+    label: 'Observações'
+  }];
+  const dadosExpOS = dados.map(r => ({
+    ...r,
+    data_os: fmtDate(r.data_os),
+    avaliacao: r.avaliacao || 'Pendente',
+    status: r.status || '—'
+  }));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-title"
   }, "Hist\xF3rico de OS"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, dados.length, " de ", os.length, " ordens"))), /*#__PURE__*/React.createElement("div", {
+  }, dados.length, " de ", os.length, " ordens")), /*#__PURE__*/React.createElement(BotoesExportar, {
+    total: os.length,
+    filtrado: dados.length,
+    onExcel: () => exportarCSV(dadosExpOS, colsOS, `OS_Historico_${new Date().toISOString().slice(0, 10)}`),
+    onPDF: () => exportarPDF('Histórico de Ordens de Serviço', 'Contrato 218/2023 — Segurança Eletrônica', colsOS, dadosExpOS, `OS_Historico`)
+  })), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       padding: "14px 18px",
@@ -2727,13 +2885,41 @@ function PageMedicao({
   const totalMedido = hist.reduce((a, h) => a + h.liq, 0);
   const saldo = CONTRATO_VALOR_IV - totalMedido;
   const pct = Math.min(100, totalMedido / CONTRATO_VALOR_IV * 100);
+  const colsMed = [{
+    key: 'label',
+    label: 'Período'
+  }, {
+    key: 'bruto',
+    label: 'Total Bruto (R$)'
+  }, {
+    key: 'pct',
+    label: 'Desconto SLA (%)'
+  }, {
+    key: 'glosa',
+    label: 'Glosa (R$)'
+  }, {
+    key: 'liq',
+    label: 'Líquido (R$)'
+  }];
+  const dadosMed = hist.map(h => ({
+    ...h,
+    bruto: h.bruto.toFixed(2).replace('.', ','),
+    glosa: h.glosa.toFixed(2).replace('.', ','),
+    liq: h.liq.toFixed(2).replace('.', ','),
+    pct: h.pct + '%'
+  }));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-title"
   }, "Medi\xE7\xE3o mensal"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, "Contrato 218/2023 \u2014 Anexo IV"))), /*#__PURE__*/React.createElement("div", {
+  }, "Contrato 218/2023 \u2014 Anexo IV")), hist.length > 0 && /*#__PURE__*/React.createElement(BotoesExportar, {
+    total: hist.length,
+    filtrado: hist.length,
+    onExcel: () => exportarCSV(dadosMed, colsMed, `Medicoes_${new Date().getFullYear()}`),
+    onPDF: () => exportarPDF('Histórico de Medições', 'Contrato 218/2023 — Anexo IV', colsMed, dadosMed, 'Medicoes')
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       background: "linear-gradient(135deg,var(--navy),var(--navy3))",
       borderRadius: 10,
@@ -3209,18 +3395,65 @@ function PageChamados() {
     setFiltroKPI("");
     setPag(0);
   };
+  const colsGEASI = [{
+    key: 'dt_chamado',
+    label: 'Data',
+    get: r => fmtDate(r.dt_chamado)
+  }, {
+    key: 'comarca',
+    label: 'Comarca'
+  }, {
+    key: 'unidade',
+    label: 'Unidade'
+  }, {
+    key: 'lote',
+    label: 'Lote'
+  }, {
+    key: 'sistema',
+    label: 'Sistema'
+  }, {
+    key: 'problema',
+    label: 'Problema'
+  }, {
+    key: 'num_os',
+    label: 'Nº OS'
+  }, {
+    key: 'resolvido',
+    label: 'Resolvido'
+  }, {
+    key: 'garantia',
+    label: 'Garantia'
+  }, {
+    key: 'obs',
+    label: 'Solução/Obs'
+  }];
+  const dadosExpGEASI = dados.map(r => ({
+    ...r,
+    dt_chamado: fmtDate(r.dt_chamado)
+  }));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-title"
   }, "Chamados hist\xF3ricos \u2014 GEASI"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, dados.length, " de ", todos.length, " chamados")), /*#__PURE__*/React.createElement("button", {
+  }, dados.length, " de ", todos.length, " chamados")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(BotoesExportar, {
+    total: todos.length,
+    filtrado: dados.length,
+    onExcel: () => exportarCSV(dadosExpGEASI, colsGEASI, `Chamados_GEASI_${new Date().toISOString().slice(0, 10)}`),
+    onPDF: () => exportarPDF('Chamados Históricos — GEASI', 'Segurança Eletrônica', colsGEASI, dadosExpGEASI, 'Chamados_GEASI')
+  }), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: () => setSel({
       _novo_form: true
     })
-  }, "+ Novo chamado")), /*#__PURE__*/React.createElement("div", {
+  }, "+ Novo chamado"))), /*#__PURE__*/React.createElement("div", {
     className: "kpi-grid"
   }, [{
     label: "Total",
@@ -4029,10 +4262,92 @@ function PageTelChamados() {
     className: "ph-title"
   }, "Chamados de Telefonia"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, dados.length, " de ", TEL_DADOS.length, " chamados")), /*#__PURE__*/React.createElement("button", {
+  }, dados.length, " de ", TEL_DADOS.length, " chamados")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(BotoesExportar, {
+    total: TEL_DADOS.length,
+    filtrado: dados.length,
+    onExcel: () => exportarCSV(dados.map(r => ({
+      ...r,
+      dt_chamado: fmtDate(r.dt_chamado),
+      dt_prazo: fmtDate(r.dt_prazo),
+      dt_visita: fmtDate(r.dt_visita)
+    })), [{
+      key: 'os',
+      label: 'OS'
+    }, {
+      key: 'contrato',
+      label: 'Contrato'
+    }, {
+      key: 'comarca',
+      label: 'Comarca'
+    }, {
+      key: 'predio',
+      label: 'Prédio'
+    }, {
+      key: 'empresa',
+      label: 'Empresa'
+    }, {
+      key: 'nivel',
+      label: 'Nível'
+    }, {
+      key: 'dt_chamado',
+      label: 'Dt. Chamado'
+    }, {
+      key: 'dt_prazo',
+      label: 'Dt. Prazo'
+    }, {
+      key: 'dt_visita',
+      label: 'Dt. Visita'
+    }, {
+      key: 'situacao',
+      label: 'Situação'
+    }, {
+      key: 'dias_atraso',
+      label: 'Dias Atraso'
+    }, {
+      key: 'servico',
+      label: 'Serviço'
+    }, {
+      key: 'solucao',
+      label: 'Solução'
+    }], `Chamados_Telefonia_${new Date().toISOString().slice(0, 10)}`),
+    onPDF: () => exportarPDF('Chamados de Telefonia', 'COTESI — Contratos 013/2025 · 318/319/320/2023 · 096/2022', [{
+      key: 'os',
+      label: 'OS'
+    }, {
+      key: 'contrato',
+      label: 'Contrato'
+    }, {
+      key: 'comarca',
+      label: 'Comarca'
+    }, {
+      key: 'nivel',
+      label: 'Nível'
+    }, {
+      key: 'dt_chamado',
+      label: 'Data'
+    }, {
+      key: 'situacao',
+      label: 'Situação'
+    }, {
+      key: 'dias_atraso',
+      label: 'Atraso'
+    }, {
+      key: 'servico',
+      label: 'Serviço'
+    }], dados.map(r => ({
+      ...r,
+      dt_chamado: fmtDate(r.dt_chamado)
+    })), 'Chamados_Telefonia')
+  }), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: () => setModalNovo(true)
-  }, "+ Novo chamado")), modalNovo && /*#__PURE__*/React.createElement(Modal, {
+  }, "+ Novo chamado"))), modalNovo && /*#__PURE__*/React.createElement(Modal, {
     title: "Registrar novo chamado de telefonia",
     width: 720,
     onClose: () => setModalNovo(false),
@@ -4769,13 +5084,238 @@ function PageTelGlosa() {
 }
 
 // ── APP ───────────────────────────────────────────────────────
+
+// ── USUÁRIOS AUTORIZADOS ──────────────────────────────────────
+const USUARIOS = [{
+  user: "gilselena.rigo@tjmg.jus.br",
+  senha: "12345678",
+  nome: "Gilselena Belizário Rigo",
+  fiscal: FISCAIS[0]
+}, {
+  user: "aguilar.souza@tjmg.jus.br",
+  senha: "12345678",
+  nome: "Aguilar Ozanan de Souza",
+  fiscal: FISCAIS[1]
+}, {
+  user: "fernanda.leao@tjmg.jus.br",
+  senha: "12345678",
+  nome: "Fernanda Cristine Leão Castro",
+  fiscal: FISCAIS[2]
+}, {
+  user: "gustavo.souza.ferreira@tjmg.jus.br",
+  senha: "12345678",
+  nome: "Gustavo Souza Ferreira",
+  fiscal: FISCAIS[2]
+}];
+const SESSION_KEY = "sgti_session";
+function getSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY));
+  } catch (e) {
+    return null;
+  }
+}
+function setSession(u) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
+}
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+function PageLogin({
+  onLogin
+}) {
+  const [user, setUser] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSenha, setShowSenha] = useState(false);
+  const entrar = () => {
+    if (!user || !senha) {
+      setErro("Preencha usuário e senha");
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      const found = USUARIOS.find(u => u.user === user.toLowerCase().trim() && u.senha === senha);
+      if (found) {
+        setSession(found);
+        onLogin(found);
+      } else {
+        setErro("Usuário ou senha incorretos");
+        setLoading(false);
+      }
+    }, 600);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: "linear-gradient(135deg,#0f1f3d 0%,#1e3560 60%,#162848 100%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+      fontFamily: "var(--font)"
+    }
+  }, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: 400
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 32
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 72,
+      height: 72,
+      background: "var(--accent)",
+      borderRadius: 16,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 36,
+      margin: "0 auto 16px",
+      boxShadow: "0 8px 24px rgba(200,16,46,.4)"
+    }
+  }, "\u2696\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "white",
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: ".01em"
+    }
+  }, "SGTI \u2014 TJMG"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "rgba(255,255,255,.5)",
+      fontSize: 13,
+      marginTop: 4
+    }
+  }, "GEASI / COTESI \u2014 Sistema de Gest\xE3o")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "white",
+      borderRadius: 14,
+      padding: 32,
+      boxShadow: "0 16px 48px rgba(0,0,0,.25)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: "var(--navy)",
+      marginBottom: 6
+    }
+  }, "Acesso restrito"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "var(--text3)",
+      marginBottom: 24
+    }
+  }, "Entre com suas credenciais GEASI"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", null, "Usu\xE1rio"), /*#__PURE__*/React.createElement("input", {
+    value: user,
+    onChange: e => {
+      setUser(e.target.value);
+      setErro("");
+    },
+    placeholder: "seu.nome@tjmg.jus.br",
+    autoComplete: "username",
+    onKeyDown: e => e.key === "Enter" && document.getElementById("inp-senha").focus()
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", null, "Senha"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    id: "inp-senha",
+    type: showSenha ? "text" : "password",
+    value: senha,
+    onChange: e => {
+      setSenha(e.target.value);
+      setErro("");
+    },
+    placeholder: "Senha de acesso",
+    autoComplete: "current-password",
+    onKeyDown: e => e.key === "Enter" && entrar(),
+    style: {
+      paddingRight: 40
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowSenha(s => !s),
+    style: {
+      position: "absolute",
+      right: 10,
+      top: "50%",
+      transform: "translateY(-50%)",
+      border: "none",
+      background: "none",
+      cursor: "pointer",
+      color: "var(--text3)",
+      fontSize: 14
+    }
+  }, showSenha ? "🙈" : "👁"))), erro && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#fee2e2",
+      border: "1px solid #fecaca",
+      borderRadius: 6,
+      padding: "8px 12px",
+      fontSize: 12,
+      color: "#dc2626",
+      fontWeight: 600
+    }
+  }, "\u26A0\uFE0F ", erro), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: entrar,
+    disabled: loading,
+    style: {
+      width: "100%",
+      justifyContent: "center",
+      padding: "12px",
+      fontSize: 14,
+      marginTop: 4
+    }
+  }, loading ? "Verificando..." : "Entrar →")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 20,
+      padding: "10px 14px",
+      background: "var(--surface)",
+      borderRadius: 8,
+      fontSize: 11,
+      color: "var(--text3)",
+      textAlign: "center"
+    }
+  }, "\uD83D\uDD12 Acesso exclusivo para fiscais do contrato 218/2023")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginTop: 20,
+      fontSize: 11,
+      color: "rgba(255,255,255,.3)"
+    }
+  }, "Tribunal de Justi\xE7a do Estado de Minas Gerais", /*#__PURE__*/React.createElement("br", null), "Ger\xEAncia de Adapta\xE7\xF5es e Sistemas Prediais")));
+}
 function App() {
+  const [sessao, setSessao] = useState(() => getSession());
   const [col, setCol] = useState(false);
   const [page, setPage] = useState("home");
   const [os, setOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
   const pendentes = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
+  if (!sessao) return /*#__PURE__*/React.createElement(PageLogin, {
+    onLogin: u => {
+      setSessao(u);
+      loadStaticData();
+    }
+  });
   useEffect(() => {
     loadStaticData();
     const on = () => setOnline(true);
@@ -4884,7 +5424,12 @@ function App() {
     setCol: setCol,
     page: page,
     online: online,
-    onRefresh: loadOS
+    onRefresh: loadOS,
+    user: sessao,
+    onSair: () => {
+      clearSession();
+      setSessao(null);
+    }
   }), /*#__PURE__*/React.createElement("div", {
     className: "content"
   }, renderPage()))));
