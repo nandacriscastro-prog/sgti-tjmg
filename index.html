@@ -5347,22 +5347,21 @@ function PageLogin({
     }
   }, "Tribunal de Justi\xE7a do Estado de Minas Gerais", /*#__PURE__*/React.createElement("br", null), "Ger\xEAncia de Adapta\xE7\xF5es e Sistemas Prediais")));
 }
-function App() {
-  const [sessao, setSessao] = useState(() => getSession());
+
+// ─────────────────────────────────────────────────────────────
+// AppInterno — só renderiza quando há sessão (hooks sem condicional)
+// ─────────────────────────────────────────────────────────────
+function AppInterno({
+  sessao,
+  onSair
+}) {
   const [col, setCol] = useState(false);
   const [page, setPage] = useState("home");
   const [os, setOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
   const pendentes = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
-  if (!sessao) return /*#__PURE__*/React.createElement(PageLogin, {
-    onLogin: u => {
-      setSessao(u);
-      loadStaticData();
-    }
-  });
   useEffect(() => {
-    loadStaticData();
     const on = () => setOnline(true);
     const off = () => setOnline(false);
     window.addEventListener("online", on);
@@ -5377,7 +5376,7 @@ function App() {
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
@@ -5471,13 +5470,38 @@ function App() {
     online: online,
     onRefresh: loadOS,
     user: sessao,
-    onSair: () => {
-      clearSession();
-      setSessao(null);
-    }
+    onSair: onSair
   }), /*#__PURE__*/React.createElement("div", {
     className: "content"
   }, renderPage()))));
+}
+
+// ─────────────────────────────────────────────────────────────
+// App — controla login/logout sem hooks condicionais
+// ─────────────────────────────────────────────────────────────
+function App() {
+  const [sessao, setSessao] = useState(() => {
+    const s = getSession();
+    if (s) loadStaticData();
+    return s;
+  });
+  const handleLogin = u => {
+    loadStaticData();
+    setSessao(u);
+  };
+  const handleSair = () => {
+    clearSession();
+    setSessao(null);
+  };
+  if (!sessao) {
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement(PageLogin, {
+      onLogin: handleLogin
+    }));
+  }
+  return /*#__PURE__*/React.createElement(AppInterno, {
+    sessao: sessao,
+    onSair: handleSair
+  });
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
