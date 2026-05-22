@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779467652 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779471919 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1304,7 +1304,7 @@ function gerarHTMLOS(os, numOS) {
   const dtFmt = v => v ? new Date(v + "T12:00").toLocaleDateString("pt-BR") : "—";
   const hoje = new Date().toLocaleDateString("pt-BR");
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>OS ${numOS || os.numero} — ${os.comarca || ""}</title><!-- build:1779467652 -->
+<title>OS ${numOS || os.numero} — ${os.comarca || ""}</title>
 <style>
 *{box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:11px;margin:20px 28px;color:#1a1a1a}
@@ -1391,7 +1391,7 @@ function gerarHTMLLib(os, numOS, tecnicosSelecionados) {
     cpf: "—"
   }];
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Liberação de Acesso — OS ${numOS || os.numero}</title><!-- build:1779467652 -->
+<title>Liberação de Acesso — OS ${numOS || os.numero}</title>
 <style>
 *{box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:11px;margin:20px 28px;color:#1a1a1a}
@@ -1490,7 +1490,7 @@ function exportarPDF(titulo, subtitulo, colunas, dados, nomeArquivo) {
     return `<td>${String(v).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`;
   }).join('') + '</tr>').join('');
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>${titulo}</title><!-- build:1779467652 -->
+<title>${titulo}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:10px;color:#1a1a1a;padding:16px}
@@ -1703,13 +1703,24 @@ function PageNovaOS({
   onOsCriada,
   os: todasOS
 }) {
+  // Verificar pré-preenchimento vindo de demanda
+  const _prefill = (() => {
+    try {
+      const p = localStorage.getItem("nova_os_prefill");
+      if (p) {
+        localStorage.removeItem("nova_os_prefill");
+        return JSON.parse(p);
+      }
+    } catch (e) {}
+    return null;
+  })();
   const [comarca, setComarca] = useState("");
   const [dadosComarca, setDadosComarca] = useState({});
   const [tipo, setTipo] = useState("");
   const [prio, setPrio] = useState("");
-  const [serv, setServ] = useState("");
-  const [servDesc, setServDesc] = useState("");
-  const [obs, setObs] = useState("");
+  const [serv, setServ] = useState(_prefill?.servico || "");
+  const [servDesc, setServDesc] = useState(_prefill?.servDesc || "");
+  const [obs, setObs] = useState(_prefill?.obs || "");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [prazo, setPrazo] = useState("");
   const [prazoDate, setPrazoDate] = useState("");
@@ -5273,7 +5284,7 @@ function PageTelGlosa() {
       linhas,
       liq
     } = resultado;
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Glosa SLA Telefonia</title><!-- build:1779467652 --><style>body{font-family:Arial,sans-serif;margin:32px;font-size:13px}h1{color:#0f1f3d}table{width:100%;border-collapse:collapse}th{background:#0f1f3d;color:white;padding:9px 13px;text-align:left}td{padding:8px 13px;border-bottom:1px solid #eee}@media print{button{display:none}}</style></head><body><h1>Notificação de Glosa SLA — Telefonia COTESI/TJMG</h1><p><strong>Contrato:</strong> ${ct} | <strong>Período:</strong> ${MESES_FULL[parseInt(mes) - 1]}/${ano}</p><table><thead><tr><th>Ocorrência</th><th>Qtd</th><th>Desconto unit.</th><th>Subtotal</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${l.desc}</td><td>${l.qtd}</td><td>${fmtR(vlr * l.desconto_pct / 100)}</td><td>${fmtR(l.qtd * vlr * l.desconto_pct / 100)}</td></tr>`).join("")}</tbody></table><p><strong>Valor base:</strong> ${fmtR(vlr)} | <strong>Glosa:</strong> ${fmtR(glosa)}</p><p style="font-size:15px;font-weight:700">Total líquido: ${fmtR(liq)}</p><button onclick="window.print()" style="margin-top:20px;background:#0f1f3d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🖨️ Imprimir</button></body></html>`;
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Glosa SLA Telefonia</title><style>body{font-family:Arial,sans-serif;margin:32px;font-size:13px}h1{color:#0f1f3d}table{width:100%;border-collapse:collapse}th{background:#0f1f3d;color:white;padding:9px 13px;text-align:left}td{padding:8px 13px;border-bottom:1px solid #eee}@media print{button{display:none}}</style></head><body><h1>Notificação de Glosa SLA — Telefonia COTESI/TJMG</h1><p><strong>Contrato:</strong> ${ct} | <strong>Período:</strong> ${MESES_FULL[parseInt(mes) - 1]}/${ano}</p><table><thead><tr><th>Ocorrência</th><th>Qtd</th><th>Desconto unit.</th><th>Subtotal</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${l.desc}</td><td>${l.qtd}</td><td>${fmtR(vlr * l.desconto_pct / 100)}</td><td>${fmtR(l.qtd * vlr * l.desconto_pct / 100)}</td></tr>`).join("")}</tbody></table><p><strong>Valor base:</strong> ${fmtR(vlr)} | <strong>Glosa:</strong> ${fmtR(glosa)}</p><p style="font-size:15px;font-weight:700">Total líquido: ${fmtR(liq)}</p><button onclick="window.print()" style="margin-top:20px;background:#0f1f3d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🖨️ Imprimir</button></body></html>`;
     const blob = new Blob([html], {
       type: "text/html;charset=utf-8"
     });
@@ -5678,7 +5689,9 @@ function PageLogin({
 // ─────────────────────────────────────────────────────────────
 // PAGE: DEMANDAS SEI / E-MAIL
 // ─────────────────────────────────────────────────────────────
-function PageDemandas() {
+function PageDemandas({
+  setPage
+}) {
   const [carregado, setCarregado] = useState(_dem_loaded || DEMANDAS.length > 0);
   const [erro, setErro] = useState("");
   useEffect(() => {
@@ -5703,9 +5716,13 @@ function PageDemandas() {
   }, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("div", {
     className: "empty-title"
   }, erro));
-  return /*#__PURE__*/React.createElement(PageDemandasInner, null);
+  return /*#__PURE__*/React.createElement(PageDemandasInner, {
+    setPage: setPage
+  });
 }
-function PageDemandasInner() {
+function PageDemandasInner({
+  setPage
+}) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("");
   const [fProjeto, setFProjeto] = useState("");
@@ -6184,13 +6201,28 @@ function PageDemandasInner() {
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
-      gap: 8
+      gap: 8,
+      flexWrap: "wrap"
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: confirmarStatus,
     disabled: !editStatus || editStatus === sel.status
   }, "\u2713 Salvar status"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-green",
+    onClick: () => {
+      // Pré-preencher Nova OS com dados da demanda
+      localStorage.setItem("nova_os_prefill", JSON.stringify({
+        comarca: sel.comarca || "",
+        servico: sel.projeto || "",
+        servDesc: sel.descricao || "",
+        obs: [sel.sei ? "SEI: " + sel.sei : "", sel.comentarios || ""].filter(Boolean).join(" | ")
+      }));
+      setSel(null);
+      setPage("nova");
+      toast("✓ Nova OS pré-preenchida com dados da demanda", "ok");
+    }
+  }, "\uD83D\uDCCB Gerar OS"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => setSel(null)
   }, "Fechar")))));
@@ -6291,7 +6323,9 @@ function AppInterno({
       case "tel-glosa":
         return /*#__PURE__*/React.createElement(PageTelGlosa, null);
       case "demandas":
-        return /*#__PURE__*/React.createElement(PageDemandas, null);
+        return /*#__PURE__*/React.createElement(PageDemandas, {
+          setPage: setPage
+        });
       case "cfg":
         return /*#__PURE__*/React.createElement(PageConfig, null);
       default:
