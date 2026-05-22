@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779471919 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779472119 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -6148,6 +6148,36 @@ function PageDemandasInner({
   }, fmtDate(obsMap[sel.id].dt))))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: "1px solid var(--border)",
+      paddingTop: 14,
+      marginBottom: 12,
+      display: "flex",
+      gap: 8,
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-green",
+    style: {
+      fontWeight: 700
+    },
+    onClick: () => {
+      localStorage.setItem("nova_os_prefill", JSON.stringify({
+        comarca: sel.comarca || "",
+        servico: sel.projeto || "",
+        servDesc: sel.descricao || "",
+        obs: [sel.sei ? "SEI: " + sel.sei : "", sel.comentarios || ""].filter(Boolean).join(" | ")
+      }));
+      setSel(null);
+      setPage("nova");
+      toast("✓ Nova OS pré-preenchida com dados da demanda", "ok");
+    }
+  }, "\uD83D\uDCCB Gerar OS a partir desta demanda"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "var(--text3)"
+    }
+  }, "Comarca, servi\xE7o e SEI ser\xE3o pr\xE9-preenchidos")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: "1px solid var(--border)",
       paddingTop: 16
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -6209,20 +6239,6 @@ function PageDemandasInner({
     onClick: confirmarStatus,
     disabled: !editStatus || editStatus === sel.status
   }, "\u2713 Salvar status"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-green",
-    onClick: () => {
-      // Pré-preencher Nova OS com dados da demanda
-      localStorage.setItem("nova_os_prefill", JSON.stringify({
-        comarca: sel.comarca || "",
-        servico: sel.projeto || "",
-        servDesc: sel.descricao || "",
-        obs: [sel.sei ? "SEI: " + sel.sei : "", sel.comentarios || ""].filter(Boolean).join(" | ")
-      }));
-      setSel(null);
-      setPage("nova");
-      toast("✓ Nova OS pré-preenchida com dados da demanda", "ok");
-    }
-  }, "\uD83D\uDCCB Gerar OS"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => setSel(null)
   }, "Fechar")))));
