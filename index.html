@@ -5676,6 +5676,527 @@ function PageLogin({
 }
 
 // ─────────────────────────────────────────────────────────────
+// PAGE: DEMANDAS SEI / E-MAIL
+// ─────────────────────────────────────────────────────────────
+function PageDemandas() {
+  const [carregado, setCarregado] = useState(_dem_loaded || DEMANDAS.length > 0);
+  const [erro, setErro] = useState("");
+  useEffect(() => {
+    if (!_dem_loaded && !DEMANDAS.length) {
+      loadDemandas().then(() => setCarregado(true)).catch(e => setErro(e.message || "Falha"));
+    }
+  }, []);
+  if (!carregado && !erro) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon",
+    style: {
+      animation: "pulse 1s infinite"
+    }
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Carregando demandas..."));
+  if (erro) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon"
+  }, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, erro));
+  return /*#__PURE__*/React.createElement(PageDemandasInner, null);
+}
+function PageDemandasInner() {
+  const [busca, setBusca] = useState("");
+  const [fStatus, setFStatus] = useState("");
+  const [fProjeto, setFProjeto] = useState("");
+  const [fPrio, setFPrio] = useState("");
+  const [fRegiao, setFRegiao] = useState("");
+  const [pag, setPag] = useState(0);
+  const [sel, setSel] = useState(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editObs, setEditObs] = useState("");
+  const [tick, setTick] = useState(0);
+  const [visFiltros, setVisFiltros] = useState(false);
+  const [ocultarEspera, setOcultarEspera] = useState(true);
+  const POR_PAG = 30;
+  const IGNORAR = new Set(["aguarda_licitacao", "aguarda_contrato", "concluida", "cancelada"]);
+  const obsMap = JSON.parse(localStorage.getItem("dem_obs_custom") || "{}");
+  const projetos = [...new Set(DEMANDAS.map(d => d.projeto).filter(Boolean))].sort();
+  const regioes = [...new Set(DEMANDAS.map(d => d.regiao).filter(Boolean))].sort();
+  const dados = DEMANDAS.filter(d => {
+    if (ocultarEspera && IGNORAR.has(d.status) && !fStatus) return false;
+    const b = busca.toLowerCase();
+    if (b && !`${d.comarca || ""} ${d.projeto || ""} ${d.descricao || ""} ${d.sei || ""} ${d.municipio || ""}`.toLowerCase().includes(b)) return false;
+    if (fStatus && d.status !== fStatus) return false;
+    if (fProjeto && d.projeto !== fProjeto) return false;
+    if (fPrio && d.prioridade !== fPrio) return false;
+    if (fRegiao && d.regiao !== fRegiao) return false;
+    return true;
+  }).sort((a, b) => {
+    const pOrd = {
+      Urgente: 0,
+      Alta: 1,
+      Média: 2,
+      Baixa: 3
+    };
+    return (pOrd[a.prioridade] ?? 4) - (pOrd[b.prioridade] ?? 4);
+  });
+  const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
+  const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
+  const urgentes = DEMANDAS.filter(d => d.prioridade === "Urgente" && !IGNORAR.has(d.status)).length;
+  const altas = DEMANDAS.filter(d => d.prioridade === "Alta" && !IGNORAR.has(d.status)).length;
+  const andamento = DEMANDAS.filter(d => d.status === "andamento").length;
+  const novos = DEMANDAS.filter(d => d.status === "novo").length;
+  const emEspera = DEMANDAS.filter(d => IGNORAR.has(d.status)).length;
+  const pBadge = p => {
+    const m = {
+      Urgente: "bg-red",
+      Alta: "bg-amber",
+      Média: "bg-blue",
+      Baixa: "bg-gray"
+    };
+    return p ? /*#__PURE__*/React.createElement("span", {
+      className: `badge ${m[p] || "bg-gray"}`
+    }, p) : null;
+  };
+  const sBadge = s => {
+    const st = DEM_STATUS[s] || DEM_STATUS.importado;
+    return /*#__PURE__*/React.createElement("span", {
+      className: "badge",
+      style: {
+        background: st.bg,
+        color: st.cor
+      }
+    }, st.icon, " ", st.label);
+  };
+  const confirmarStatus = () => {
+    if (!sel || !editStatus) return;
+    salvarStatusDemanda(sel.id, editStatus, editObs);
+    setSel(prev => ({
+      ...prev,
+      status: editStatus
+    }));
+    setTick(t => t + 1);
+    toast(`✓ Status atualizado para "${DEM_STATUS[editStatus]?.label}"`, "ok");
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "ph-row"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "ph-title"
+  }, "Demandas SEI / E-mail"), /*#__PURE__*/React.createElement("div", {
+    className: "ph-sub"
+  }, dados.length, " de ", DEMANDAS.length, " \xB7 ", ocultarEspera ? `${emEspera} ocultas (aguardam licitação/contrato)` : "")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      cursor: "pointer",
+      fontSize: 12,
+      fontWeight: 600,
+      padding: "6px 12px",
+      borderRadius: 6,
+      border: "1.5px solid var(--border)",
+      background: ocultarEspera ? "var(--navy)" : "var(--white)",
+      color: ocultarEspera ? "white" : "var(--text)"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: ocultarEspera,
+    onChange: e => {
+      setOcultarEspera(e.target.checked);
+      setPag(0);
+    },
+    style: {
+      width: 14,
+      height: 14
+    }
+  }), "\u23F3 Ocultar em espera (", emEspera, ")"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: () => setVisFiltros(v => !v)
+  }, "\uD83D\uDD3D Filtros", fStatus || fProjeto || fPrio || fRegiao ? /*#__PURE__*/React.createElement("span", {
+    className: "nav-badge",
+    style: {
+      marginLeft: 6
+    }
+  }, "!") : null))), /*#__PURE__*/React.createElement("div", {
+    className: "kpi-grid",
+    style: {
+      marginBottom: 16
+    }
+  }, [{
+    label: "🚨 Urgentes",
+    val: urgentes,
+    cls: "red",
+    fS: "",
+    fP: "Urgente"
+  }, {
+    label: "⚠️ Alta prioridade",
+    val: altas,
+    cls: "amber",
+    fS: "",
+    fP: "Alta"
+  }, {
+    label: "🔧 Em andamento",
+    val: andamento,
+    cls: "blue",
+    fS: "andamento",
+    fP: ""
+  }, {
+    label: "🔵 Novos",
+    val: novos,
+    cls: "purple",
+    fS: "novo",
+    fP: ""
+  }, {
+    label: "⏳ Em espera",
+    val: emEspera,
+    cls: "navy",
+    fS: "aguarda_licitacao",
+    fP: ""
+  }].map(k => /*#__PURE__*/React.createElement("div", {
+    key: k.label,
+    className: `kpi ${k.cls}`,
+    onClick: () => {
+      setFStatus(k.fS);
+      setFPrio(k.fP);
+      if (k.fS === "aguarda_licitacao") setOcultarEspera(false);
+      setPag(0);
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "kpi-val",
+    style: {
+      fontSize: 24
+    }
+  }, k.val), /*#__PURE__*/React.createElement("div", {
+    className: "kpi-lbl"
+  }, k.label)))), visFiltros && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: "14px 18px",
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: busca,
+    onChange: e => {
+      setBusca(e.target.value);
+      setPag(0);
+    },
+    placeholder: "\uD83D\uDD0D  Comarca, projeto, SEI, descri\xE7\xE3o...",
+    style: {
+      flex: 1,
+      minWidth: 200
+    }
+  }), /*#__PURE__*/React.createElement("select", {
+    value: fStatus,
+    onChange: e => {
+      setFStatus(e.target.value);
+      if (e.target.value) setOcultarEspera(false);
+      setPag(0);
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Todos os status"), Object.entries(DEM_STATUS).filter(([k]) => k !== "importado").map(([k, v]) => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, v.icon, " ", v.label))), /*#__PURE__*/React.createElement("select", {
+    value: fProjeto,
+    onChange: e => {
+      setFProjeto(e.target.value);
+      setPag(0);
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Todos os projetos"), projetos.map(p => /*#__PURE__*/React.createElement("option", {
+    key: p,
+    value: p
+  }, p))), /*#__PURE__*/React.createElement("select", {
+    value: fPrio,
+    onChange: e => {
+      setFPrio(e.target.value);
+      setPag(0);
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Todas as prioridades"), ["Urgente", "Alta", "Média", "Baixa"].map(p => /*#__PURE__*/React.createElement("option", {
+    key: p,
+    value: p
+  }, p))), /*#__PURE__*/React.createElement("select", {
+    value: fRegiao,
+    onChange: e => {
+      setFRegiao(e.target.value);
+      setPag(0);
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Todas as regi\xF5es"), regioes.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r,
+    value: r
+  }, r))), (busca || fStatus || fProjeto || fPrio || fRegiao) && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: () => {
+      setBusca("");
+      setFStatus("");
+      setFProjeto("");
+      setFPrio("");
+      setFRegiao("");
+      setPag(0);
+    }
+  }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
+    className: "table-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "table-wrap"
+  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Projeto"), /*#__PURE__*/React.createElement("th", null, "Comarca"), /*#__PURE__*/React.createElement("th", null, "Descri\xE7\xE3o"), /*#__PURE__*/React.createElement("th", null, "Prioridade"), /*#__PURE__*/React.createElement("th", null, "Regi\xE3o"), /*#__PURE__*/React.createElement("th", null, "SEI"), /*#__PURE__*/React.createElement("th", null, "OS"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, pg.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: 9
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "empty-icon"
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", {
+    className: "empty-title"
+  }, "Nenhuma demanda")))) : pg.map(d => /*#__PURE__*/React.createElement("tr", {
+    key: d.id,
+    onClick: () => {
+      setSel(d);
+      setEditStatus(d.status);
+      setEditObs("");
+    }
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      whiteSpace: "nowrap"
+    }
+  }, sBadge(d.status)), /*#__PURE__*/React.createElement("td", {
+    style: {
+      fontSize: 12,
+      whiteSpace: "nowrap"
+    }
+  }, d.projeto || "—"), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 500,
+      fontSize: 13
+    }
+  }, d.comarca || "—"), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, d.imovel || "")), /*#__PURE__*/React.createElement("td", {
+    style: {
+      maxWidth: 220,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      fontSize: 12
+    }
+  }, (d.descricao || "—").substring(0, 60)), /*#__PURE__*/React.createElement("td", null, pBadge(d.prioridade)), /*#__PURE__*/React.createElement("td", {
+    className: "text-sm text-muted"
+  }, d.regiao || "—"), /*#__PURE__*/React.createElement("td", {
+    className: "text-sm text-muted",
+    style: {
+      maxWidth: 130,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, d.sei || "—"), /*#__PURE__*/React.createElement("td", {
+    className: "fw-700 text-mono",
+    style: {
+      color: "var(--navy)",
+      fontSize: 12
+    }
+  }, d.os || "—"), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: e => {
+      e.stopPropagation();
+      setSel(d);
+      setEditStatus(d.status);
+      setEditObs("");
+    }
+  }, "Ver"))))))), /*#__PURE__*/React.createElement("div", {
+    className: "pag-bar"
+  }, /*#__PURE__*/React.createElement("span", null, pag * POR_PAG + 1, "\u2013", Math.min(pag * POR_PAG + POR_PAG, dados.length), " de ", dados.length), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    disabled: pag === 0,
+    onClick: () => setPag(p => p - 1)
+  }, "\u2190 Ant."), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      color: "var(--text)"
+    }
+  }, "P\xE1g ", pag + 1, "/", totalPags), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    disabled: pag >= totalPags - 1,
+    onClick: () => setPag(p => p + 1)
+  }, "Pr\xF3x. \u2192"))), sel && /*#__PURE__*/React.createElement(Modal, {
+    title: `${sel.projeto || "Demanda"} · ${sel.comarca || ""}`,
+    width: 700,
+    onClose: () => setSel(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px 20px",
+      fontSize: 13,
+      marginBottom: 16
+    }
+  }, [["SEI", sel.sei], ["Projeto", sel.projeto], ["Comarca", sel.comarca], ["Município", sel.municipio], ["Imóvel", sel.imovel], ["Região", sel.regiao], ["Prioridade", sel.prioridade], ["Contrato", sel.contrato], ["OS vinculada", sel.os], ["Data demanda", fmtDate(sel.dt_demanda)], ["Resp. tratamento", sel.resp_trat], ["Resp. acompanhamento", sel.resp_acomp]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+    key: k
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: ".06em",
+      color: "var(--text3)",
+      marginBottom: 2
+    }
+  }, k), /*#__PURE__*/React.createElement("div", null, v || "—"))), sel.descricao && /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: "1/-1"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: ".06em",
+      color: "var(--text3)",
+      marginBottom: 4
+    }
+  }, "Descri\xE7\xE3o"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "var(--surface)",
+      borderRadius: 6,
+      padding: "10px 12px",
+      fontSize: 12,
+      lineHeight: 1.55
+    }
+  }, sel.descricao)), sel.comentarios && /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: "1/-1"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: ".06em",
+      color: "var(--text3)",
+      marginBottom: 4
+    }
+  }, "Coment\xE1rios"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "var(--surface)",
+      borderRadius: 6,
+      padding: "10px 12px",
+      fontSize: 12
+    }
+  }, sel.comentarios)), obsMap[sel.id] && /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: "1/-1"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: ".06em",
+      color: "var(--green)",
+      marginBottom: 4
+    }
+  }, "\u2713 Observa\xE7\xE3o interna"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#f0fdf4",
+      border: "1px solid #bbf7d0",
+      borderRadius: 6,
+      padding: "10px 12px",
+      fontSize: 12
+    }
+  }, obsMap[sel.id].obs, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "var(--text3)",
+      marginLeft: 8,
+      fontSize: 11
+    }
+  }, fmtDate(obsMap[sel.id].dt))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: "1px solid var(--border)",
+      paddingTop: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "var(--text3)",
+      textTransform: "uppercase",
+      letterSpacing: ".06em",
+      marginBottom: 12
+    }
+  }, "Alterar status"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))",
+      gap: 8,
+      marginBottom: 14
+    }
+  }, Object.entries(DEM_STATUS).filter(([k]) => k !== "importado").map(([k, v]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => setEditStatus(k),
+    style: {
+      padding: "10px 8px",
+      border: `2px solid ${editStatus === k ? v.cor : "var(--border)"}`,
+      borderRadius: 8,
+      background: editStatus === k ? v.bg : "var(--white)",
+      cursor: "pointer",
+      fontSize: 12,
+      fontWeight: 600,
+      color: editStatus === k ? v.cor : "var(--text2)",
+      textAlign: "center",
+      transition: "all .15s"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      marginBottom: 3
+    }
+  }, v.icon), /*#__PURE__*/React.createElement("div", null, v.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("label", null, "Observa\xE7\xE3o interna (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+    value: editObs,
+    onChange: e => setEditObs(e.target.value),
+    placeholder: "Motivo, pr\xF3ximos passos...",
+    style: {
+      minHeight: 60
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: confirmarStatus,
+    disabled: !editStatus || editStatus === sel.status
+  }, "\u2713 Salvar status"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => setSel(null)
+  }, "Fechar")))));
+}
+
+// ─────────────────────────────────────────────────────────────
 // AppInterno — só renderiza quando há sessão (hooks sem condicional)
 // ─────────────────────────────────────────────────────────────
 function AppInterno({
