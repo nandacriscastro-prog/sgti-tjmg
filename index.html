@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title>
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779467652 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1304,7 +1304,7 @@ function gerarHTMLOS(os, numOS) {
   const dtFmt = v => v ? new Date(v + "T12:00").toLocaleDateString("pt-BR") : "—";
   const hoje = new Date().toLocaleDateString("pt-BR");
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>OS ${numOS || os.numero} — ${os.comarca || ""}</title>
+<title>OS ${numOS || os.numero} — ${os.comarca || ""}</title><!-- build:1779467652 -->
 <style>
 *{box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:11px;margin:20px 28px;color:#1a1a1a}
@@ -1391,7 +1391,7 @@ function gerarHTMLLib(os, numOS, tecnicosSelecionados) {
     cpf: "—"
   }];
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Liberação de Acesso — OS ${numOS || os.numero}</title>
+<title>Liberação de Acesso — OS ${numOS || os.numero}</title><!-- build:1779467652 -->
 <style>
 *{box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:11px;margin:20px 28px;color:#1a1a1a}
@@ -1490,7 +1490,7 @@ function exportarPDF(titulo, subtitulo, colunas, dados, nomeArquivo) {
     return `<td>${String(v).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`;
   }).join('') + '</tr>').join('');
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>${titulo}</title>
+<title>${titulo}</title><!-- build:1779467652 -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:10px;color:#1a1a1a;padding:16px}
@@ -5273,7 +5273,7 @@ function PageTelGlosa() {
       linhas,
       liq
     } = resultado;
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Glosa SLA Telefonia</title><style>body{font-family:Arial,sans-serif;margin:32px;font-size:13px}h1{color:#0f1f3d}table{width:100%;border-collapse:collapse}th{background:#0f1f3d;color:white;padding:9px 13px;text-align:left}td{padding:8px 13px;border-bottom:1px solid #eee}@media print{button{display:none}}</style></head><body><h1>Notificação de Glosa SLA — Telefonia COTESI/TJMG</h1><p><strong>Contrato:</strong> ${ct} | <strong>Período:</strong> ${MESES_FULL[parseInt(mes) - 1]}/${ano}</p><table><thead><tr><th>Ocorrência</th><th>Qtd</th><th>Desconto unit.</th><th>Subtotal</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${l.desc}</td><td>${l.qtd}</td><td>${fmtR(vlr * l.desconto_pct / 100)}</td><td>${fmtR(l.qtd * vlr * l.desconto_pct / 100)}</td></tr>`).join("")}</tbody></table><p><strong>Valor base:</strong> ${fmtR(vlr)} | <strong>Glosa:</strong> ${fmtR(glosa)}</p><p style="font-size:15px;font-weight:700">Total líquido: ${fmtR(liq)}</p><button onclick="window.print()" style="margin-top:20px;background:#0f1f3d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🖨️ Imprimir</button></body></html>`;
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Glosa SLA Telefonia</title><!-- build:1779467652 --><style>body{font-family:Arial,sans-serif;margin:32px;font-size:13px}h1{color:#0f1f3d}table{width:100%;border-collapse:collapse}th{background:#0f1f3d;color:white;padding:9px 13px;text-align:left}td{padding:8px 13px;border-bottom:1px solid #eee}@media print{button{display:none}}</style></head><body><h1>Notificação de Glosa SLA — Telefonia COTESI/TJMG</h1><p><strong>Contrato:</strong> ${ct} | <strong>Período:</strong> ${MESES_FULL[parseInt(mes) - 1]}/${ano}</p><table><thead><tr><th>Ocorrência</th><th>Qtd</th><th>Desconto unit.</th><th>Subtotal</th></tr></thead><tbody>${linhas.map(l => `<tr><td>${l.desc}</td><td>${l.qtd}</td><td>${fmtR(vlr * l.desconto_pct / 100)}</td><td>${fmtR(l.qtd * vlr * l.desconto_pct / 100)}</td></tr>`).join("")}</tbody></table><p><strong>Valor base:</strong> ${fmtR(vlr)} | <strong>Glosa:</strong> ${fmtR(glosa)}</p><p style="font-size:15px;font-weight:700">Total líquido: ${fmtR(liq)}</p><button onclick="window.print()" style="margin-top:20px;background:#0f1f3d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🖨️ Imprimir</button></body></html>`;
     const blob = new Blob([html], {
       type: "text/html;charset=utf-8"
     });
