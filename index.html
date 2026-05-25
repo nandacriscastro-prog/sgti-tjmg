@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779479666 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1779719842 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2731,12 +2731,38 @@ function PageAvaliacao({
   const [aval, setAval] = useState("");
   const [obs, setObs] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selFechar, setSelFechar] = useState(null);
+  const [obsFechar, setObsFechar] = useState("");
+  const [loadingFechar, setLoadingFechar] = useState(false);
+  const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const sat = os.filter(o => o.avaliacao === "satisfatorio").length;
   const reab = os.filter(o => o.avaliacao === "insatisfatorio").length;
   const pend = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
   const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
   const sortDesc = arr => [...arr].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
-  const dados = sortDesc(filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : os.filter(o => o.status === "Concluída"));
+  const dados = sortDesc(filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  const fecharOS = async () => {
+    if (!selFechar) return;
+    setLoadingFechar(true);
+    try {
+      await sbFetch(`/ordens_servico?id=eq.${selFechar.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "Concluída",
+          data_conclusao: new Date().toISOString().slice(0, 10),
+          observacoes: selFechar.observacoes ? selFechar.observacoes + (obsFechar ? " | Fechamento manual: " + obsFechar : "") : obsFechar || "Concluída manualmente pelo fiscal"
+        })
+      });
+      toast(`✓ OS ${selFechar.numero} concluída!`, "ok");
+      setSelFechar(null);
+      setObsFechar("");
+      reload();
+    } catch (e) {
+      toast("Erro: " + e.message, "error");
+    } finally {
+      setLoadingFechar(false);
+    }
+  };
   const confirmar = async () => {
     if (!aval || !sel) {
       toast("Selecione satisfatório ou insatisfatório", "error");
@@ -2791,6 +2817,11 @@ function PageAvaliacao({
   }, "Avalie as OS conclu\xEDdas pelos t\xE9cnicos"))), /*#__PURE__*/React.createElement("div", {
     className: "kpi-grid"
   }, [{
+    label: "OS abertas",
+    val: abertas.length,
+    cls: "navy",
+    f: "abertas"
+  }, {
     label: "Satisfatórios",
     val: sat,
     cls: "green",
@@ -2826,7 +2857,7 @@ function PageAvaliacao({
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex gap-8"
-  }, [["pendente", "⏳ Pendentes"], ["satisfatorio", "✅ Satisfatórios"], ["insatisfatorio", "🔄 Reabertos"], ["all", "Todos"]].map(([f, l]) => /*#__PURE__*/React.createElement("span", {
+  }, [["abertas", "📂 Abertas"], ["pendente", "⏳ Ag. avaliação"], ["satisfatorio", "✅ Satisfatórios"], ["insatisfatorio", "🔄 Reabertos"], ["all", "Concluídas"]].map(([f, l]) => /*#__PURE__*/React.createElement("span", {
     key: f,
     className: `chip${filtro === f ? " active" : ""}`,
     onClick: () => setFiltro(f)
@@ -2834,20 +2865,22 @@ function PageAvaliacao({
     className: "table-card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "table-wrap"
-  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "N\xBA OS"), /*#__PURE__*/React.createElement("th", null, "Data"), /*#__PURE__*/React.createElement("th", null, "Comarca"), /*#__PURE__*/React.createElement("th", null, "Servi\xE7o"), /*#__PURE__*/React.createElement("th", null, "Avalia\xE7\xE3o"))), /*#__PURE__*/React.createElement("tbody", null, dados.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-    colSpan: 5
+  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "N\xBA OS"), /*#__PURE__*/React.createElement("th", null, "Data"), /*#__PURE__*/React.createElement("th", null, "Comarca"), /*#__PURE__*/React.createElement("th", null, "Servi\xE7o"), /*#__PURE__*/React.createElement("th", null, "Status / Avalia\xE7\xE3o"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, dados.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: 6
   }, /*#__PURE__*/React.createElement("div", {
     className: "empty"
   }, /*#__PURE__*/React.createElement("div", {
     className: "empty-icon"
   }, "\uD83C\uDF89"), /*#__PURE__*/React.createElement("div", {
     className: "empty-title"
-  }, "Tudo avaliado!")))) : dados.slice(0, 50).map(o => /*#__PURE__*/React.createElement("tr", {
+  }, filtro === "abertas" ? "Nenhuma OS aberta!" : "Tudo avaliado!")))) : dados.slice(0, 80).map(o => /*#__PURE__*/React.createElement("tr", {
     key: o.id,
     onClick: () => {
-      setSel(o);
-      setAval("");
-      setObs("");
+      if (filtro !== "abertas") {
+        setSel(o);
+        setAval("");
+        setObs("");
+      }
     }
   }, /*#__PURE__*/React.createElement("td", {
     className: "fw-700 text-mono",
@@ -2856,18 +2889,99 @@ function PageAvaliacao({
     }
   }, o.numero), /*#__PURE__*/React.createElement("td", {
     className: "text-sm text-muted"
-  }, fmtDate(o.data_os)), /*#__PURE__*/React.createElement("td", null, o.comarca || "—"), /*#__PURE__*/React.createElement("td", {
+  }, fmtDate(o.data_os)), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
     style: {
-      maxWidth: 240,
+      fontWeight: 500
+    }
+  }, o.comarca || "—"), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, o.tipo || "")), /*#__PURE__*/React.createElement("td", {
+    style: {
+      maxWidth: 220,
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap"
     }
-  }, (o.servico || "—").substring(0, 55)), /*#__PURE__*/React.createElement("td", null, o.avaliacao ? /*#__PURE__*/React.createElement("span", {
+  }, (o.servico || "—").substring(0, 55)), /*#__PURE__*/React.createElement("td", null, filtro === "abertas" ? /*#__PURE__*/React.createElement("span", {
+    className: `badge ${o.status === "Reaberta" ? "bg-red" : o.status === "Em andamento" ? "bg-amber" : "bg-blue"}`
+  }, o.status || "Aberta") : o.avaliacao ? /*#__PURE__*/React.createElement("span", {
     className: `badge ${o.avaliacao === "satisfatorio" ? "bg-green" : "bg-red"}`
   }, o.avaliacao === "satisfatorio" ? "✅ Satisfatório" : "🔄 Reaberto") : /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-sm btn-navy"
-  }, "Avaliar \u2192")))))))), sel && (() => {
+    className: "btn btn-sm btn-navy",
+    onClick: e => {
+      e.stopPropagation();
+      setSel(o);
+      setAval("");
+      setObs("");
+    }
+  }, "Avaliar \u2192")), /*#__PURE__*/React.createElement("td", null, filtro === "abertas" && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm btn-green",
+    onClick: e => {
+      e.stopPropagation();
+      setSelFechar(o);
+      setObsFechar("");
+    }
+  }, "\u2713 Fechar OS")))))))), selFechar && /*#__PURE__*/React.createElement(Modal, {
+    title: `Fechar OS ${selFechar.numero} — ${selFechar.comarca || ""}`,
+    width: 520,
+    onClose: () => {
+      setSelFechar(null);
+      setObsFechar("");
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      marginBottom: 6
+    }
+  }, "Servi\xE7o: ", selFechar.servico), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "var(--text3)"
+    }
+  }, "Status atual: ", /*#__PURE__*/React.createElement("span", {
+    className: `badge ${selFechar.status === "Reaberta" ? "bg-red" : "bg-blue"}`
+  }, selFechar.status))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#fffbeb",
+      border: "1px solid #fcd34d",
+      borderRadius: 8,
+      padding: "12px 14px",
+      marginBottom: 14,
+      fontSize: 12
+    }
+  }, "\u26A0\uFE0F Esta a\xE7\xE3o marca a OS como ", /*#__PURE__*/React.createElement("strong", null, "Conclu\xEDda"), ". Use quando o t\xE9cnico informou o retorno fora do app (por e-mail, WhatsApp ou pessoalmente)."), /*#__PURE__*/React.createElement("div", {
+    className: "fg",
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("label", null, "Observa\xE7\xE3o (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+    value: obsFechar,
+    onChange: e => setObsFechar(e.target.value),
+    placeholder: "Ex: T\xE9cnico informou conclus\xE3o por WhatsApp em 15/05/2026...",
+    style: {
+      minHeight: 70
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-green",
+    onClick: fecharOS,
+    disabled: loadingFechar
+  }, loadingFechar ? "Salvando..." : "✓ Confirmar conclusão"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => {
+      setSelFechar(null);
+      setObsFechar("");
+    }
+  }, "Cancelar"))), sel && (() => {
     let retTec = null;
     try {
       retTec = sel.retorno_campo ? JSON.parse(sel.retorno_campo) : null;
