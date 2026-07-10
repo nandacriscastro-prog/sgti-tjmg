@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1780514442 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1783696093 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2598,7 +2598,7 @@ function PageHistorico({
       fontSize: 13,
       marginBottom: 14
     }
-  }, [["Nº OS", sel.numero], ["Empresa", sel.empresa || "—"], ["Data", fmtDate(sel.data_os)], ["Comarca", sel.comarca || "—"], ["Fórum", sel.forum || "—"], ["Tipo", sel.tipo || "—"], ["Prioridade", sel.prioridade || "—"], ["Status", sel.status || "—"], ["Avaliação", sel.avaliacao || "Pendente"]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+  }, [["Nº OS", sel.numero], ["Empresa", sel.empresa || "—"], ["Data", fmtDate(sel.data_os)], ["Comarca", sel.comarca || "—"], ["Fórum", sel.forum || "—"], ["Endereço", sel.endereco || "—"], ["Tipo", sel.tipo || "—"], ["Prioridade", sel.prioridade || "—"], ["Polo", sel.polo || "—"], ["Região", sel.regiao || "—"], ["Status", sel.status || "—"], ["Avaliação", sel.avaliacao || "Pendente"], ["Data conclusão", fmtDate(sel.data_conclusao) || "—"], ["Contato", sel.contato || "—"], ["E-mail enviado", sel.email_enviado ? "Sim" : "Não"], ["Criado por", sel.criado_por || "—"]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
     key: k
   }, /*#__PURE__*/React.createElement("div", {
     style: {
