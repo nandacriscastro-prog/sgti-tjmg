@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784030288 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784030351 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1801,6 +1801,16 @@ function PageNovaOS({
   const handleComarca = (k, dados) => {
     setComarca(k);
     setDadosComarca(dados);
+    // Preencher contrato automaticamente a partir do CM
+    const contratoComarca = (dados && dados.c) || (CM[k] && CM[k].c);
+    if(contratoComarca) {
+      setContratoSel(contratoComarca);
+      // Atualizar número da OS para o novo contrato
+      buscarProximoNum(contratoComarca).then(rows => {
+        const ultimo = parseInt(rows?.[0]?.numero || "0") || 0;
+        setNumOS(String(ultimo + 1));
+      });
+    }
   };
   const limpar = () => {
     setComarca("");
