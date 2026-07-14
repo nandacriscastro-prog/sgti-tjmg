@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784032362 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784032872 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3487,35 +3487,43 @@ function PageMedicao({
       let qtdAlarme = 0,
         qtdPortal = 0,
         qtdRaio = 0,
-        totalKm = 0,
         totalDiarias = 0;
+      const osDetalhe = []; // para mostrar breakdown de diárias
       osMes.forEach(o => {
         const s = (o.servico || o.tipo || "").toLowerCase();
-        if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
+        if (s.includes("portal") || s.includes("detector")) qtdPortal++;
+        else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;
+        else qtdAlarme++;
         try {
-          const r = JSON.parse(o.retorno_campo || "{}");
-          if (!r.historico) {
-            totalKm += parseFloat(r.km || 0);
-            totalDiarias += parseFloat(r.diarias || 0);
+          const ret = JSON.parse(o.retorno_campo || "{}");
+          if (!ret.historico) {
+            const d = parseFloat(ret.diarias || 0);
+            totalDiarias += d;
+            if(d > 0) osDetalhe.push({num: o.numero, comarca: o.comarca||"", diarias: d});
           }
         } catch (e) {}
       });
+      // KM é manual — fiscal preenche no momento do fechamento
+      const kmManual = parseFloat(document.getElementById("km-manual-input")?.value || 0) || 0;
       const novos = {
         rem: 1,
         pres: qtdAlarme,
         portal: qtdPortal,
         raio: qtdRaio,
-        km: totalKm,
+        km: kmManual,
         diaria: totalDiarias
       };
+      window._osDetalhe = osDetalhe; // guardar para exibir
       setQtds(novos);
       let bruto = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
       const pts = getSLAPts();
       const pct = getSLAPct(pts);
       const glosa = bruto * pct / 100;
+      const osDetalheCapturado = window._osDetalhe || [];
       setResultado({
         mes,
         ano,
+        osDetalhe: osDetalheCapturado,
         label: MESES_FULL[mes] + " / " + ano,
         osMes,
         qtdAlarme,
@@ -3773,7 +3781,31 @@ function PageMedicao({
   }, [2025, 2026, 2027].map(a => /*#__PURE__*/React.createElement("option", {
     key: a,
     value: a
-  }, a))))), /*#__PURE__*/React.createElement("button", {
+  }, a))))), /*#__PURE__*/React.createElement("div", {
+    style:{background:"var(--surface)",borderRadius:8,padding:"12px 16px",marginBottom:12,border:"1px solid var(--border)"}
+  },
+    React.createElement("div", {style:{fontWeight:700,fontSize:13,marginBottom:8,color:"var(--navy)"}}, "📍 KM a faturar no mês"),
+    React.createElement("div", {style:{fontSize:12,color:"var(--text3)",marginBottom:8}},
+      "Informe o total de KM percorridos por rota no mês (definido pela fiscalização):"
+    ),
+    React.createElement("div", {style:{display:"flex",gap:8,alignItems:"center"}},
+      React.createElement("input", {
+        id:"km-manual-input",
+        type:"number",min:"0",step:"0.1",
+        placeholder:"0",
+        style:{width:120,fontFamily:"var(--mono)",fontWeight:700,fontSize:16},
+        defaultValue:"0"
+      }),
+      React.createElement("span", {style:{fontSize:13,color:"var(--text2)"}},"km ×"),
+      React.createElement("span", {style:{fontFamily:"var(--mono)",color:"var(--navy)",fontWeight:700}},
+        "R$ 2,98/km"
+      )
+    ),
+    React.createElement("div", {style:{fontSize:11,color:"var(--text3)",marginTop:6}},
+      "💡 Diárias são calculadas automaticamente pelas frações de cada OS (Anexo IV item 2)"
+    )
+  ),
+  /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
     onClick: calcular
   }, "\u21BB Calcular medi\xE7\xE3o")), resultado && /*#__PURE__*/React.createElement("div", {
