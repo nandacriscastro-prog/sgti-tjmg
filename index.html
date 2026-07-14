@@ -3456,8 +3456,8 @@ function PageMedicao({
     toast("✓ Medição de " + resultado.label + " aprovada!", "ok");
   };
   const totalMedido = hist.reduce((a, h) => a + h.liq, 0);
-  const saldo = CONTRATO_VALOR_IV - totalMedido;
-  const pct = Math.min(100, totalMedido / CONTRATO_VALOR_IV * 100);
+  const saldo = (CONTRATO_VALOR_181||CONTRATO_VALOR_IV) - totalMedido;
+  const pct = Math.min(100, totalMedido / (CONTRATO_VALOR_181||CONTRATO_VALOR_IV) * 100);
   const colsMed = [{
     key: 'label',
     label: 'Período'
