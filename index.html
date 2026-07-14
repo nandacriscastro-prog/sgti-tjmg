@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784032293 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784032362 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1779,6 +1779,56 @@ function abrirEmailLib(os, numOS, htmlLib) {
   setTimeout(() => abrirJanela(htmlLib), 300);
   toast("E-mail Lib. Acesso aberto. Salve como PDF e anexe.", "ok");
 }
+function PageSelecionaContrato({setPage}) {
+  const contratos = [
+    {id:"181/2026", label:"181/2026", sub:"Alvo Segurança — Vigente", tag:"ATIVO", cor:"var(--green)", bg:"#f0fdf4", icon:"🆕"},
+    {id:"218/2023", label:"218/2023", sub:"Interior / BH", tag:"", cor:"var(--navy)", bg:"var(--surface)", icon:"📋"},
+    {id:"217/2023", label:"217/2023", sub:"Interior Sul / Triângulo", tag:"", cor:"var(--navy)", bg:"var(--surface)", icon:"📋"},
+    {id:"216/2023", label:"216/2023", sub:"Zona da Mata / Leste", tag:"", cor:"var(--navy)", bg:"var(--surface)", icon:"📋"},
+  ];
+  return (
+    React.createElement("div", null,
+      React.createElement("div", {className:"ph-row"},
+        React.createElement("div", null,
+          React.createElement("div", {className:"ph-title"}, "Nova Ordem de Serviço"),
+          React.createElement("div", {className:"ph-sub"}, "Selecione o contrato antes de continuar")
+        )
+      ),
+      React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:16,maxWidth:700,margin:"0 auto",padding:"8px 0"}},
+        contratos.map(ct =>
+          React.createElement("div", {
+            key: ct.id,
+            onClick: () => {
+              window._contratoNovaOS = ct.id;
+              setPage("nova-form");
+            },
+            style:{
+              background: ct.bg,
+              border: `2px solid ${ct.cor}`,
+              borderRadius: 12,
+              padding: "20px 18px",
+              cursor: "pointer",
+              transition: "box-shadow .15s, transform .15s",
+              position: "relative"
+            },
+            onMouseEnter: e => { e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.12)"; e.currentTarget.style.transform="translateY(-2px)"; },
+            onMouseLeave: e => { e.currentTarget.style.boxShadow=""; e.currentTarget.style.transform=""; }
+          },
+            ct.tag && React.createElement("span", {
+              style:{position:"absolute",top:10,right:10,background:ct.cor,color:"white",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}
+            }, ct.tag),
+            React.createElement("div", {style:{fontSize:24,marginBottom:6}}, ct.icon),
+            React.createElement("div", {style:{fontSize:18,fontWeight:800,color:ct.cor,marginBottom:4}}, ct.label),
+            React.createElement("div", {style:{fontSize:13,color:"var(--text2)"}}, ct.sub)
+          )
+        )
+      ),
+      React.createElement("div", {style:{textAlign:"center",marginTop:16}},
+        React.createElement("button", {className:"btn", onClick:()=>setPage("dashboard")}, "← Voltar")
+      )
+    )
+  );
+}
 function PageNovaOS({
   onOsCriada,
   os: todasOS
@@ -1809,7 +1859,7 @@ function PageNovaOS({
   const [osVinculada, setOsVinculada] = useState("");
   const [contato, setContato] = useState("");
   const [empresa, setEmpresa] = useState("Alvo Segurança Ltda");
-  const [contratoSel, setContratoSel] = useState("181/2026");
+  const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
   const [preview, setPreview] = useState(false);
   const [pv, setPv] = useState({});
   const [numOS, setNumOS] = useState("...");
@@ -6741,6 +6791,10 @@ function AppInterno({
           setPage: setPage
         });
       case "nova":
+        return /*#__PURE__*/React.createElement(PageSelecionaContrato, {
+          setPage: setPage
+        });
+      case "nova-form":
         return /*#__PURE__*/React.createElement(PageNovaOS, {
           onOsCriada: loadOS,
           os: os
