@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784029549 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784029734 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1749,13 +1749,15 @@ function PageNovaOS({
   const [numOS, setNumOS] = useState("...");
 
   // Buscar próximo número da OS ao carregar
+  const buscarProximoNum = (contrato) => {
+    const c = contrato || contratoSel || "181/2026";
+    return sbFetch(`/ordens_servico?select=numero,criado_por,contrato&criado_por=like.*tjmg.jus.br*&contrato=eq.${encodeURIComponent(c)}&order=criado_em.desc&limit=200`).then(rows => {
+      const nums = (rows||[]).map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
+      return [{ numero: String(nums.length ? Math.max(...nums) : 0) }];
+    }).catch(() => [{ numero: "0" }]);
+  };
   useEffect(() => {
-    sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
-      const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-      return [{
-        numero: String(nums.length ? Math.max(...nums) : 0)
-      }];
-    }).then(rows => {
+    buscarProximoNum(contratoSel || "181/2026").then(rows => {
       const n = parseInt(rows?.[0]?.numero || "0") || 0;
       setNumOS(String(n + 1));
     }).catch(() => {});
@@ -1815,12 +1817,7 @@ function PageNovaOS({
     setDt(new Date().toISOString().slice(0, 10));
     setFiscalId("3");
     setEmpresa("Alvo Segurança Ltda");
-    sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
-      const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-      return [{
-        numero: String(nums.length ? Math.max(...nums) : 0)
-      }];
-    }).then(rows => {
+    buscarProximoNum(contratoSel).then(rows => {
       const n = parseInt(rows?.[0]?.numero || "0") || 0;
       setNumOS(String(n + 1));
     }).catch(() => {});
@@ -1853,13 +1850,7 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
-      const contratoBusca = contratoSel || "181/2026";
-      const rows = await sbFetch(`/ordens_servico?select=numero,criado_por,contrato&criado_por=like.*tjmg.jus.br*&contrato=eq.${encodeURIComponent(contratoBusca)}&order=criado_em.desc&limit=200`).then(rows => {
-        const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-        return [{
-          numero: String(nums.length ? Math.max(...nums) : 0)
-        }];
-      }).catch(()=>[{numero:"0"}]);
+      const rows = await buscarProximoNum(contratoSel);
       const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
       const novoNum = String(ultimoNum + 1);
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
