@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784028784 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784029549 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1093,7 +1093,7 @@ function PageDashboard({
       textTransform: "uppercase",
       letterSpacing: ".08em"
     }
-  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contrato 218/2023"), /*#__PURE__*/React.createElement("div", {
+  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contrato 181/2026"), /*#__PURE__*/React.createElement("div", {
     className: "kpi-grid",
     style: {
       marginBottom: 24
@@ -1840,7 +1840,7 @@ function PageNovaOS({
       servico: serv + (servDesc ? " — " + servDesc : ""),
       observacoes: obs,
       data_os: dt,
-      contrato: "218/2023",
+      contrato: contratoSel || "181/2026",
       prazo,
       prazo_date: prazoDate,
       empresa,
@@ -1925,7 +1925,7 @@ function PageNovaOS({
     className: "ph-title"
   }, "Nova Ordem de Servi\xE7o"), /*#__PURE__*/React.createElement("div", {
     className: "ph-sub"
-  }, "Contrato 218/2023 \u2014 Seguran\xE7a Eletr\xF4nica")), /*#__PURE__*/React.createElement("div", {
+  }, "Contrato 181/2026 \u2014 Seguran\xE7a Eletr\xF4nica")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -2030,6 +2030,15 @@ function PageNovaOS({
     onChange: e => setContato(e.target.value),
     placeholder: "Nome / telefone"
   })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", null, "Contrato"), /*#__PURE__*/React.createElement("select", {
+    value: contratoSel,
+    onChange: e => setContratoSel(e.target.value),
+    style: {fontWeight:700, color:"var(--navy)"}
+  },
+    /*#__PURE__*/React.createElement("option", {value:"181/2026"}, "181/2026 — Alvo Segurança (vigente)"),
+    /*#__PURE__*/React.createElement("option", {value:"218/2023"}, "218/2023 — Alvo Segurança (anterior)")
+  )), /*#__PURE__*/React.createElement("div", {
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, "Empresa executora"), /*#__PURE__*/React.createElement("input", {
     value: empresa,
@@ -4470,7 +4479,7 @@ function PageConfig() {
     className: "card-title"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dot"
-  }), "Informa\xE7\xF5es do contrato"), [["Contrato", "218/2023"], ["Órgão", "TJMG — Tribunal de Justiça de Minas Gerais"], ["Gestão", "GEASI / COTESI"], ["Fiscal", "fernanda.leao@tjmg.jus.br"], ["Valor Anexo IV", "R$ 2.245.534,86"], ["Valor Anexo V", "R$ 1.340.883,45"]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+  }), "Informa\xE7\xF5es do contrato"), [["Contrato", "181/2026"], ["Órgão", "TJMG — Tribunal de Justiça de Minas Gerais"], ["Gestão", "GEASI / COTESI"], ["Fiscal", "fernanda.leao@tjmg.jus.br"], ["Valor Anexo IV", "R$ 2.245.534,86"], ["Valor Anexo V", "R$ 1.340.883,45"]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
     key: k,
     style: {
       display: "flex",
@@ -5863,7 +5872,7 @@ function PageLogin({
       color: "var(--text3)",
       textAlign: "center"
     }
-  }, "\uD83D\uDD12 Acesso exclusivo para fiscais do contrato 218/2023")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD12 Acesso exclusivo para fiscais do contrato GEASI/COTESI")), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       marginTop: 20,
