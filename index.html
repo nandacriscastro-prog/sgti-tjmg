@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784030379 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784032293 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -368,10 +368,11 @@ async function loadTelDados() {
 
 // ── CONSTANTES DO CONTRATO ────────────────────────────────────
 const CONTRATO_VALOR_IV = 2245534.86;
+const CONTRATO_VALOR_181 = 2223079.50;
 const CONTRATO_181 = {
   numero: "181/2026",
   empresa: "Alvo Segurança Ltda",
-  valor: 2245534.86,
+  valor: 2223079.50,
   inicio: "2026-01-01",
   label: "181/2026 — Alvo Segurança"
 };
@@ -431,14 +432,76 @@ const ANEXO_IV = [{
   auto: true,
   tipo: "diarias"
 }];
+const ANEXO_V_181 = [
+  {cod:"3.1.1",desc:"Bateria central alarme",vu:143.7},
+  {cod:"3.1.2",desc:"Fonte alimentação chaveada",vu:211.93},
+  {cod:"3.1.3",desc:"Placa central alarme microprocessada",vu:798.73},
+  {cod:"3.1.4",desc:"Placa expansora central alarme",vu:453.23},
+  {cod:"3.1.5",desc:"Sensor fumaça",vu:115.11},
+  {cod:"3.1.6",desc:"Sensor IV dupla tecnologia",vu:738.21},
+  {cod:"3.1.7",desc:"Sensor IV passivo",vu:83.06},
+  {cod:"3.1.8",desc:"Sensor magnético",vu:87.99},
+  {cod:"3.1.9",desc:"Sensor porta pesada",vu:178.37},
+  {cod:"3.1.10",desc:"Sirene alarme",vu:79.19},
+  {cod:"3.1.11",desc:"Teclado alarme",vu:359.4},
+  {cod:"3.1.12",desc:"Transformador central alarme",vu:119.21},
+  {cod:"3.1.13",desc:"Módulo/discadora GSM",vu:502.12},
+  {cod:"3.2.1",desc:"HD 2TB interno",vu:690.86},
+  {cod:"3.2.2",desc:"HD 4TB interno",vu:1360.08},
+  {cod:"3.2.3",desc:"Fonte chaveada 2A",vu:116.89},
+  {cod:"3.2.4",desc:"Fonte chaveada 5A",vu:164.59},
+  {cod:"3.2.5",desc:"Fonte chaveada 10A",vu:180.97},
+  {cod:"3.2.6",desc:"Adaptador chaveador 4 portas VGA",vu:155.81},
+  {cod:"3.3.1",desc:"HD 10TB interno",vu:2900.53},
+  {cod:"3.3.2",desc:"Joystick",vu:4699.49},
+  {cod:"3.4",desc:"Remanejamento de câmera",vu:50.9},
+  {cod:"3.5.1",desc:"Placa CHL portal",vu:788.48},
+  {cod:"3.5.2",desc:"Fonte chaveada portal",vu:538.97},
+  {cod:"3.5.3",desc:"Placa pictograma",vu:260.72},
+  {cod:"3.5.4",desc:"Placa CV007",vu:1632.66},
+  {cod:"3.5.5",desc:"Sensor TX",vu:4250.38},
+  {cod:"3.5.6",desc:"Sensor RX",vu:4354.74},
+  {cod:"3.5.7",desc:"Placa DMP",vu:8873.37},
+  {cod:"3.5.8",desc:"Painel portal",vu:6763.95},
+  {cod:"3.6.1",desc:"Laudo radiológico",vu:2256.77},
+  {cod:"3.6.2",desc:"Remanejamento scanner raio-X",vu:1153.32},
+  {cod:"3.6.3",desc:"Desfazimento/descarte scanner raio-X",vu:1259.74},
+  {cod:"3.6.4",desc:"Transporte scanner raio-X km",vu:4.67},
+  {cod:"3.7.1",desc:"Infraestrutura elétrica interna",vu:135.72},
+  {cod:"3.7.2",desc:"Infraestrutura lógica interna",vu:1545.25},
+  {cod:"3.7.3",desc:"Infraestrutura elétrica externa",vu:141.28},
+  {cod:"3.7.4",desc:"Infraestrutura lógica externa",vu:1566.02},
+  {cod:"3.8.1",desc:"Câmera bullet analógica",vu:690.7},
+  {cod:"3.8.2",desc:"Câmera dome analógica",vu:401.62},
+  {cod:"3.8.3",desc:"DVR",vu:2909.1},
+  {cod:"3.8.4",desc:"Monitor vídeo",vu:471.88},
+  {cod:"3.8.5",desc:"Câmera bullet IP",vu:1576.37},
+  {cod:"3.8.6",desc:"Câmera dome IP",vu:1232.89},
+  {cod:"3.8.7",desc:"Câmera speed dome IP",vu:7595.55},
+  {cod:"3.9.1",desc:"Braço cancela 2,5m alumínio",vu:523.21},
+  {cod:"3.9.2",desc:"Braço cancela 3,5m alumínio",vu:680.48},
+  {cod:"3.9.3",desc:"Braço cancela 4,5m alumínio",vu:897.28},
+  {cod:"3.9.4",desc:"Braço cancela 6,0m alumínio",vu:1254.13},
+  {cod:"3.9.5",desc:"Placa PPA Triflex Fullrange",vu:1019.36},
+  {cod:"3.9.6",desc:"Placa PPA Triflex Brushless",vu:1047.0},
+  {cod:"3.9.7",desc:"Motor automatizador PPA Brushless",vu:3115.63},
+  {cod:"3.9.8",desc:"Sensor fotoelétrico ≥10m",vu:203.35},
+  {cod:"3.10",desc:"Controle acesso biométrico",vu:3498.98},
+  {cod:"3.11",desc:"Conectividade módulo GSM unid/mês",vu:36.6}
+];
 const SERVICOS = ["Assistência Técnica no SISTEMA DE CFTV", "Assistência Técnica no SISTEMA DE ALARME", "Assistência Técnica no PORTAL DETECTOR DE METAIS", "Assistência Técnica no SCANNER DE RAIO-X", "Assistência Técnica no SISTEMA DE CONTROLE DE ACESSO", "Instalação de equipamento de CFTV", "Manutenção preventiva — CFTV", "Manutenção preventiva — ALARME", "Preventiva — Portal Detector", "REEXECUÇÃO — Assistência Técnica no SISTEMA DE CFTV", "REEXECUÇÃO — Assistência Técnica no SISTEMA DE ALARME", "Outro"];
 const GEASI_SLA = {
-  colar_prog: 10,
+  colar_prog: 5,
   colar_emerg_uteis: 2,
-  interior_prog: 30,
+  interior_prog: 10,
   interior_emerg_uteis: 5
 };
-const COLAR_CIDADES = new Set(["Baldim", "Barão de Cocais", "Belo Horizonte", "Belo Vale", "Betim", "Brumadinho", "Caeté", "Contagem", "Esmeraldas", "Ibirité", "Igarapé", "Itabirito", "Itaguara", "Jaboticatubas", "Juatuba", "Lagoa Santa", "Mateus Leme", "Matozinhos", "Nova Lima", "Pedro Leopoldo", "Raposos", "Ribeirão das Neves", "Rio Acima", "Sabará", "Santa Bárbara", "Santa Luzia", "Sarzedo", "Sete Lagoas", "Vespasiano"]);
+const SLA_181 = {
+  colar:{prog:5,p0:1,p1:2,p2:2,p3:2,outros:5},
+  interior:{prog:10,p1:5,p2:5,p3:5,outros:10}
+};
+const COLAR_CIDADES = new Set(["Baldim","Barão de Cocais","Belo Horizonte","Belo Vale","Betim","Brumadinho","Caeté","Contagem","Esmeraldas","Ibirité","Igarapé","Itabirito","Itaguara","Jaboticatubas","Juatuba","Lagoa Santa","Mateus Leme","Matozinhos","Nova Lima","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Sabará","Santa Bárbara","Santa Luzia","Sarzedo","Sete Lagoas","Vespasiano"]);
+const COLAR_181 = new Set(["Barão de Cocais", "Belo Vale", "Bom Jesus do Amparo", "Bonfim", "Fortuna de Minas", "Funilândia", "Inhaúma", "Itabirito", "Itaúna", "Moeda", "Pará de Minas", "Prudente de Morais", "Santa Bárbara", "São Gonçalo do Rio Abaixo", "São José da Varginha", "Sete Lagoas"]);
 const TEL_SLA = {
   "318/2023": [{
     nivel: "critico",
@@ -1073,7 +1136,10 @@ function PageDashboard({
   const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   const medido = hist.reduce((a, m) => a + m.liq, 0);
-  const saldo = CONTRATO_VALOR_IV - medido;
+  // Valor contratual depende do contrato ativo
+  const valorContrato = (typeof window !== "undefined" && localStorage.getItem("medicao_contrato") === "181/2026")
+    ? CONTRATO_VALOR_181 : CONTRATO_VALOR_IV;
+  const saldo = valorContrato - medido;
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -1767,14 +1833,22 @@ function PageNovaOS({
       label: "",
       date: ""
     };
-    const isColar = COLAR_CIDADES.has((com || comarca).split(" - ")[0]);
+    // Para 181/2026 usa COLAR_181, para demais usa COLAR_CIDADES
+    const _mun = (com || comarca).split(" - ")[0];
+    const _contrato = (typeof contratoSel !== "undefined" ? contratoSel : "") || "";
+    const isColar = _contrato === "181/2026"
+      ? COLAR_181.has(_mun)
+      : COLAR_CIDADES.has(_mun);
     let dias,
       uteis = false;
     if (t.includes("Emergencial")) {
       dias = isColar ? 2 : 5;
       uteis = true;
     } else {
-      dias = isColar ? 10 : 30;
+      // 181/2026: colar=5d, interior=10d; demais: colar=10d, interior=30d
+      dias = _contrato === "181/2026"
+        ? (isColar ? 5 : 10)
+        : (isColar ? 10 : 30);
     }
     const base = new Date(d + "T12:00");
     const r = new Date(base);
