@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784041131 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784041174 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2042,6 +2042,18 @@ function PageNovaOS({
     onChange: e => setContato(e.target.value),
     placeholder: "Nome / telefone"
   })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", null, "Contrato"),
+  /*#__PURE__*/React.createElement("select", {
+    value: contratoSel,
+    onChange: e => mudarContrato(e.target.value),
+    style:{fontWeight:700,color:"var(--navy)"}
+  },
+    /*#__PURE__*/React.createElement("option",{value:"181/2026"},"181/2026 — Alvo Segurança (vigente)"),
+    /*#__PURE__*/React.createElement("option",{value:"218/2023"},"218/2023 — Interior / BH"),
+    /*#__PURE__*/React.createElement("option",{value:"217/2023"},"217/2023 — Interior Sul / Triângulo"),
+    /*#__PURE__*/React.createElement("option",{value:"216/2023"},"216/2023 — Zona da Mata / Leste")
+  )), /*#__PURE__*/React.createElement("div", {
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, "Empresa executora"), /*#__PURE__*/React.createElement("input", {
     value: empresa,
