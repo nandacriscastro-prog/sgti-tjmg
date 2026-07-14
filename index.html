@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784036602 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784038356 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1068,7 +1068,8 @@ function PageDashboard({
   const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   const medido = hist.reduce((a, m) => a + m.liq, 0);
-  const saldo = CONTRATO_VALOR_IV - medido;
+  const valorRef = CONTRATO_VALOR_181 || CONTRATO_VALOR_IV;
+  const saldo = valorRef - medido;
   const hoje = new Date().toISOString().slice(0,10);
   const vencidas = os.filter(o => {
     if(!["Aberta","Em andamento","Reaberta"].includes(o.status||"")) return false;
@@ -2298,7 +2299,8 @@ function PageHistorico({
   const [filtroContrato, setFiltroContrato] = useState("todos");
   const POR_PAG = 25;
   const dados = os.filter(o => {
-    if(filtroContrato && filtroContrato !== "todos" && o.contrato !== filtroContrato) return false;
+    const _ct = o.contrato || "218/2023";
+    if(filtroContrato && filtroContrato !== "todos" && _ct !== filtroContrato) return false;
     const b = busca.toLowerCase();
     if (b && !`${o.numero} ${o.comarca} ${o.servico || ""}`.toLowerCase().includes(b)) return false;
     if (fSt && (o.status || "Concluída") !== fSt) return false;
@@ -2806,6 +2808,16 @@ function PageAvaliacao({
   const [obsFechar, setObsFechar] = useState("");
   const [loadingFechar, setLoadingFechar] = useState(false);
   const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
+  const hoje = new Date().toISOString().slice(0,10);
+  const qtdVencidas = abertas.filter(o => {
+    if(!o.data_os) return false;
+    const mun = (o.comarca||"").split(" - ")[0];
+    const isColar = COLAR_CIDADES.has(mun);
+    const dias = isColar ? 10 : 30;
+    const prazo = new Date(o.data_os+"T12:00");
+    prazo.setDate(prazo.getDate()+dias);
+    return hoje > prazo.toISOString().slice(0,10);
+  }).length;
   const sat = os.filter(o => o.avaliacao === "satisfatorio").length;
   const reab = os.filter(o => o.avaliacao === "insatisfatorio").length;
   const pend = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
