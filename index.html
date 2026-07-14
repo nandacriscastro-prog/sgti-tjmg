@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1783696484 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784026684 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -368,6 +368,20 @@ async function loadTelDados() {
 
 // ── CONSTANTES DO CONTRATO ────────────────────────────────────
 const CONTRATO_VALOR_IV = 2245534.86;
+const CONTRATO_181 = {
+  numero: "181/2026",
+  empresa: "Alvo Segurança Ltda",
+  valor: 2245534.86,
+  inicio: "2026-01-01",
+  label: "181/2026 — Alvo Segurança"
+};
+const CONTRATO_218 = {
+  numero: "218/2023",
+  empresa: "Alvo Segurança Ltda",
+  valor: 2245534.86,
+  label: "218/2023 — Alvo Segurança (anterior)"
+};
+const CONTRATOS_GEASI = ["181/2026","218/2023","0028333-17.2026.8.13.0000"];
 const STORAGE_MED = "geasi_medicoes_hist";
 const ANEXO_IV = [{
   id: "rem",
@@ -1060,12 +1074,6 @@ function PageDashboard({
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   const medido = hist.reduce((a, m) => a + m.liq, 0);
   const saldo = CONTRATO_VALOR_IV - medido;
-  const hoje = new Date().toISOString().slice(0,10);
-  const vencidas = os.filter(o => {
-    if(!["Aberta","Em andamento","Reaberta"].includes(o.status||"")) return false;
-    if(!o.prazo_date) return false;
-    return o.prazo_date < hoje;
-  });
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -1091,11 +1099,6 @@ function PageDashboard({
       marginBottom: 24
     }
   }, [{
-    label: "⚠️ Vencidas",
-    val: vencidas.length,
-    cls: "red",
-    page: "avaliacao"
-  }, {
     label: "OS abertas",
     val: abertas,
     cls: "blue",
@@ -1740,6 +1743,7 @@ function PageNovaOS({
   const [osVinculada, setOsVinculada] = useState("");
   const [contato, setContato] = useState("");
   const [empresa, setEmpresa] = useState("Alvo Segurança Ltda");
+  const [contratoSel, setContratoSel] = useState("181/2026");
   const [preview, setPreview] = useState(false);
   const [pv, setPv] = useState({});
   const [numOS, setNumOS] = useState("...");
@@ -1849,19 +1853,20 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
-      const rows = await sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
+      const contratoBusca = contratoSel || "181/2026";
+      const rows = await sbFetch(`/ordens_servico?select=numero,criado_por,contrato&criado_por=like.*tjmg.jus.br*&contrato=eq.${encodeURIComponent(contratoBusca)}&order=criado_em.desc&limit=200`).then(rows => {
         const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
         return [{
           numero: String(nums.length ? Math.max(...nums) : 0)
         }];
-      });
+      }).catch(()=>[{numero:"0"}]);
       const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
       const novoNum = String(ultimoNum + 1);
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
       const corpo = {
         numero: novoNum,
         empresa: pv.empresa || empresa || "A definir",
-        contrato: pv.contrato || "218/2023",
+        contrato: pv.contrato || contratoSel || "181/2026",
         comarca: pv.comarca || "",
         forum: pv.forum || "",
         endereco: pv.endereco || "",
@@ -2351,6 +2356,18 @@ function PageHistorico({
     status: r.status || '—'
   }));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {marginBottom:8, display:"flex", gap:6, flexWrap:"wrap", alignItems:"center"}
+  },
+    React.createElement("span", {style:{fontSize:11,fontWeight:700,color:"var(--text3)",marginRight:4}}, "CONTRATO:"),
+    [["181/2026","181/2026 — vigente","green"],["218/2023","218/2023 — anterior","navy"],["todos","Todos","gray"]].map(([v,l,c])=>
+      React.createElement("button", {
+        key:v,
+        onClick:()=>{setFiltroContrato(v);setPag(0);},
+        className:`btn btn-sm${filtroContrato===v?" btn-"+c:""}`,
+        style:{fontWeight:filtroContrato===v?700:400}
+      }, l)
+    )
+  ), /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-title"
@@ -2871,13 +2888,8 @@ function PageAvaliacao({
   }, "Avalie as OS conclu\xEDdas pelos t\xE9cnicos"))), /*#__PURE__*/React.createElement("div", {
     className: "kpi-grid"
   }, [{
-    label: "🚨 Vencidas",
-    val: qtdVencidas,
-    cls: "red",
-    f: "abertas"
-  }, {
     label: "OS abertas",
-    val: abertas.length - qtdVencidas,
+    val: abertas.length,
     cls: "navy",
     f: "abertas"
   }, {
