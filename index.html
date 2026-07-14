@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784038356 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784041015 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1200,7 +1200,7 @@ function PageDashboard({
     style: {
       marginBottom: 12
     }
-  }, [["Valor total Anexo IV", fmtR(CONTRATO_VALOR_IV)], ["Total medido", fmtR(medido)]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+  }, [["Valor total Anexo IV", fmtR(CONTRATO_VALOR_181||CONTRATO_VALOR_IV)], ["Total medido", fmtR(medido)]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
     key: k,
     style: {
       display: "flex",
@@ -1755,13 +1755,16 @@ function PageNovaOS({
   const [numOS, setNumOS] = useState("...");
 
   // Buscar próximo número da OS ao carregar
+  const buscarProximoNum = (ct) => {
+    const c = encodeURIComponent(ct || contratoSel || "181/2026");
+    return sbFetch(`/ordens_servico?select=numero,contrato&contrato=eq.${c}&order=criado_em.desc&limit=200`)
+      .then(rows => {
+        const nums = (rows||[]).map(r => parseInt(r.numero)||0).filter(n=>n>0&&n<100000);
+        return [{numero: String(nums.length ? Math.max(...nums) : 0)}];
+      }).catch(()=>[{numero:"0"}]);
+  };
   useEffect(() => {
-    sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
-      const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-      return [{
-        numero: String(nums.length ? Math.max(...nums) : 0)
-      }];
-    }).then(rows => {
+    buscarProximoNum(contratoSel || "181/2026").then(rows => {
       const n = parseInt(rows?.[0]?.numero || "0") || 0;
       setNumOS(String(n + 1));
     }).catch(() => {});
@@ -1771,13 +1774,15 @@ function PageNovaOS({
       label: "",
       date: ""
     };
-    const isColar = COLAR_CIDADES.has((com || comarca).split(" - ")[0]);
-    let dias,
-      uteis = false;
+    const _mun = (com || comarca || "").split(" - ")[0];
+    const _ct = (typeof contratoSel !== "undefined" ? contratoSel : "") || "";
+    const isColar = _ct === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+    let dias, uteis = false;
     if (t.includes("Emergencial")) {
       dias = isColar ? 2 : 5;
       uteis = true;
     } else {
+      // 181/2026: colar=10d corridos, demais=30d corridos
       dias = isColar ? 10 : 30;
     }
     const base = new Date(d + "T12:00");
@@ -1821,12 +1826,7 @@ function PageNovaOS({
     setDt(new Date().toISOString().slice(0, 10));
     setFiscalId("3");
     setEmpresa("Alvo Segurança Ltda");
-    sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
-      const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-      return [{
-        numero: String(nums.length ? Math.max(...nums) : 0)
-      }];
-    }).then(rows => {
+    buscarProximoNum(contratoSel).then(rows => {
       const n = parseInt(rows?.[0]?.numero || "0") || 0;
       setNumOS(String(n + 1));
     }).catch(() => {});
@@ -1859,12 +1859,7 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
-      const rows = await sbFetch("/ordens_servico?select=numero,criado_por&criado_por=like.*tjmg.jus.br*&order=criado_em.desc&limit=200").then(rows => {
-        const nums = rows.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-        return [{
-          numero: String(nums.length ? Math.max(...nums) : 0)
-        }];
-      });
+      const rows = await buscarProximoNum(contratoSel);
       const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
       const novoNum = String(ultimoNum + 1);
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
