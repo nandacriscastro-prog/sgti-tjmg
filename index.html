@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784030351 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784030379 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1801,16 +1801,6 @@ function PageNovaOS({
   const handleComarca = (k, dados) => {
     setComarca(k);
     setDadosComarca(dados);
-    // Preencher contrato automaticamente a partir do CM
-    const contratoComarca = (dados && dados.c) || (CM[k] && CM[k].c);
-    if(contratoComarca) {
-      setContratoSel(contratoComarca);
-      // Atualizar número da OS para o novo contrato
-      buscarProximoNum(contratoComarca).then(rows => {
-        const ultimo = parseInt(rows?.[0]?.numero || "0") || 0;
-        setNumOS(String(ultimo + 1));
-      });
-    }
   };
   const limpar = () => {
     setComarca("");
@@ -2038,7 +2028,9 @@ function PageNovaOS({
     style: {fontWeight:700, color:"var(--navy)"}
   },
     /*#__PURE__*/React.createElement("option", {value:"181/2026"}, "181/2026 — Alvo Segurança (vigente)"),
-    /*#__PURE__*/React.createElement("option", {value:"218/2023"}, "218/2023 — Alvo Segurança (anterior)")
+    /*#__PURE__*/React.createElement("option", {value:"218/2023"}, "218/2023 — Interior/BH"),
+    /*#__PURE__*/React.createElement("option", {value:"217/2023"}, "217/2023 — Interior Sul/Triângulo"),
+    /*#__PURE__*/React.createElement("option", {value:"216/2023"}, "216/2023 — Zona da Mata/Leste")
   )), /*#__PURE__*/React.createElement("div", {
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, "Empresa executora"), /*#__PURE__*/React.createElement("input", {
