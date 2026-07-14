@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784026684 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784028784 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2291,8 +2291,10 @@ function PageHistorico({
   const [sel, setSel] = useState(null);
   const [paraExcluir, setParaExcluir] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [filtroContrato, setFiltroContrato] = useState("181/2026");
   const POR_PAG = 25;
   const dados = os.filter(o => {
+    if(filtroContrato && filtroContrato !== "todos" && o.contrato !== filtroContrato) return false;
     const b = busca.toLowerCase();
     if (b && !`${o.numero} ${o.comarca} ${o.servico || ""}`.toLowerCase().includes(b)) return false;
     if (fSt && (o.status || "Concluída") !== fSt) return false;
