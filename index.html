@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784044371 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784055278 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -376,6 +376,62 @@ async function loadTelDados() {
 // ── CONSTANTES DO CONTRATO ────────────────────────────────────
 const CONTRATO_VALOR_IV = 2245534.86;
 const CONTRATO_VALOR_181 = 2223079.50;
+const SLA_CRITERIOS = [{
+  id: "comum_col",
+  grupo: "Atendimento programado",
+  label: "Colar Metropolitano (BH) — atraso a cada 5 dias",
+  pts: 2
+}, {
+  id: "comum_dem",
+  grupo: "Atendimento programado",
+  label: "Demais cidades — atraso a cada 10 dias",
+  pts: 2
+}, {
+  id: "p0_col",
+  grupo: "Emergencial — Colar Metropolitano",
+  label: "P0 - Urgente — atraso a cada 1 dia útil",
+  pts: 5
+}, {
+  id: "p1_col",
+  grupo: "Emergencial — Colar Metropolitano",
+  label: "P1 - Crítica — atraso a cada 2 dias úteis",
+  pts: 3
+}, {
+  id: "p2_col",
+  grupo: "Emergencial — Colar Metropolitano",
+  label: "P2 - Alta — atraso a cada 2 dias úteis",
+  pts: 2
+}, {
+  id: "p3_col",
+  grupo: "Emergencial — Colar Metropolitano",
+  label: "P3 - Média — atraso a cada 2 dias úteis",
+  pts: 1
+}, {
+  id: "outras_col",
+  grupo: "Emergencial — Colar Metropolitano",
+  label: "Outras ocorrências — atraso a cada 5 dias úteis",
+  pts: 1
+}, {
+  id: "p1_dem",
+  grupo: "Emergencial — Demais cidades",
+  label: "P1 - Crítica — atraso a cada 5 dias úteis",
+  pts: 3
+}, {
+  id: "p2_dem",
+  grupo: "Emergencial — Demais cidades",
+  label: "P2 - Alta — atraso a cada 5 dias úteis",
+  pts: 2
+}, {
+  id: "p3_dem",
+  grupo: "Emergencial — Demais cidades",
+  label: "P3 - Média — atraso a cada 5 dias úteis",
+  pts: 1
+}, {
+  id: "outras_dem",
+  grupo: "Emergencial — Demais cidades",
+  label: "Outras ocorrências — atraso a cada 10 dias úteis",
+  pts: 1
+}];
 const STORAGE_MED = "geasi_medicoes_hist";
 const ANEXO_IV = [{
   id: "rem",
@@ -1230,7 +1286,7 @@ function PageDashboard({
     style: {
       height: "100%",
       background: `linear-gradient(90deg,var(--accent),var(--accent2))`,
-      width: `${Math.min(100, medido / CONTRATO_VALOR_IV * 100)}%`,
+      width: `${Math.min(100, medido / valorRef * 100)}%`,
       borderRadius: 6,
       transition: "width .6s"
     }
@@ -1241,7 +1297,7 @@ function PageDashboard({
       fontSize: 11,
       color: "var(--text3)"
     }
-  }, /*#__PURE__*/React.createElement("span", null, "0%"), /*#__PURE__*/React.createElement("span", null, (medido / CONTRATO_VALOR_IV * 100).toFixed(1), "% consumido"), /*#__PURE__*/React.createElement("span", null, "100%"))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "0%"), /*#__PURE__*/React.createElement("span", null, (medido / valorRef * 100).toFixed(1), "% consumido"), /*#__PURE__*/React.createElement("span", null, "100%"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: "var(--surface)",
       borderRadius: 6,
@@ -3384,7 +3440,7 @@ function PageMedicao({
   const [slaVals, setSlaVals] = useState({});
   const [resultado, setResultado] = useState(null);
   const [hist, setHist] = useState(() => JSON.parse(localStorage.getItem(STORAGE_MED) || "[]"));
-  const getSLAPts = () => [["c1", 2], ["c2", 1], ["c3", 2], ["c4", 1]].reduce((a, [k, p]) => a + (parseInt(slaVals[k]) || 0) * p, 0);
+  const getSLAPts = () => SLA_CRITERIOS.reduce((a, r) => a + (parseInt(slaVals[r.id]) || 0) * r.pts, 0);
   const getSLAPct = pts => pts <= 10 ? 0 : pts <= 20 ? 2 : pts <= 30 ? 4 : pts <= 40 ? 6 : pts <= 50 ? 8 : 10;
   const calcular = async () => {
     const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
@@ -3820,23 +3876,25 @@ function PageMedicao({
       color: "var(--text3)",
       marginBottom: 12
     }
-  }, "Informe ocorr\xEAncias de atraso no per\xEDodo para calcular a glosa."), [{
-    id: "c1",
-    label: "OS programada (colar) — 5 dias de atraso",
-    pts: 2
-  }, {
-    id: "c2",
-    label: "OS programada (interior) — 10 dias de atraso",
-    pts: 2
-  }, {
-    id: "c3",
-    label: "Emergencial P2 (colar) — 2 dias úteis",
-    pts: 1
-  }, {
-    id: "c4",
-    label: "Emergencial P2 (interior) — 5 dias úteis",
-    pts: 1
-  }].map(r => /*#__PURE__*/React.createElement("div", {
+  }, "Informe ocorr\xEAncias de atraso no per\xEDodo para calcular a glosa (Anexo SLA)."), Object.entries(SLA_CRITERIOS.reduce((acc, r) => {
+    (acc[r.grupo] = acc[r.grupo] || []).push(r);
+    return acc;
+  }, {})).map(([grupo, rows]) => /*#__PURE__*/React.createElement("div", {
+    key: grupo,
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "var(--text3)",
+      textTransform: "uppercase",
+      letterSpacing: ".04em",
+      marginTop: 10,
+      marginBottom: 4
+    }
+  }, grupo), rows.map(r => /*#__PURE__*/React.createElement("div", {
     key: r.id,
     style: {
       display: "flex",
@@ -3866,7 +3924,7 @@ function PageMedicao({
       width: 70,
       textAlign: "center"
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))))), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 12,
       background: "var(--surface)",
