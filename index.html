@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784140044 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784140572 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3432,7 +3432,30 @@ function PageAvaliacao({
       value: kmFinal,
       onChange: e => setKmFinal(e.target.value),
       placeholder: "Ex: 85"
-    })), /*#__PURE__*/React.createElement("div", {
+    })), (() => {
+      let ret = {};
+      try { ret = JSON.parse(sel?.retorno_campo || "{}"); } catch (e) {}
+      const geo = ret.geo_finalizacao || ret.geo_abertura;
+      if (!geo) return null;
+      const url = `https://www.google.com/maps?q=${geo.lat},${geo.lng}`;
+      return /*#__PURE__*/React.createElement("div", {
+        className: "fg",
+        style: { marginBottom: 12 }
+      }, /*#__PURE__*/React.createElement("a", {
+        href: url,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+          color: "var(--accent)",
+          textDecoration: "none",
+          fontWeight: 600
+        }
+      }, "\uD83D\uDCCD Ver localiza\xE7\xE3o do t\xE9cnico no mapa", ret.geo_abertura && ret.geo_finalizacao ? " (abertura + finaliza\xE7\xE3o)" : ""));
+    })(), /*#__PURE__*/React.createElement("div", {
       className: "fg",
       style: {
         marginBottom: 12
