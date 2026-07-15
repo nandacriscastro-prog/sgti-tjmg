@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115248 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115526 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1972,11 +1972,12 @@ function PageNovaOS({
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
       let tentativas = 0;
       let ultimoErro = null;
+      let novoNum = null;
       while (tentativas < 5) {
         tentativas++;
         const rows = await buscarProximoNum(contratoSel);
         const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
-        const novoNum = String(ultimoNum + tentativas);
+        novoNum = String(ultimoNum + tentativas);
         const corpo = {
           numero: novoNum,
           empresa: pv.empresa || empresa || "A definir",
@@ -2029,7 +2030,7 @@ function PageNovaOS({
       };
       const htmlOS = gerarHTMLOS(pvFinal, novoNum);
       const htmlLib = gerarHTMLLib(pvFinal, novoNum, tecsDaEmpresa);
-      setNumOS(String(novoNum + 1));
+      setNumOS(String((parseInt(novoNum) || 0) + 1));
       toast(`✓ OS ${novoNum} criada!`, "ok");
       setPreview(false);
       onOsCriada && onOsCriada();
