@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784060270 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784110189 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1735,9 +1735,10 @@ const SLA_INFO = {
     }
   }
 };
-function getSLADesc(tipo, prio, comarca) {
+function getSLADesc(tipo, prio, comarca, contrato) {
   if (!tipo) return null;
-  const isColar = COLAR_CIDADES.has((comarca || "").split(" - ")[0]);
+  const _mun = (comarca || "").split(" - ")[0];
+  const isColar = (contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
   if (tipo === "Presencial Programado") {
     const r = isColar ? SLA_INFO[tipo].colar : SLA_INFO[tipo].interior;
     return {
@@ -1869,7 +1870,7 @@ function PageNovaOS({
     setPrazo(info.label);
     setPrazoDate(info.date);
   }, [tipo, prio, dt, comarca]);
-  const slaDesc = getSLADesc(tipo, prio, comarca);
+  const slaDesc = getSLADesc(tipo, prio, comarca, contratoSel);
   const handleComarca = (k, dados) => {
     setComarca(k);
     setDadosComarca(dados);
