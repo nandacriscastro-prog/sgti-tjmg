@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784138547 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784139022 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3666,6 +3666,7 @@ function PageMedicao({
         }
       });
       const FRACAO_KM = 0.0032468;
+      const diariaDetalhe = [];
       osMes.forEach(o => {
         const s = (o.servico || o.tipo || "").toLowerCase();
         if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
@@ -3675,7 +3676,18 @@ function PageMedicao({
             const kmOS = parseFloat(r.km || 0);
             totalKm += kmOS;
             const teveServicoDaLista = (r.pecas || []).some(p => p.desc);
-            totalDiarias += parseFloat(r.diarias || 0) + (teveServicoDaLista ? kmOS * FRACAO_KM : 0);
+            const fracaoPecasEBase = parseFloat(r.diarias || 0);
+            const fracaoKm = teveServicoDaLista ? kmOS * FRACAO_KM : 0;
+            totalDiarias += fracaoPecasEBase + fracaoKm;
+            diariaDetalhe.push({
+              numero: o.numero,
+              comarca: o.comarca,
+              fracaoBaseEPecas: fracaoPecasEBase,
+              kmOS,
+              tevePecas: teveServicoDaLista,
+              fracaoKm,
+              fracaoTotal: fracaoPecasEBase + fracaoKm
+            });
           }
         } catch (e) {}
       });
@@ -3742,7 +3754,8 @@ function PageMedicao({
         autoPts,
         ocorrenciasAtraso,
         pecasMes,
-        osSemKm
+        osSemKm,
+        diariaDetalhe
       });
     } catch (e) {
       toast("Erro ao buscar OS: " + e.message, "error");
@@ -4155,6 +4168,13 @@ function PageMedicao({
           });
         }
       });
+      rows.push([]);
+      rows.push(["DETALHAMENTO DA FRAÇÃO DE DIÁRIA POR OS"]);
+      rows.push(["Nº OS","Comarca","Fração base+peças","Km da OS","Teve peça?","Fração deslocamento (km×0,0032468)","Fração total da OS"]);
+      (resultado.diariaDetalhe || []).forEach(d => {
+        rows.push([d.numero, d.comarca, d.fracaoBaseEPecas.toFixed(4), d.kmOS, d.tevePecas ? "Sim" : "Não", d.fracaoKm.toFixed(4), d.fracaoTotal.toFixed(4)]);
+      });
+      rows.push(["", "", "", "", "", "Soma total de frações", (resultado.totalDiarias||0).toFixed(4)]);
       rows.push([]);
       rows.push(["ANEXO IV - ITENS DE ATENDIMENTO/SERVIÇO"]);
       rows.push(["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]);
