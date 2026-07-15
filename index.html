@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784139022 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784140044 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -4172,9 +4172,9 @@ function PageMedicao({
       rows.push(["DETALHAMENTO DA FRAÇÃO DE DIÁRIA POR OS"]);
       rows.push(["Nº OS","Comarca","Fração base+peças","Km da OS","Teve peça?","Fração deslocamento (km×0,0032468)","Fração total da OS"]);
       (resultado.diariaDetalhe || []).forEach(d => {
-        rows.push([d.numero, d.comarca, d.fracaoBaseEPecas.toFixed(4), d.kmOS, d.tevePecas ? "Sim" : "Não", d.fracaoKm.toFixed(4), d.fracaoTotal.toFixed(4)]);
+        rows.push([d.numero, d.comarca, d.fracaoBaseEPecas.toFixed(2), d.kmOS, d.tevePecas ? "Sim" : "Não", d.fracaoKm.toFixed(2), d.fracaoTotal.toFixed(2)]);
       });
-      rows.push(["", "", "", "", "", "Soma total de frações", (resultado.totalDiarias||0).toFixed(4)]);
+      rows.push(["", "", "", "", "", "Soma total de frações", (resultado.totalDiarias||0).toFixed(2)]);
       rows.push([]);
       rows.push(["ANEXO IV - ITENS DE ATENDIMENTO/SERVIÇO"]);
       rows.push(["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]);
