@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784111309 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784111563 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1732,6 +1732,18 @@ const SLA_INFO = {
         tipo: "úteis",
         pts: 1
       }
+    },
+    "Outras": {
+      colar: {
+        dias: 5,
+        tipo: "úteis",
+        pts: 1
+      },
+      interior: {
+        dias: 10,
+        tipo: "úteis",
+        pts: 1
+      }
     }
   }
 };
@@ -2170,23 +2182,27 @@ function PageNovaOS({
     value: ""
   }, "Selecione..."), /*#__PURE__*/React.createElement("option", null, "Presencial Programado"), /*#__PURE__*/React.createElement("option", null, "Presencial Emergencial"))), /*#__PURE__*/React.createElement("div", {
     className: "fg"
-  }, /*#__PURE__*/React.createElement("label", null, "Prioridade"), /*#__PURE__*/React.createElement("select", {
-    value: prio,
-    onChange: e => setPrio(e.target.value),
-    disabled: !tipo.includes("Emergencial")
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "\u2014 (s\xF3 emergencial)"), /*#__PURE__*/React.createElement("option", {
-    value: "P0 - Urgente"
-  }, "P0 - Urgente"), /*#__PURE__*/React.createElement("option", {
-    value: "P1 - Cr\xEDtica"
-  }, "P1 - Cr\xEDtica"), /*#__PURE__*/React.createElement("option", {
-    value: "P2 - Alta"
-  }, "P2 - Alta"), /*#__PURE__*/React.createElement("option", {
-    value: "P3 - M\xE9dia"
-  }, "P3 - M\xE9dia"), /*#__PURE__*/React.createElement("option", {
-    value: "Outro"
-  }, "Outro"))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", null, "Prioridade"), (() => {
+    const _munAtual = (comarca || "").split(" - ")[0];
+    const isColarAtual = (contratoSel || "") === "181/2026" ? COLAR_181.has(_munAtual) : COLAR_CIDADES.has(_munAtual);
+    return /*#__PURE__*/React.createElement("select", {
+      value: prio,
+      onChange: e => setPrio(e.target.value),
+      disabled: !tipo.includes("Emergencial")
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "\u2014 (s\xF3 emergencial)"), isColarAtual && /*#__PURE__*/React.createElement("option", {
+      value: "P0 - Urgente"
+    }, "P0 - Urgente"), /*#__PURE__*/React.createElement("option", {
+      value: "P1 - Cr\xEDtica"
+    }, "P1 - Cr\xEDtica"), /*#__PURE__*/React.createElement("option", {
+      value: "P2 - Alta"
+    }, "P2 - Alta"), /*#__PURE__*/React.createElement("option", {
+      value: "P3 - M\xE9dia"
+    }, "P3 - M\xE9dia"), /*#__PURE__*/React.createElement("option", {
+      value: "Outras"
+    }, "Outras (n\xE3o se enquadram em P0-P3)"));
+  })()), /*#__PURE__*/React.createElement("div", {
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, "Data da OS"), /*#__PURE__*/React.createElement("input", {
     type: "date",
