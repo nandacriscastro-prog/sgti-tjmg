@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784132087 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784137620 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3626,7 +3626,7 @@ function PageMedicao({
     const ultimo = new Date(ano, mes + 1, 0);
     const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimo.getDate()).padStart(2, "0")}`;
     try {
-      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&contrato=eq.181%2F2026&data_os=gte.${dtIni}&data_os=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,prazo_date,data_conclusao&limit=500`)) || [];
+      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao&limit=500`)) || [];
       let qtdAlarme = 0,
         qtdPortal = 0,
         qtdRaio = 0,
@@ -4002,7 +4002,7 @@ function PageMedicao({
         textAlign: "center",
         fontFamily: "var(--mono)"
       }
-    }, q), /*#__PURE__*/React.createElement("td", {
+    }, Number.isInteger(q) ? q : q.toFixed(2)), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
         fontFamily: "var(--mono)"
@@ -4082,19 +4082,35 @@ function PageMedicao({
   }, "\u2713 Aprovar e registrar"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => {
-      const rows = [["Nº OS","Comarca","Contrato","Data abertura","Data conclusão","Serviço","Equipamentos substituídos","Qtd peças","Km da OS","Valor km (R$)","Dias de atraso","Pontos glosa SLA"]];
+      const rows = [["Nº OS","Comarca","Contrato","Data abertura","Data conclusão","Serviço","Equipamento substituído","Qtd","Km da OS","Valor km da OS (R$)","Dias de atraso","Pontos glosa SLA"]];
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const pecasStr = (r.pecas || []).filter(p=>p.desc).map(p => p.desc + (p.qtd && p.qtd!=="1" ? " x"+p.qtd : "")).join(" | ");
-        const qtdPecas = (r.pecas || []).filter(p=>p.desc).reduce((a,p)=>a+(parseFloat(p.qtd)||1),0);
         const kmOS = parseFloat(r.km || 0) || 0;
+        const valorKmOS = (kmOS * ANEXO_IV.find(a=>a.id==="km").vu).toFixed(2);
         const oc = (resultado.ocorrenciasAtraso||[]).find(x=>x.numero===o.numero);
-        rows.push([
-          o.numero, o.comarca||"", o.contrato||"", o.data_os||"", o.data_conclusao||r.dtconc||"",
-          o.servico||o.tipo||"", pecasStr, qtdPecas||"", kmOS, (kmOS*ANEXO_IV.find(a=>a.id==="km").vu).toFixed(2),
-          oc ? oc.diasAtraso : 0, oc ? oc.pts : 0
-        ]);
+        const diasAtraso = oc ? oc.diasAtraso : 0;
+        const pontosGlosa = oc ? oc.pts : 0;
+        // Agrupa por item igual dentro da mesma OS (mesma comarca) - soma quantidade; itens diferentes ficam em linhas separadas
+        const pecasAgrupadas = {};
+        (r.pecas || []).filter(p => p.desc).forEach(p => {
+          const chave = p.desc;
+          if (!pecasAgrupadas[chave]) pecasAgrupadas[chave] = 0;
+          pecasAgrupadas[chave] += parseFloat(p.qtd) || 1;
+        });
+        const itens = Object.keys(pecasAgrupadas);
+        if (itens.length === 0) {
+          rows.push([o.numero, o.comarca||"", o.contrato||"", o.data_os||"", o.data_conclusao||r.dtconc||"", o.servico||o.tipo||"", "—", "", kmOS, valorKmOS, diasAtraso, pontosGlosa]);
+        } else {
+          itens.forEach((item, i) => {
+            rows.push([
+              o.numero, o.comarca||"", o.contrato||"", o.data_os||"", o.data_conclusao||r.dtconc||"",
+              o.servico||o.tipo||"", item, pecasAgrupadas[item],
+              i === 0 ? kmOS : "", i === 0 ? valorKmOS : "",
+              i === 0 ? diasAtraso : "", i === 0 ? pontosGlosa : ""
+            ]);
+          });
+        }
       });
       rows.push([]);
       rows.push(["Total bruto", fmtR(resultado.bruto)]);
