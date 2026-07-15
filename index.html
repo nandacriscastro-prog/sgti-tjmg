@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784110375 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784110606 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2879,6 +2879,7 @@ function PageAvaliacao({
   const [sel, setSel] = useState(null);
   const [aval, setAval] = useState("");
   const [obs, setObs] = useState("");
+  const [kmFinal, setKmFinal] = useState("");
   const [loading, setLoading] = useState(false);
   const [selFechar, setSelFechar] = useState(null);
   const [obsFechar, setObsFechar] = useState("");
@@ -2929,12 +2930,21 @@ function PageAvaliacao({
     }
     setLoading(true);
     try {
+      let retExist = {};
+      try {
+        retExist = JSON.parse(sel.retorno_campo || "{}");
+      } catch (e) {}
+      const retAtualizado = JSON.stringify({
+        ...retExist,
+        km: kmFinal || retExist.km || ""
+      });
       await sbFetch(`/ordens_servico?id=eq.${sel.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           avaliacao: aval === "sat" ? "satisfatorio" : "insatisfatorio",
           avaliacao_obs: obs,
-          status: aval === "sat" ? "Concluída" : "Reaberta"
+          status: aval === "sat" ? "Concluída" : "Reaberta",
+          retorno_campo: retAtualizado
         })
       });
       if (aval === "insat") {
@@ -3053,6 +3063,11 @@ function PageAvaliacao({
         setSel(o);
         setAval("");
         setObs("");
+        let _kmExist = "";
+        try {
+          _kmExist = JSON.parse(o.retorno_campo || "{}").km || "";
+        } catch (e) {}
+        setKmFinal(_kmExist);
       }
     }
   }, /*#__PURE__*/React.createElement("td", {
@@ -3305,6 +3320,17 @@ function PageAvaliacao({
         color: "var(--text3)"
       }
     }, "Reabrir OS"))), /*#__PURE__*/React.createElement("div", {
+      className: "fg",
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("label", null, "KM final (informado pela fiscaliza\xE7\xE3o)"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      min: "0",
+      value: kmFinal,
+      onChange: e => setKmFinal(e.target.value),
+      placeholder: "Ex: 85"
+    })), /*#__PURE__*/React.createElement("div", {
       className: "fg",
       style: {
         marginBottom: 12
