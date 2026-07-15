@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784110189 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784110375 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -2938,8 +2938,13 @@ function PageAvaliacao({
         })
       });
       if (aval === "insat") {
-        // Gerar nova OS automaticamente
+        // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
         const novoNum = String(parseInt(sel.numero) + 10000);
+        const _mun = (sel.comarca || "").split(" - ")[0];
+        const _isColar = (sel.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+        const diasCorrecao = _isColar ? 1 : 3;
+        const agora = new Date();
+        const prazoCorrecaoDate = addDiasUteis(agora, diasCorrecao);
         await sbFetch("/ordens_servico", {
           method: "POST",
           body: JSON.stringify({
@@ -2950,10 +2955,14 @@ function PageAvaliacao({
             avaliacao: null,
             avaliacao_obs: null,
             os_origem: sel.numero,
-            criado_em: new Date().toISOString()
+            criado_em: new Date().toISOString(),
+            tipo: "Correção",
+            prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR"),
+            prazo_date: prazoCorrecaoDate.toISOString().slice(0, 10),
+            observacoes: (sel.observacoes ? sel.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs. avaliação: ${obs || "—"}`
           })
         });
-        toast("OS reaberta — nova OS gerada automaticamente", "ok");
+        toast("OS reaberta — nova OS gerada com prazo de correção (" + diasCorrecao + " dia(s) útil(eis))", "ok");
       } else {
         toast("✓ Avaliado como satisfatório", "ok");
       }
@@ -3431,6 +3440,15 @@ function PageCampo({
 }
 
 // ── PAGE: MEDIÇÃO ─────────────────────────────────────────────
+function addDiasUteis(base, n) {
+  const r = new Date(base);
+  let u = 0;
+  while (u < n) {
+    r.setDate(r.getDate() + 1);
+    if (r.getDay() !== 0 && r.getDay() !== 6) u++;
+  }
+  return r;
+}
 function diasUteisEntre(d1, d2) {
   let u = 0;
   const cur = new Date(d1);
