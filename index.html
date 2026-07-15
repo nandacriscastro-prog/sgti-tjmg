@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784111800 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784112078 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1116,22 +1116,74 @@ function PageDashboard({
   os,
   setPage
 }) {
-  const abertas = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
-  const conc = os.filter(o => o.status === "Concluída").length;
-  const pendentes = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
-  const sat = os.filter(o => o.avaliacao === "satisfatorio").length;
-  const reab = os.filter(o => o.avaliacao === "insatisfatorio").length;
-  const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
+  const os181 = os.filter(o => (o.contrato || "") === "181/2026");
+  const osLegacy = os.filter(o => ["216/2023", "217/2023", "218/2023"].includes(o.contrato || ""));
+  const hoje = new Date().toISOString().slice(0, 10);
+  const kpisPara = lista => {
+    const abertas = lista.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
+    const conc = lista.filter(o => o.status === "Concluída").length;
+    const pendentes = lista.filter(o => o.status === "Concluída" && !o.avaliacao).length;
+    const sat = lista.filter(o => o.avaliacao === "satisfatorio").length;
+    const reab = lista.filter(o => o.avaliacao === "insatisfatorio").length;
+    const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
+    const vencidas = lista.filter(o => {
+      if (!["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")) return false;
+      if (!o.prazo_date) return false;
+      return o.prazo_date < hoje;
+    });
+    return {
+      abertas,
+      conc,
+      pendentes,
+      taxa,
+      vencidas
+    };
+  };
+  const k181 = kpisPara(os181);
+  const kLegacy = kpisPara(osLegacy);
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   const medido = hist.reduce((a, m) => a + m.liq, 0);
   const valorRef = CONTRATO_VALOR_181 || CONTRATO_VALOR_IV;
   const saldo = valorRef - medido;
-  const hoje = new Date().toISOString().slice(0,10);
-  const vencidas = os.filter(o => {
-    if(!["Aberta","Em andamento","Reaberta"].includes(o.status||"")) return false;
-    if(!o.prazo_date) return false;
-    return o.prazo_date < hoje;
-  });
+  const renderKpiGrid = k => /*#__PURE__*/React.createElement("div", {
+    className: "kpi-grid",
+    style: {
+      marginBottom: 24
+    }
+  }, [{
+    label: "⚠️ Vencidas",
+    val: k.vencidas.length,
+    cls: "red",
+    page: "avaliacao"
+  }, {
+    label: "OS abertas",
+    val: k.abertas,
+    cls: "blue",
+    page: "historico"
+  }, {
+    label: "Ag. avaliação",
+    val: k.pendentes,
+    cls: "amber",
+    page: "avaliacao"
+  }, {
+    label: "Concluídas",
+    val: k.conc,
+    cls: "green",
+    page: "historico"
+  }, {
+    label: "Taxa satisf.",
+    val: k.taxa + "%",
+    cls: "purple",
+    page: "avaliacao"
+  }].map(kk => /*#__PURE__*/React.createElement("div", {
+    key: kk.label,
+    className: `kpi ${kk.cls}`,
+    onClick: () => setPage(kk.page)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "kpi-val"
+  }, kk.val), /*#__PURE__*/React.createElement("div", {
+    className: "kpi-lbl"
+  }, kk.label))));
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -1151,50 +1203,16 @@ function PageDashboard({
       textTransform: "uppercase",
       letterSpacing: ".08em"
     }
-  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contrato 218/2023"), /*#__PURE__*/React.createElement("div", {
-    className: "kpi-grid",
+  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contrato 181/2026 (vigente)"), renderKpiGrid(k181), /*#__PURE__*/React.createElement("div", {
     style: {
-      marginBottom: 24
+      marginBottom: 8,
+      fontSize: 11,
+      fontWeight: 700,
+      color: "var(--text3)",
+      textTransform: "uppercase",
+      letterSpacing: ".08em"
     }
-  }, [{
-    label: "⚠️ Vencidas",
-    val: vencidas.length,
-    cls: "red",
-    page: "avaliacao"
-  }, {
-    label: "OS abertas",
-    val: abertas,
-    cls: "blue",
-    page: "historico"
-  }, {
-    label: "Ag. avaliação",
-    val: pendentes,
-    cls: "amber",
-    page: "avaliacao"
-  }, {
-    label: "Concluídas",
-    val: conc,
-    cls: "green",
-    page: "historico"
-  }, {
-    label: "Taxa satisf.",
-    val: taxa + "%",
-    cls: "purple",
-    page: "avaliacao"
-  }, {
-    label: "Saldo contrato",
-    val: fmtR(saldo),
-    cls: "navy",
-    page: "medicao"
-  }].map(k => /*#__PURE__*/React.createElement("div", {
-    key: k.label,
-    className: `kpi ${k.cls}`,
-    onClick: () => setPage(k.page)
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "kpi-val"
-  }, k.val), /*#__PURE__*/React.createElement("div", {
-    className: "kpi-lbl"
-  }, k.label)))), /*#__PURE__*/React.createElement("div", {
+  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contratos 216/217/218 de 2023 (encerrados)"), renderKpiGrid(kLegacy), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 8,
       fontSize: 11,
@@ -2903,6 +2921,7 @@ function PageAvaliacao({
   const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const hoje = new Date().toISOString().slice(0,10);
   const qtdVencidas = abertas.filter(o => {
+    if (o.prazo_date) return hoje > o.prazo_date;
     if(!o.data_os) return false;
     const mun = (o.comarca||"").split(" - ")[0];
     const isC181 = (o.contrato||"") === "181/2026" ? COLAR_181.has(mun) : COLAR_CIDADES.has(mun);
