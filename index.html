@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784113878 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115248 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1847,13 +1847,19 @@ function PageNovaOS({
   const [pv, setPv] = useState({});
   const [numOS, setNumOS] = useState("...");
 
-  const buscarProximoNum = (ct) => {
-    const c = encodeURIComponent(ct || "181/2026");
-    return sbFetch("/ordens_servico?select=numero,contrato&contrato=eq."+c+"&order=criado_em.desc&limit=200")
-      .then(rows => {
-        const nums = (rows||[]).map(r => parseInt(r.numero)||0).filter(n=>n>0&&n<100000);
-        return [{numero: String(nums.length ? Math.max(...nums) : 0)}];
-      }).catch(()=>[{numero:"0"}]);
+  const buscarProximoNum = () => {
+    return (async () => {
+      let all = [], offset = 0;
+      while (true) {
+        const batch = await sbFetch(`/ordens_servico?select=numero&limit=1000&offset=${offset}`);
+        if (!batch?.length) break;
+        all = all.concat(batch);
+        offset += batch.length;
+        if (batch.length < 1000) break;
+      }
+      const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
+      return [{ numero: String(nums.length ? Math.max(...nums) : 0) }];
+    })().catch(() => [{ numero: "0" }]);
   };
   const mudarContrato = (ct) => {
     setContratoSel(ct);
@@ -1950,7 +1956,7 @@ function PageNovaOS({
       servico: serv + (servDesc ? " — " + servDesc : ""),
       observacoes: obs,
       data_os: dt,
-      contrato: "218/2023",
+      contrato: contratoSel || "181/2026",
       prazo,
       prazo_date: prazoDate,
       empresa,
@@ -1963,36 +1969,53 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
-      const rows = await buscarProximoNum(contratoSel);
-      const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
-      const novoNum = String(ultimoNum + 1);
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
-      const corpo = {
-        numero: novoNum,
-        empresa: pv.empresa || empresa || "A definir",
-        contrato: pv.contrato || contratoSel || "181/2026",
-        comarca: pv.comarca || "",
-        forum: pv.forum || "",
-        endereco: pv.endereco || "",
-        polo: pv.polo || "",
-        telefone: "",
-        contato: pv.contato || "",
-        servico: pv.servico || "",
-        tipo: pv.tipo || "",
-        prioridade: pv.prioridade || "",
-        regiao: COLAR_CIDADES.has((pv.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-        observacoes: pv.observacoes || "",
-        os_origem: pv.os_origem || null,
-        data_os: pv.data_os || new Date().toISOString().slice(0, 10),
-        status: "Aberta",
-        criado_por: fiscalSel.email,
-        criado_em: new Date().toISOString(),
-        email_enviado: false
-      };
-      await sbFetch("/ordens_servico", {
-        method: "POST",
-        body: JSON.stringify(corpo)
-      });
+      let tentativas = 0;
+      let ultimoErro = null;
+      while (tentativas < 5) {
+        tentativas++;
+        const rows = await buscarProximoNum(contratoSel);
+        const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
+        const novoNum = String(ultimoNum + tentativas);
+        const corpo = {
+          numero: novoNum,
+          empresa: pv.empresa || empresa || "A definir",
+          contrato: pv.contrato || contratoSel || "181/2026",
+          comarca: pv.comarca || "",
+          forum: pv.forum || "",
+          endereco: pv.endereco || "",
+          polo: pv.polo || "",
+          telefone: "",
+          contato: pv.contato || "",
+          servico: pv.servico || "",
+          tipo: pv.tipo || "",
+          prioridade: pv.prioridade || "",
+          regiao: COLAR_CIDADES.has((pv.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
+          observacoes: pv.observacoes || "",
+          os_origem: pv.os_origem || null,
+          data_os: pv.data_os || new Date().toISOString().slice(0, 10),
+          status: "Aberta",
+          criado_por: fiscalSel.email,
+          criado_em: new Date().toISOString(),
+          email_enviado: false
+        };
+        try {
+          await sbFetch("/ordens_servico", {
+            method: "POST",
+            body: JSON.stringify(corpo)
+          });
+          ultimoErro = null;
+          break;
+        } catch (e) {
+          const dup = /23505|duplicate key/i.test(e?.message || "");
+          if (dup && tentativas < 5) {
+            ultimoErro = e;
+            continue;
+          }
+          throw e;
+        }
+      }
+      if (ultimoErro) throw ultimoErro;
       const tecsDaEmpresa = getTecnicos().filter(t => t.funcao !== "Fiscal").map(t => ({
         nome: t.nome,
         ci: t.ci || "—",
