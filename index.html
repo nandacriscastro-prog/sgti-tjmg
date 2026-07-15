@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784138166 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784138547 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -4155,6 +4155,14 @@ function PageMedicao({
           });
         }
       });
+      rows.push([]);
+      rows.push(["ANEXO IV - ITENS DE ATENDIMENTO/SERVIÇO"]);
+      rows.push(["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]);
+      ANEXO_IV.forEach(it => {
+        const q = qtds[it.id] || 0;
+        rows.push([it.id, it.desc, it.unid, Number.isInteger(q) ? q : q.toFixed(2), it.vu.toFixed(2), (q * it.vu).toFixed(2)]);
+      });
+      rows.push(["", "", "", "", "Subtotal serviços", resultado.brutoServicos.toFixed(2)]);
       rows.push([]);
       rows.push(["DOTAÇÃO 1 - SERVIÇOS (atendimento/diária/km)", fmtR(resultado.brutoServicos)]);
       rows.push(["DOTAÇÃO 2 - MATERIAIS/EQUIPAMENTOS (peças substituídas)", fmtR(resultado.brutoMateriais)]);
