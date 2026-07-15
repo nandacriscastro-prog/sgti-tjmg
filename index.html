@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115772 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784127844 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3659,6 +3659,25 @@ function PageMedicao({
           }
         } catch (e) {}
       });
+      const pecasMes = [];
+      osMes.forEach(o => {
+        try {
+          const r = JSON.parse(o.retorno_campo || "{}");
+          (r.pecas || []).forEach(p => {
+            if (!p.desc) return;
+            pecasMes.push({
+              numero: o.numero,
+              comarca: o.comarca,
+              data: o.data_conclusao || r.dtconc || "",
+              desc: p.desc,
+              marca: p.marca,
+              modelo: p.modelo,
+              serie: p.serie,
+              qtd: p.qtd || "1"
+            });
+          });
+        } catch (e) {}
+      });
       const novos = {
         rem: 1,
         pres: qtdAlarme,
@@ -3672,6 +3691,12 @@ function PageMedicao({
       const pts = slaVals._manual ? getSLAPts() : autoPts;
       const pct = getSLAPct(pts);
       const glosa = bruto * pct / 100;
+      const osSemKm = osMes.filter(o => {
+        try {
+          const r = JSON.parse(o.retorno_campo || "{}");
+          return !r.km || parseFloat(r.km) === 0;
+        } catch (e) { return true; }
+      }).map(o => o.numero);
       setResultado({
         mes,
         ano,
@@ -3687,7 +3712,9 @@ function PageMedicao({
         glosa,
         liq: bruto - glosa,
         autoPts,
-        ocorrenciasAtraso
+        ocorrenciasAtraso,
+        pecasMes,
+        osSemKm
       });
     } catch (e) {
       toast("Erro ao buscar OS: " + e.message, "error");
@@ -4052,16 +4079,65 @@ function PageMedicao({
   }, "\u2713 Aprovar e registrar"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => {
-      const blob = new Blob([`MEDIÇÃO ${resultado.label}\n\nTotal bruto: ${fmtR(resultado.bruto)}\nGlosa SLA (${resultado.pct}%): ${fmtR(resultado.glosa)}\nTotal líquido: ${fmtR(resultado.liq)}\n\nOS no período: ${resultado.osMes?.length || 0}`], {
-        type: "text/plain;charset=utf-8"
+      const rows = [["Nº OS","Comarca","Contrato","Data abertura","Data conclusão","Serviço","Equipamentos substituídos","Qtd peças","Km da OS","Valor km (R$)","Dias de atraso","Pontos glosa SLA"]];
+      (resultado.osMes || []).forEach(o => {
+        let r = {};
+        try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+        const pecasStr = (r.pecas || []).filter(p=>p.desc).map(p => p.desc + (p.qtd && p.qtd!=="1" ? " x"+p.qtd : "")).join(" | ");
+        const qtdPecas = (r.pecas || []).filter(p=>p.desc).reduce((a,p)=>a+(parseFloat(p.qtd)||1),0);
+        const kmOS = parseFloat(r.km || 0) || 0;
+        const oc = (resultado.ocorrenciasAtraso||[]).find(x=>x.numero===o.numero);
+        rows.push([
+          o.numero, o.comarca||"", o.contrato||"", o.data_os||"", o.data_conclusao||r.dtconc||"",
+          o.servico||o.tipo||"", pecasStr, qtdPecas||"", kmOS, (kmOS*ANEXO_IV.find(a=>a.id==="km").vu).toFixed(2),
+          oc ? oc.diasAtraso : 0, oc ? oc.pts : 0
+        ]);
+      });
+      rows.push([]);
+      rows.push(["Total bruto", fmtR(resultado.bruto)]);
+      rows.push(["Glosa SLA ("+resultado.pct+"%)", fmtR(resultado.glosa)]);
+      rows.push(["Total líquido", fmtR(resultado.liq)]);
+      const csv = rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g,'""')}"`).join(";")).join("\r\n");
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8"
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Medicao_${resultado.label.replace(" / ", "_")}.txt`;
+      a.download = `Medicao_${resultado.label.replace(" / ", "_")}.csv`;
       a.click();
     }
-  }, "\u2193 Exportar")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "\u2193 Exportar Excel (CSV)")))), resultado && resultado.osSemKm && resultado.osSemKm.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: { borderColor: "var(--amber, #b8860b)" }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-title"
+  }, "\u26A0\uFE0F OS sem KM preenchido"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, color: "var(--text3)", marginBottom: 6 }
+  }, "Estas OS concluídas no período estão contando 0 km na medição — confira na Avaliação se o km foi preenchido:"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, fontFamily: "var(--mono)" }
+  }, resultado.osSemKm.join(", "))), resultado && resultado.pecasMes && resultado.pecasMes.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-title"
+  }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "Pe\xE7as substitu\xEDdas no m\xEAs"), /*#__PURE__*/React.createElement("div", {
+    className: "table-wrap"
+  }, /*#__PURE__*/React.createElement("table", null,
+    /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null,
+      /*#__PURE__*/React.createElement("th", null, "OS"),
+      /*#__PURE__*/React.createElement("th", null, "Data"),
+      /*#__PURE__*/React.createElement("th", null, "Comarca"),
+      /*#__PURE__*/React.createElement("th", null, "Item"),
+      /*#__PURE__*/React.createElement("th", { style: { textAlign: "center" } }, "Qtd")
+    )),
+    /*#__PURE__*/React.createElement("tbody", null, resultado.pecasMes.map((p, i) => /*#__PURE__*/React.createElement("tr", { key: i },
+      /*#__PURE__*/React.createElement("td", null, p.numero),
+      /*#__PURE__*/React.createElement("td", null, p.data ? new Date(p.data+"T12:00").toLocaleDateString("pt-BR") : "—"),
+      /*#__PURE__*/React.createElement("td", null, p.comarca),
+      /*#__PURE__*/React.createElement("td", null, p.desc + (p.marca && p.marca!=="N/A" ? " · "+p.marca : "") + (p.modelo && p.modelo!=="N/A" ? " "+p.modelo : "")),
+      /*#__PURE__*/React.createElement("td", { style: { textAlign: "center" } }, p.qtd)
+    )))
+  ))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "card-title"
