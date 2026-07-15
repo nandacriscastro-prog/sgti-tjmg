@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115526 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784115772 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1847,8 +1847,23 @@ function PageNovaOS({
   const [pv, setPv] = useState({});
   const [numOS, setNumOS] = useState("...");
 
-  const buscarProximoNum = () => {
+  const buscarProximoNum = ct => {
     return (async () => {
+      if (ct === "181/2026") {
+        let all = [], offset = 0;
+        while (true) {
+          const batch = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&select=numero&limit=1000&offset=${offset}`);
+          if (!batch?.length) break;
+          all = all.concat(batch);
+          offset += batch.length;
+          if (batch.length < 1000) break;
+        }
+        const seqs = all.map(r => {
+          const m = /^181-(\d+)$/.exec(r.numero || "");
+          return m ? parseInt(m[1]) : 0;
+        }).filter(n => n > 0);
+        return [{ numero: "181-" + (seqs.length ? Math.max(...seqs) : 0) }];
+      }
       let all = [], offset = 0;
       while (true) {
         const batch = await sbFetch(`/ordens_servico?select=numero&limit=1000&offset=${offset}`);
@@ -1859,20 +1874,32 @@ function PageNovaOS({
       }
       const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
       return [{ numero: String(nums.length ? Math.max(...nums) : 0) }];
-    })().catch(() => [{ numero: "0" }]);
+    })().catch(() => [{ numero: ct === "181/2026" ? "181-0" : "0" }]);
+  };
+  const proximoNumeroDe = row => {
+    const v = row?.numero || "0";
+    const m = /^181-(\d+)$/.exec(v);
+    if (m) return "181-" + (parseInt(m[1]) + 1);
+    return String((parseInt(v) || 0) + 1);
+  };
+  const proximoNumeroComTentativa = (row, tentativa) => {
+    const v = row?.numero || "0";
+    const m = /^181-(\d+)$/.exec(v);
+    if (m) return "181-" + (parseInt(m[1]) + tentativa);
+    return String((parseInt(v) || 0) + tentativa);
   };
   const mudarContrato = (ct) => {
     setContratoSel(ct);
     buscarProximoNum(ct).then(rows=>{
-      setNumOS(String((parseInt(rows?.[0]?.numero||"0")||0)+1));
+      setNumOS(proximoNumeroDe(rows?.[0]));
     });
   };
 
   // Buscar próximo número da OS ao carregar
   useEffect(() => {
-    buscarProximoNum(window._contratoNovaOS || "181/2026").then(rows => {
-      const n = parseInt(rows?.[0]?.numero || "0") || 0;
-      setNumOS(String(n + 1));
+    const ctInicial = window._contratoNovaOS || "181/2026";
+    buscarProximoNum(ctInicial).then(rows => {
+      setNumOS(proximoNumeroDe(rows?.[0]));
     }).catch(() => {});
   }, []);
   const calcPrazoInfo = (t, p, com, d) => {
@@ -1932,13 +1959,7 @@ function PageNovaOS({
     setFiscalId("3");
     setEmpresa("Alvo Segurança Ltda");
     buscarProximoNum(contratoSel || "181/2026").then(rows => {
-      const nums = (rows||[]).map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 100000);
-      return [{
-        numero: String(nums.length ? Math.max(...nums) : 0)
-      }];
-    }).then(rows => {
-      const n = parseInt(rows?.[0]?.numero || "0") || 0;
-      setNumOS(String(n + 1));
+      setNumOS(proximoNumeroDe(rows?.[0]));
     }).catch(() => {});
   };
   const abrirPreview = () => {
@@ -1976,8 +1997,7 @@ function PageNovaOS({
       while (tentativas < 5) {
         tentativas++;
         const rows = await buscarProximoNum(contratoSel);
-        const ultimoNum = parseInt(rows?.[0]?.numero || "0") || 0;
-        novoNum = String(ultimoNum + tentativas);
+        novoNum = proximoNumeroComTentativa(rows?.[0], tentativas);
         const corpo = {
           numero: novoNum,
           empresa: pv.empresa || empresa || "A definir",
@@ -2030,7 +2050,7 @@ function PageNovaOS({
       };
       const htmlOS = gerarHTMLOS(pvFinal, novoNum);
       const htmlLib = gerarHTMLLib(pvFinal, novoNum, tecsDaEmpresa);
-      setNumOS(String((parseInt(novoNum) || 0) + 1));
+      setNumOS(proximoNumeroDe({ numero: novoNum }));
       toast(`✓ OS ${novoNum} criada!`, "ok");
       setPreview(false);
       onOsCriada && onOsCriada();
@@ -3013,7 +3033,8 @@ function PageAvaliacao({
       });
       if (aval === "insat") {
         // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
-        const novoNum = String(parseInt(sel.numero) + 10000);
+        const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
+        const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(sel.numero) + 10000);
         const _mun = (sel.comarca || "").split(" - ")[0];
         const _isColar = (sel.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
         const diasCorrecao = _isColar ? 1 : 3;
