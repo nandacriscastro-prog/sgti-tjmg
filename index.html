@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784137872 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784138166 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3707,7 +3707,13 @@ function PageMedicao({
         diaria: totalDiarias
       };
       setQtds(novos);
-      let bruto = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
+      const brutoServicos = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
+      const brutoMateriais = osMes.reduce((acc, o) => {
+        let r = {};
+        try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      }, 0);
+      let bruto = brutoServicos + brutoMateriais;
       const pts = slaVals._manual ? getSLAPts() : autoPts;
       const pct = getSLAPct(pts);
       const glosa = bruto * pct / 100;
@@ -3727,6 +3733,8 @@ function PageMedicao({
         qtdRaio,
         totalKm,
         totalDiarias,
+        brutoServicos,
+        brutoMateriais,
         bruto,
         pct,
         glosa,
@@ -4041,7 +4049,7 @@ function PageMedicao({
       fontWeight: 700,
       padding: "10px 13px"
     }
-  }, "Total bruto"), /*#__PURE__*/React.createElement("td", {
+  }, "Subtotal serviços/atendimento"), /*#__PURE__*/React.createElement("td", {
     style: {
       textAlign: "right",
       fontFamily: "var(--mono)",
@@ -4049,7 +4057,23 @@ function PageMedicao({
       fontSize: 14,
       padding: "10px 13px"
     }
-  }, fmtR(resultado.bruto)))))), /*#__PURE__*/React.createElement("div", {
+  }, fmtR(resultado.brutoServicos)))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 13px",
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 13
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "+ Materiais/equipamentos (peças substituídas)"), /*#__PURE__*/React.createElement("strong", null, fmtR(resultado.brutoMateriais))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 13px",
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 15,
+      fontWeight: 700,
+      borderTop: "1px solid var(--border)"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "= Total bruto (serviços + materiais)"), /*#__PURE__*/React.createElement("span", null, fmtR(resultado.bruto))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px 0",
       borderTop: "1px solid var(--border)",
@@ -4132,12 +4156,9 @@ function PageMedicao({
         }
       });
       rows.push([]);
-      const totalPecas = (resultado.osMes||[]).reduce((acc,o)=>{
-        let r={}; try{r=JSON.parse(o.retorno_campo||"{}");}catch(e){}
-        return acc + (r.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+((PRECO_ANEXO_V[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
-      },0);
-      rows.push(["Total peças substituídas", fmtR(totalPecas)]);
-      rows.push(["Total bruto", fmtR(resultado.bruto)]);
+      rows.push(["DOTAÇÃO 1 - SERVIÇOS (atendimento/diária/km)", fmtR(resultado.brutoServicos)]);
+      rows.push(["DOTAÇÃO 2 - MATERIAIS/EQUIPAMENTOS (peças substituídas)", fmtR(resultado.brutoMateriais)]);
+      rows.push(["Total bruto (soma das duas dotações)", fmtR(resultado.bruto)]);
       rows.push(["Glosa SLA ("+resultado.pct+"%)", fmtR(resultado.glosa)]);
       rows.push(["Total líquido", fmtR(resultado.liq)]);
       const csv = rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g,'""')}"`).join(";")).join("\r\n");
