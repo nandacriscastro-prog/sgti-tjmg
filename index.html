@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784113465 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784113878 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -1128,8 +1128,13 @@ function PageDashboard({
     const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
     const vencidas = lista.filter(o => {
       if (!["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")) return false;
-      if (!o.prazo_date) return false;
-      return o.prazo_date < hoje;
+      if (!o.data_os) return false;
+      const mun = (o.comarca || "").split(" - ")[0];
+      const isC181 = (o.contrato || "") === "181/2026" ? COLAR_181.has(mun) : COLAR_CIDADES.has(mun);
+      const dias = (o.tipo || "").includes("Emergencial") ? (isC181 ? 2 : 5) : (isC181 ? 10 : 30);
+      const prazo = new Date(o.data_os + "T12:00");
+      prazo.setDate(prazo.getDate() + dias);
+      return hoje > prazo.toISOString().slice(0, 10);
     });
     return {
       abertas,
@@ -6915,7 +6920,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,prazo_date&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
