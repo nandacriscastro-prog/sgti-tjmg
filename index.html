@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784127844 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784132087 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 </head>
@@ -3648,14 +3648,17 @@ function PageMedicao({
           });
         }
       });
+      const FRACAO_KM = 0.0032468;
       osMes.forEach(o => {
         const s = (o.servico || o.tipo || "").toLowerCase();
         if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
           if (!r.historico) {
-            totalKm += parseFloat(r.km || 0);
-            totalDiarias += parseFloat(r.diarias || 0);
+            const kmOS = parseFloat(r.km || 0);
+            totalKm += kmOS;
+            const teveServicoDaLista = (r.pecas || []).some(p => p.desc);
+            totalDiarias += parseFloat(r.diarias || 0) + (teveServicoDaLista ? kmOS * FRACAO_KM : 0);
           }
         } catch (e) {}
       });
