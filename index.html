@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227357 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227597 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1856,7 +1856,15 @@ function abrirEmailLib(os, numOS, htmlLib) {
 }
 function PageRota({ onOsCriada, os: todasOS }) {
   const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
-  const [rotaNome, setRotaNome] = useState("");
+  const proximaRotaNum = (() => {
+    const nums = (todasOS || []).map(o => {
+      const m = /Rota:\s*(\d+)/i.exec(o.observacoes || "");
+      return m ? parseInt(m[1]) : 0;
+    }).filter(n => n > 0);
+    return (nums.length ? Math.max(...nums) : 0) + 1;
+  })();
+  const [rotaDesc, setRotaDesc] = useState("");
+  const rotaNome = String(proximaRotaNum) + (rotaDesc.trim() ? " - " + rotaDesc.trim() : "");
   const [tipo, setTipo] = useState("Presencial Programado");
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
@@ -1976,8 +1984,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
     ),
     React.createElement("div", { className: "card", style: { maxWidth: 760, marginBottom: 16 } },
       React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nome/número da rota"),
-          React.createElement("input", { value: rotaNome, onChange: e => setRotaNome(e.target.value), placeholder: "Ex: Rota 03 - Triângulo Mineiro" })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº da rota (automático)"),
+          React.createElement("input", { value: "Rota " + proximaRotaNum, readOnly: true, style: { fontWeight: 700, color: "var(--accent)", background: "var(--surface)" } })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Descrição (opcional)"),
+          React.createElement("input", { value: rotaDesc, onChange: e => setRotaDesc(e.target.value), placeholder: "Ex: Triângulo Mineiro" })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data"),
           React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) }))
       ),
@@ -4017,7 +4027,7 @@ function PageMedicao({
     const ultimo = new Date(ano, mes + 1, 0);
     const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimo.getDate()).padStart(2, "0")}`;
     try {
-      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao&limit=500`)) || [];
+      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes&limit=500`)) || [];
       let qtdAlarme = 0,
         qtdPortal = 0,
         qtdRaio = 0,
@@ -4581,12 +4591,56 @@ function PageMedicao({
       const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
       wsDiaria["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 14 }];
 
+      // ---- Aba 6: Totalizador por OS ----
+      const valorDiariaUnit = ANEXO_IV.find(a=>a.id==="diaria").vu;
+      const valorKmUnit = ANEXO_IV.find(a=>a.id==="km").vu;
+      const linhasTotalOS = [["Nº OS", "Comarca", "Rota", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Total gasto na OS (R$)"]];
+      let totalGeralOS = 0;
+      const porRota = {};
+      (resultado.osMes || []).forEach(o => {
+        let r = {};
+        try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+        const valorPecas = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const kmOS = parseFloat(r.km || 0) || 0;
+        const valorKm = kmOS * valorKmUnit;
+        const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
+        const valorDiaria = (d ? d.fracaoTotal : 0) * valorDiariaUnit;
+        const totalOS = valorPecas + valorKm + valorDiaria;
+        totalGeralOS += totalOS;
+        const mRota = /Rota:\s*([^|]+)/i.exec(o.observacoes || "");
+        const rota = mRota ? mRota[1].trim() : "";
+        linhasTotalOS.push([o.numero, o.comarca || "", rota || "—", Number(valorPecas.toFixed(2)), Number(valorKm.toFixed(2)), Number(valorDiaria.toFixed(2)), Number(totalOS.toFixed(2))]);
+        if (rota) {
+          if (!porRota[rota]) porRota[rota] = { qtdOS: 0, valorPecas: 0, valorKm: 0, valorDiaria: 0, total: 0, comarcas: [] };
+          porRota[rota].qtdOS++;
+          porRota[rota].valorPecas += valorPecas;
+          porRota[rota].valorKm += valorKm;
+          porRota[rota].valorDiaria += valorDiaria;
+          porRota[rota].total += totalOS;
+          porRota[rota].comarcas.push(o.comarca);
+        }
+      });
+      linhasTotalOS.push(["", "", "", "", "", "TOTAL GERAL", Number(totalGeralOS.toFixed(2))]);
+      const wsTotalOS = XLSX.utils.aoa_to_sheet(linhasTotalOS);
+      wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 16 }];
+
+      // ---- Aba 7: Totalizador por Rota ----
+      const linhasRota = [["Rota", "Qtd de OS", "Comarcas", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Total da rota (R$)"]];
+      Object.keys(porRota).sort().forEach(rota => {
+        const p = porRota[rota];
+        linhasRota.push([rota, p.qtdOS, p.comarcas.join(", "), Number(p.valorPecas.toFixed(2)), Number(p.valorKm.toFixed(2)), Number(p.valorDiaria.toFixed(2)), Number(p.total.toFixed(2))]);
+      });
+      const wsRota = XLSX.utils.aoa_to_sheet(linhasRota);
+      wsRota["!cols"] = [{ wch: 24 }, { wch: 10 }, { wch: 40 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 16 }];
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
       XLSX.utils.book_append_sheet(wb, wsAnexoIV, "Anexo IV - Serviços");
       XLSX.utils.book_append_sheet(wb, wsPecas, "Peças substituídas");
       XLSX.utils.book_append_sheet(wb, wsOS, "OS do período");
       XLSX.utils.book_append_sheet(wb, wsDiaria, "Fração diária");
+      XLSX.utils.book_append_sheet(wb, wsTotalOS, "Total por OS");
+      if (Object.keys(porRota).length) XLSX.utils.book_append_sheet(wb, wsRota, "Total por Rota");
       XLSX.writeFile(wb, `Medicao_${resultado.label.replace(" / ", "_")}.xlsx`);
     }
   }, "\u2193 Exportar Excel (.xlsx)")))), resultado && resultado.osSemKm && resultado.osSemKm.length > 0 && /*#__PURE__*/React.createElement("div", {
@@ -7523,7 +7577,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
