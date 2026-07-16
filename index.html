@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227597 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227861 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1869,7 +1869,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
-  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [] }]);
+  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "" }]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -1911,8 +1911,11 @@ function PageRota({ onOsCriada, os: todasOS }) {
     return r.toISOString().slice(0, 10);
   };
 
-  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [] }]);
+  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "" }]);
   const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
+  const toggleOverride = i => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: s.tipoOverride === null ? tipo : null, prioOverride: "" } : s));
+  const setStopTipo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: val, prioOverride: "" } : s));
+  const setStopPrio = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, prioOverride: val } : s));
   const setStopComarca = (i, k, dados) => setStops(stops.map((s, idx) => idx === i ? { ...s, comarca: k, dadosComarca: dados } : s));
   const toggleSistema = (i, sis) => setStops(stops.map((s, idx) => idx === i ? { ...s, sistemas: s.sistemas.includes(sis) ? s.sistemas.filter(x => x !== sis) : [...s.sistemas, sis] } : s));
 
@@ -1928,6 +1931,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
         ultimoSeq++;
         let numero = formatNum(contratoSel, ultimoSeq);
         const servico = "Manutenção: " + stop.sistemas.join(", ");
+        const stopTipo = stop.tipoOverride || tipo;
+        const stopPrio = stopTipo.includes("Emergencial") ? (stop.prioOverride || prio) : "";
         const corpo = {
           numero,
           empresa: "Alvo Segurança Ltda",
@@ -1939,8 +1944,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
           telefone: "",
           contato: "",
           servico,
-          tipo,
-          prioridade: tipo.includes("Emergencial") ? prio : "",
+          tipo: stopTipo,
+          prioridade: stopPrio,
           regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
           observacoes: "Rota: " + rotaNome.trim(),
           os_origem: null,
@@ -2037,6 +2042,26 @@ function PageRota({ onOsCriada, os: todasOS }) {
             React.createElement("input", { type: "checkbox", checked: s.sistemas.includes(sis), onChange: () => toggleSistema(i, sis) }),
             sis
           ))
+        )
+      ),
+      React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
+        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
+          React.createElement("input", { type: "checkbox", checked: s.tipoOverride !== null, onChange: () => toggleOverride(i) }),
+          "Essa parada é diferente do padrão da rota (ex: emergencial)"
+        ),
+        s.tipoOverride !== null && React.createElement("div", { className: "fr", style: { marginTop: 8 } },
+          React.createElement("div", { className: "fld" }, React.createElement("label", null, "Tipo desta parada"),
+            React.createElement("select", { value: s.tipoOverride, onChange: e => setStopTipo(i, e.target.value) },
+              React.createElement("option", null, "Presencial Programado"),
+              React.createElement("option", null, "Presencial Emergencial")
+            )),
+          s.tipoOverride.includes("Emergencial") && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade desta parada"),
+            React.createElement("select", { value: s.prioOverride, onChange: e => setStopPrio(i, e.target.value) },
+              React.createElement("option", { value: "" }, "—"),
+              React.createElement("option", { value: "P1 - Crítica" }, "P1 - Crítica"),
+              React.createElement("option", { value: "P2 - Alta" }, "P2 - Alta"),
+              React.createElement("option", { value: "P3 - Média" }, "P3 - Média")
+            ))
         )
       )
     )),
