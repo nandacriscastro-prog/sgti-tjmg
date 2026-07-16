@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231583 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784233239 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3849,12 +3849,15 @@ function PageLancamentoManual({
 
   const calcFracao = l => {
     const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
+    if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
     const isRaio = /raio|scanner/i.test(l.servico || "");
     const base = isRaio ? 1.25 : 1.0;
     const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
-    const fracaoKm = l.pecas.length > 0 ? kmNum * FRACAO_KM_ANEXO_VI : 0;
-    return base + fracaoPecas + fracaoKm;
+    const valorDiariaUnit = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const valorKmUnit = ANEXO_IV.find(a => a.id === "km").vu;
+    const fracaoDeslocamento = (kmNum * valorKmUnit * FRACAO_KM_ANEXO_VI) / valorDiariaUnit;
+    return base + fracaoPecas + fracaoDeslocamento;
   };
 
   const salvarTudo = async () => {
@@ -3934,7 +3937,11 @@ function PageLancamentoManual({
         React.createElement("strong", null, "OS " + l.numero), " — ", l.comarca,
         React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, l.servico, l.prioridade ? " · " + l.prioridade : "")
       ),
-      React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } }, "Fração diária: " + calcFracao(l).toFixed(2))
+      React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } },
+        "Fração diária: " + calcFracao(l).toFixed(2),
+        (l.contrato === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((l.comarca || "").split(" - ")[0])
+          ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
+      )
     ),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
@@ -4334,6 +4341,8 @@ function PageMedicao({
         }
       });
       const FRACAO_KM = 0.0032468;
+      const valorDiariaUnitCalc = ANEXO_IV.find(a => a.id === "diaria").vu;
+      const valorKmUnitCalc = ANEXO_IV.find(a => a.id === "km").vu;
       const diariaDetalhe = [];
       osMes.forEach(o => {
         const s = (o.servico || o.tipo || "").toLowerCase();
@@ -4343,18 +4352,22 @@ function PageMedicao({
           if (!r.historico) {
             const kmOS = parseFloat(r.km || 0);
             totalKm += kmOS;
-            const teveServicoDaLista = (r.pecas || []).some(p => p.desc);
-            const fracaoPecasEBase = parseFloat(r.diarias || 0);
-            const fracaoKm = teveServicoDaLista ? kmOS * FRACAO_KM : 0;
-            totalDiarias += fracaoPecasEBase + fracaoKm;
+            const _mun = (o.comarca || "").split(" - ")[0];
+            const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+            const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
+            // Deslocamento: km * R$2,98 * fração 0,0032468 -> valor em R$, convertido pra "quantidade de diária" equivalente pra somar junto (só no Interior)
+            const valorDeslocamentoDiaria = isColarOS ? 0 : kmOS * valorKmUnitCalc * FRACAO_KM;
+            const fracaoDeslocamento = valorDeslocamentoDiaria / valorDiariaUnitCalc;
+            totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
             diariaDetalhe.push({
               numero: o.numero,
               comarca: o.comarca,
-              fracaoBaseEPecas: fracaoPecasEBase,
+              regiao: isColarOS ? "Colar Metropolitano" : "Interior",
+              fracaoBaseEPecas,
               kmOS,
-              tevePecas: teveServicoDaLista,
-              fracaoKm,
-              fracaoTotal: fracaoPecasEBase + fracaoKm
+              valorDeslocamentoDiaria,
+              fracaoDeslocamento,
+              fracaoTotal: fracaoBaseEPecas + fracaoDeslocamento
             });
           }
         } catch (e) {}
@@ -4867,9 +4880,9 @@ function PageMedicao({
       wsOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 11 }, { wch: 13 }, { wch: 13 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
 
       // ---- Aba 5: Fração de diária por OS ----
-      const linhasDiaria = [["Nº OS", "Comarca", "Fração base+peças", "Km da OS", "Teve peça?", "Fração deslocamento", "Fração total"]];
+      const linhasDiaria = [["Nº OS", "Comarca", "Região", "Fração base+peças", "Km da OS", "Fração deslocamento", "Fração total"]];
       (resultado.diariaDetalhe || []).forEach(d => {
-        linhasDiaria.push([d.numero, d.comarca, Number(d.fracaoBaseEPecas.toFixed(2)), d.kmOS, d.tevePecas ? "Sim" : "Não", Number(d.fracaoKm.toFixed(2)), Number(d.fracaoTotal.toFixed(2))]);
+        linhasDiaria.push([d.numero, d.comarca, d.regiao, Number(d.fracaoBaseEPecas.toFixed(2)), d.kmOS, Number(d.fracaoDeslocamento.toFixed(2)), Number(d.fracaoTotal.toFixed(2))]);
       });
       linhasDiaria.push(["", "", "", "", "", "Soma total", Number((resultado.totalDiarias||0).toFixed(2))]);
       const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
