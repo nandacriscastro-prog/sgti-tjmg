@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227861 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784228245 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -727,6 +727,9 @@ tr:hover td{background:#f8f9fd;cursor:pointer}
 /* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fg{display:flex;flex-direction:column;gap:5px}
+.fr{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.fr .fld{flex:1;min-width:180px;display:flex;flex-direction:column;gap:5px}
+.fld label,.fg label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3,#6b7280);letter-spacing:.02em}
 .fg.full{grid-column:1/-1}
 label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
 input,select,textarea{border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:var(--font);color:var(--text);background:var(--white);outline:none;transition:var(--tr);width:100%}
@@ -1869,7 +1872,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
-  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "" }]);
+  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -1911,8 +1914,9 @@ function PageRota({ onOsCriada, os: todasOS }) {
     return r.toISOString().slice(0, 10);
   };
 
-  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "" }]);
+  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
   const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
+  const setStopObs = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, obs: val } : s));
   const toggleOverride = i => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: s.tipoOverride === null ? tipo : null, prioOverride: "" } : s));
   const setStopTipo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: val, prioOverride: "" } : s));
   const setStopPrio = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, prioOverride: val } : s));
@@ -1947,7 +1951,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           tipo: stopTipo,
           prioridade: stopPrio,
           regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: "Rota: " + rotaNome.trim(),
+          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + "Rota: " + rotaNome.trim(),
           os_origem: null,
           data_os: dt,
           status: "Aberta",
@@ -1967,11 +1971,11 @@ function PageRota({ onOsCriada, os: todasOS }) {
             } else throw e;
           }
         }
-        criadas.push({ numero, comarca: stop.comarca, servico });
+        criadas.push({ numero, comarca: stop.comarca, servico, corpo: { ...corpo } });
       }
       setResultado(criadas);
       setMsg("✓ " + criadas.length + " OS criada(s) na rota \"" + rotaNome + "\"");
-      setStops([{ comarca: "", dadosComarca: {}, sistemas: [] }]);
+      setStops([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
       if (onOsCriada) onOsCriada();
     } catch (e) {
       setMsg("Erro ao criar rota: " + e.message + (criadas.length ? " (" + criadas.length + " OS já criada(s) antes do erro)" : ""));
@@ -2044,6 +2048,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
           ))
         )
       ),
+      React.createElement("div", { className: "fg", style: { marginTop: 10 } },
+        React.createElement("label", null, "Observações desta parada (opcional)"),
+        React.createElement("textarea", { value: s.obs, onChange: e => setStopObs(i, e.target.value), rows: 2, placeholder: "Ex: procurar o administrador na secretaria" })
+      ),
       React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
           React.createElement("input", { type: "checkbox", checked: s.tipoOverride !== null, onChange: () => toggleOverride(i) }),
@@ -2072,8 +2080,13 @@ function PageRota({ onOsCriada, os: todasOS }) {
     React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : "Criar OS da rota"),
     resultado && React.createElement("div", { className: "card", style: { maxWidth: 760, marginTop: 16 } },
       React.createElement("div", { className: "card-title" }, "OS criadas nesta rota"),
-      resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 } },
-        React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico
+      resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
+        React.createElement("div", null, React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico),
+        React.createElement("button", {
+          className: "bsm",
+          onClick: () => abrirJanela(gerarHTMLOS(r.corpo, r.numero)),
+          style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+        }, "📄 Ver/baixar PDF")
       ))
     )
   );
