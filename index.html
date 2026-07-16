@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784230287 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231070 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3806,16 +3806,20 @@ function PageLancamentoManual({
   };
 
   const linhaDe = (o, existente) => ({
+    id: o.id,
     numero: o.numero,
     comarca: o.comarca,
     servico: o.servico || o.tipo || "",
     prioridade: o.prioridade || "",
     contrato: o.contrato,
+    observacoesOS: o.observacoes || "",
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || "",
     pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
     obs: existente?.obs || "",
+    avaliacao: o.avaliacao || "satisfatorio",
+    avaliacaoObs: o.avaliacao_obs || "",
     _codSel: "",
     _qtdSel: "1"
   });
@@ -3877,8 +3881,40 @@ function PageLancamentoManual({
         };
         await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
           method: "PATCH",
-          body: JSON.stringify({ retorno_campo: JSON.stringify(retorno), status: "Concluída", data_conclusao: l.dtconc })
+          body: JSON.stringify({
+            retorno_campo: JSON.stringify(retorno),
+            status: l.avaliacao === "satisfatorio" ? "Concluída" : "Reaberta",
+            data_conclusao: l.dtconc,
+            avaliacao: l.avaliacao,
+            avaliacao_obs: l.avaliacaoObs
+          })
         });
+        if (l.avaliacao === "insatisfatorio") {
+          const _mSel = /^181-(\d+)$/.exec(l.numero || "");
+          const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(l.numero) + 10000);
+          const _mun = (l.comarca || "").split(" - ")[0];
+          const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+          const diasCorrecao = _isColar ? 1 : 3;
+          const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
+          await sbFetch("/ordens_servico", {
+            method: "POST",
+            body: JSON.stringify({
+              numero: novoNum,
+              empresa: "Alvo Segurança Ltda",
+              contrato: l.contrato,
+              comarca: l.comarca,
+              servico: l.servico,
+              tipo: "Correção",
+              prioridade: l.prioridade,
+              status: "Aberta",
+              os_origem: l.numero,
+              data_os: new Date().toISOString().slice(0, 10),
+              criado_por: "medicao-manual",
+              criado_em: new Date().toISOString(),
+              observacoes: (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`
+            })
+          });
+        }
         ok++;
       }
       setMsg("✓ " + ok + " OS salva(s) com sucesso!");
@@ -3932,6 +3968,35 @@ function PageLancamentoManual({
     React.createElement("div", { className: "fg" },
       React.createElement("label", null, "Observações"),
       React.createElement("textarea", { value: l.obs, onChange: e => atualizarLinha(i, "obs", e.target.value), rows: 2 })
+    ),
+    React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
+      React.createElement("div", { className: "fg", style: { marginBottom: l.avaliacao === "insatisfatorio" ? 10 : 0 } },
+        React.createElement("label", null, "Avaliação do serviço"),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", {
+            onClick: () => atualizarLinha(i, "avaliacao", "satisfatorio"),
+            style: {
+              flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: "1.5px solid " + (l.avaliacao === "satisfatorio" ? "var(--green)" : "var(--border)"),
+              background: l.avaliacao === "satisfatorio" ? "var(--green)" : "transparent",
+              color: l.avaliacao === "satisfatorio" ? "#fff" : "var(--text)"
+            }
+          }, "✅ Satisfatório"),
+          React.createElement("button", {
+            onClick: () => atualizarLinha(i, "avaliacao", "insatisfatorio"),
+            style: {
+              flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: "1.5px solid " + (l.avaliacao === "insatisfatorio" ? "var(--red, #c0392b)" : "var(--border)"),
+              background: l.avaliacao === "insatisfatorio" ? "var(--red, #c0392b)" : "transparent",
+              color: l.avaliacao === "insatisfatorio" ? "#fff" : "var(--text)"
+            }
+          }, "🔄 Insatisfatório (reabrir)")
+        )
+      ),
+      l.avaliacao === "insatisfatorio" && React.createElement("div", { className: "fg" },
+        React.createElement("label", null, "Motivo (gera automaticamente uma OS de correção)"),
+        React.createElement("textarea", { value: l.avaliacaoObs, onChange: e => atualizarLinha(i, "avaliacaoObs", e.target.value), rows: 2, placeholder: "Ex: câmera continuou sem gravar após a visita" })
+      )
     )
   );
 
@@ -3949,7 +4014,7 @@ function PageLancamentoManual({
         React.createElement("div", { style: { display: "flex", gap: 10 } },
           React.createElement("button", { className: "btn", onClick: () => { setPainelAberto(false); setLinhas([]); }, disabled: salvando }, "Cancelar"),
           React.createElement("button", { className: "btn btn-primary", onClick: salvarTudo, disabled: salvando },
-            salvando ? "Salvando..." : "Salvar " + (linhas.length > 1 ? "todas (" + linhas.length + ")" : "e concluir OS"))
+            salvando ? "Salvando..." : "Salvar " + (linhas.length > 1 ? "todas (" + linhas.length + ")" : "e avaliar OS"))
         )
       )
     );
