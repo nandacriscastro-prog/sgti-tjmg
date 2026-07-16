@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784228676 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229119 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3780,136 +3780,266 @@ function PageLancamentoManual({
   os,
   reload
 }) {
-  const abertas = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""));
-  const [numSel, setNumSel] = useState("");
-  const [dtconc, setDtconc] = useState(new Date().toISOString().slice(0, 10));
-  const [servicos, setServicos] = useState("");
-  const [solucao, setSolucao] = useState("");
-  const [km, setKm] = useState("");
-  const [obs, setObs] = useState("");
-  const [pecasLista, setPecasLista] = useState([]);
-  const [codSel, setCodSel] = useState("");
-  const [qtdSel, setQtdSel] = useState("1");
-  const [loading, setLoading] = useState(false);
+  const hoje = new Date();
+  const [mes, setMes] = useState(hoje.getMonth());
+  const [ano, setAno] = useState(hoje.getFullYear());
+  const [aba, setAba] = useState("pendentes");
+  const [selecionadas, setSelecionadas] = useState(new Set());
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [linhas, setLinhas] = useState([]);
+  const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
-  const osSel = abertas.find(o => o.numero === numSel);
-  const isColarOS = osSel ? ((osSel.contrato || "") === "181/2026" ? COLAR_181.has((osSel.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((osSel.comarca || "").split(" - ")[0])) : false;
-  const isRaio = osSel ? /raio|scanner/i.test(osSel.servico || osSel.tipo || "") : false;
-  const fracaoBase = isRaio ? 1.25 : 1.0;
-  const fracaoPecas = pecasLista.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
-  const kmNum = parseFloat(km || 0) || 0;
-  const fracaoKmCalc = pecasLista.length > 0 ? kmNum * FRACAO_KM_ANEXO_VI : 0;
-  const fracaoTotal = fracaoBase + fracaoPecas + fracaoKmCalc;
 
-  const addPecaLinha = () => {
-    if (!codSel) return;
-    setPecasLista([...pecasLista, { cod: codSel, desc: ANEXO_V_DESC[codSel] || codSel, qtd: qtdSel || "1" }]);
-    setCodSel(""); setQtdSel("1");
+  const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+
+  const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
+
+  const pendentes = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") && (o.contrato || "") === "181/2026" && (o.data_os || "") >= dtIni && (o.data_os || "") <= dtFim);
+  const lancadas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim && retornoDe(o).lancamento_manual);
+
+  const toggleSel = numero => {
+    const novo = new Set(selecionadas);
+    novo.has(numero) ? novo.delete(numero) : novo.add(numero);
+    setSelecionadas(novo);
   };
-  const removerPecaLinha = i => setPecasLista(pecasLista.filter((_, idx) => idx !== i));
+  const selecionarTodos = () => {
+    if (selecionadas.size === pendentes.length) setSelecionadas(new Set());
+    else setSelecionadas(new Set(pendentes.map(o => o.numero)));
+  };
 
-  const salvar = async () => {
-    if (!osSel) { setMsg("Selecione uma OS."); return; }
-    setLoading(true); setMsg("");
+  const linhaDe = (o, existente) => ({
+    numero: o.numero,
+    comarca: o.comarca,
+    servico: o.servico || o.tipo || "",
+    prioridade: o.prioridade || "",
+    contrato: o.contrato,
+    dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
+    solucao: existente?.solucao || "",
+    km: existente?.km || "",
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    obs: existente?.obs || "",
+    _codSel: "",
+    _qtdSel: "1"
+  });
+
+  const abrirPainelIndividual = o => {
+    setLinhas([linhaDe(o, retornoDe(o))]);
+    setPainelAberto(true); setMsg("");
+  };
+  const abrirPainelLote = () => {
+    const selecionadosOS = pendentes.filter(o => selecionadas.has(o.numero));
+    if (!selecionadosOS.length) return;
+    setLinhas(selecionadosOS.map(o => linhaDe(o, null)));
+    setPainelAberto(true); setMsg("");
+  };
+  const editarLancada = o => {
+    setLinhas([linhaDe(o, retornoDe(o))]);
+    setPainelAberto(true); setMsg("");
+  };
+
+  const atualizarLinha = (i, campo, val) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, [campo]: val } : l));
+  const addPecaNaLinha = i => setLinhas(linhas.map((l, idx) => {
+    if (idx !== i || !l._codSel) return l;
+    return { ...l, pecas: [...l.pecas, { cod: l._codSel, desc: ANEXO_V_DESC[l._codSel] || l._codSel, qtd: l._qtdSel || "1" }], _codSel: "", _qtdSel: "1" };
+  }));
+  const removerPecaDaLinha = (i, pi) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, pecas: l.pecas.filter((_, x) => x !== pi) } : l));
+
+  const calcFracao = l => {
+    const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
+    const isRaio = /raio|scanner/i.test(l.servico || "");
+    const base = isRaio ? 1.25 : 1.0;
+    const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+    const kmNum = parseFloat(l.km || 0) || 0;
+    const fracaoKm = l.pecas.length > 0 ? kmNum * FRACAO_KM_ANEXO_VI : 0;
+    return base + fracaoPecas + fracaoKm;
+  };
+
+  const salvarTudo = async () => {
+    setSalvando(true); setMsg("");
+    let ok = 0;
     try {
-      const retorno = {
-        tecnico: "Lançamento manual (fiscalização)",
-        dtconc: dtconc,
-        hora: new Date().toTimeString().slice(0, 5),
-        servicos: servicos,
-        solucao: solucao,
-        pendencias: "nao",
-        diarias: String(Math.round(fracaoTotal * 1000) / 1000),
-        km: String(kmNum),
-        garantia: "90",
-        itens_nc: [],
-        itens_conf: [],
-        total_fotos: 0,
-        pecas: pecasLista.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
-        obs: obs,
-        lancamento_manual: true
-      };
-      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(osSel.numero)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ retorno_campo: JSON.stringify(retorno), status: "Concluída", data_conclusao: dtconc })
-      });
-      setMsg("✓ Retorno salvo com sucesso!");
-      setNumSel(""); setServicos(""); setSolucao(""); setKm(""); setObs(""); setPecasLista([]);
+      for (const l of linhas) {
+        const fracaoTotal = calcFracao(l);
+        const retorno = {
+          tecnico: "Lançamento manual (fiscalização)",
+          dtconc: l.dtconc,
+          hora: new Date().toTimeString().slice(0, 5),
+          servicos: l.servico,
+          solucao: l.solucao,
+          pendencias: "nao",
+          diarias: String(Math.round(fracaoTotal * 1000) / 1000),
+          km: String(parseFloat(l.km || 0) || 0),
+          garantia: "90",
+          itens_nc: [],
+          itens_conf: [],
+          total_fotos: 0,
+          pecas: l.pecas.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
+          obs: l.obs,
+          lancamento_manual: true
+        };
+        await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ retorno_campo: JSON.stringify(retorno), status: "Concluída", data_conclusao: l.dtconc })
+        });
+        ok++;
+      }
+      setMsg("✓ " + ok + " OS salva(s) com sucesso!");
+      setPainelAberto(false); setLinhas([]); setSelecionadas(new Set());
       if (reload) reload();
     } catch (e) {
-      setMsg("Erro ao salvar: " + e.message);
+      setMsg("Erro ao salvar (" + ok + " já salva(s) antes do erro): " + e.message);
     } finally {
-      setLoading(false);
+      setSalvando(false);
     }
   };
 
-  return /*#__PURE__*/React.createElement("div", null,
-    React.createElement("div", { className: "ph-row" },
+  const renderLinha = (l, i) => React.createElement("div", { key: l.numero, className: "card", style: { marginBottom: 12 } },
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 6 } },
       React.createElement("div", null,
-        React.createElement("div", { className: "ph-title" }, "Lançamento manual de retorno"),
-        React.createElement("div", { className: "ph-sub" }, "Preencha os dados da visita técnica (sem app do técnico)")
-      )
+        React.createElement("strong", null, "OS " + l.numero), " — ", l.comarca,
+        React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, l.servico, l.prioridade ? " · " + l.prioridade : "")
+      ),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } }, "Fração diária: " + calcFracao(l).toFixed(2))
     ),
-    React.createElement("div", { className: "card", style: { maxWidth: 720 } },
-      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
-        React.createElement("label", null, "OS"),
-        React.createElement("select", { value: numSel, onChange: e => setNumSel(e.target.value) },
-          React.createElement("option", { value: "" }, "— Selecione a OS —"),
-          abertas.map(o => React.createElement("option", { key: o.numero, value: o.numero }, "OS " + o.numero + " — " + o.comarca + " — " + (o.servico || o.tipo || "").substring(0, 40)))
+    React.createElement("div", { className: "fr" },
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
+        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) })),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
+        React.createElement("input", { type: "number", min: "0", value: l.km, onChange: e => atualizarLinha(i, "km", e.target.value), placeholder: "Ex: 85" }))
+    ),
+    React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+      React.createElement("label", null, "Solução aplicada"),
+      React.createElement("textarea", { value: l.solucao, onChange: e => atualizarLinha(i, "solucao", e.target.value), rows: 2 })
+    ),
+    React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Equipamentos/peças substituídos")),
+    React.createElement("div", { className: "fr", style: { alignItems: "flex-end" } },
+      React.createElement("div", { className: "fld", style: { flex: 3 } },
+        React.createElement("select", { value: l._codSel, onChange: e => atualizarLinha(i, "_codSel", e.target.value) },
+          React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
+          Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+        )),
+      React.createElement("div", { className: "fld", style: { flex: 1 } },
+        React.createElement("input", { type: "number", min: "1", value: l._qtdSel, onChange: e => atualizarLinha(i, "_qtdSel", e.target.value) })),
+      React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
+    ),
+    l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
+      l.pecas.map((p, pi) => React.createElement("div", {
+        key: pi,
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
+      },
+        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+        React.createElement("button", { onClick: () => removerPecaDaLinha(i, pi), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
+      ))
+    ),
+    React.createElement("div", { className: "fg" },
+      React.createElement("label", null, "Observações"),
+      React.createElement("textarea", { value: l.obs, onChange: e => atualizarLinha(i, "obs", e.target.value), rows: 2 })
+    )
+  );
+
+  if (painelAberto) {
+    return React.createElement("div", null,
+      React.createElement("div", { className: "ph-row" },
+        React.createElement("div", null,
+          React.createElement("div", { className: "ph-title" }, linhas.length > 1 ? "Preenchimento em lote (" + linhas.length + " OS)" : "Preencher retorno — OS " + linhas[0]?.numero),
+          React.createElement("div", { className: "ph-sub" }, "Confira/edite cada OS e salve tudo de uma vez")
         )
       ),
-      osSel && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 14, padding: "8px 10px", background: "var(--surface)", borderRadius: 8 } },
-        "Contrato ", osSel.contrato || "—", " · Prioridade ", osSel.prioridade || "—", " · ", isColarOS ? "Colar Metropolitano" : "Interior"
+      React.createElement("div", { style: { maxWidth: 900 } },
+        linhas.map((l, i) => renderLinha(l, i)),
+        msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+        React.createElement("div", { style: { display: "flex", gap: 10 } },
+          React.createElement("button", { className: "btn", onClick: () => { setPainelAberto(false); setLinhas([]); }, disabled: salvando }, "Cancelar"),
+          React.createElement("button", { className: "btn btn-primary", onClick: salvarTudo, disabled: salvando },
+            salvando ? "Salvando..." : "Salvar " + (linhas.length > 1 ? "todas (" + linhas.length + ")" : "e concluir OS"))
+        )
+      )
+    );
+  }
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Medição manual"),
+        React.createElement("div", { className: "ph-sub" }, "Feche as OS do mês informando o retorno recebido da Alvo, individualmente ou em lote")
+      )
+    ),
+    React.createElement("div", { className: "fr", style: { marginBottom: 16, maxWidth: 500 } },
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Mês"),
+        React.createElement("select", { value: mes, onChange: e => setMes(parseInt(e.target.value)) },
+          MESES_FULL.map((m, i) => React.createElement("option", { key: i, value: i }, m)))),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Ano"),
+        React.createElement("select", { value: ano, onChange: e => setAno(parseInt(e.target.value)) },
+          [ano - 1, ano, ano + 1].map(a => React.createElement("option", { key: a, value: a }, a))))
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16, borderBottom: "1px solid var(--border)" } },
+      React.createElement("button", {
+        onClick: () => setAba("pendentes"),
+        style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, borderBottom: aba === "pendentes" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "pendentes" ? "var(--accent)" : "var(--text3)" }
+      }, "Pendentes (" + pendentes.length + ")"),
+      React.createElement("button", {
+        onClick: () => setAba("lancadas"),
+        style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, borderBottom: aba === "lancadas" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "lancadas" ? "var(--accent)" : "var(--text3)" }
+      }, "Já lançadas (" + lancadas.length + ")")
+    ),
+    msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+    aba === "pendentes" && React.createElement("div", null,
+      pendentes.length > 0 && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
+          React.createElement("input", { type: "checkbox", checked: selecionadas.size === pendentes.length && pendentes.length > 0, onChange: selecionarTodos }),
+          "Selecionar todas"
+        ),
+        selecionadas.size > 0 && React.createElement("button", { className: "btn btn-primary", onClick: abrirPainelLote }, "Preencher em lote (" + selecionadas.size + " selecionada(s))")
       ),
-      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
-          React.createElement("input", { type: "date", value: dtconc, onChange: e => setDtconc(e.target.value) })),
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
-          React.createElement("input", { type: "number", min: "0", value: km, onChange: e => setKm(e.target.value), placeholder: "Ex: 85" }))
-      ),
-      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
-        React.createElement("label", null, "Serviços realizados"),
-        React.createElement("textarea", { value: servicos, onChange: e => setServicos(e.target.value), rows: 3, placeholder: "Descreva o que foi feito na visita" })
-      ),
-      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
-        React.createElement("label", null, "Solução aplicada"),
-        React.createElement("textarea", { value: solucao, onChange: e => setSolucao(e.target.value), rows: 2 })
-      ),
-      React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Equipamentos/peças substituídos")),
-      React.createElement("div", { className: "fr", style: { marginBottom: 8, alignItems: "flex-end" } },
-        React.createElement("div", { className: "fld", style: { flex: 3 } },
-          React.createElement("select", { value: codSel, onChange: e => setCodSel(e.target.value) },
-            React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
-            Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+      pendentes.length === 0 && React.createElement("div", { className: "empty" },
+        React.createElement("div", { className: "empty-icon" }, "✅"),
+        React.createElement("div", { className: "empty-title" }, "Nenhuma OS pendente neste mês")),
+      pendentes.map(o => React.createElement("div", {
+        key: o.numero,
+        className: "card",
+        style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }
+      },
+        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
+          React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
+          React.createElement("div", null,
+            React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
           )
         ),
-        React.createElement("div", { className: "fld", style: { flex: 1 } },
-          React.createElement("input", { type: "number", min: "1", value: qtdSel, onChange: e => setQtdSel(e.target.value), placeholder: "Qtd" })
-        ),
-        React.createElement("button", { className: "btn", onClick: addPecaLinha, style: { height: 42 } }, "+ Adicionar")
-      ),
-      pecasLista.length > 0 && React.createElement("div", { style: { marginBottom: 14 } },
-        pecasLista.map((p, i) => React.createElement("div", {
-          key: i,
-          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
-        },
-          React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
-          React.createElement("button", { onClick: () => removerPecaLinha(i), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
-        ))
-      ),
-      osSel && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 14, padding: "8px 10px", background: "#eef6ff", borderRadius: 8 } },
-        "Fração de diária calculada: base ", fracaoBase.toFixed(2), " + peças ", fracaoPecas.toFixed(2),
-        pecasLista.length > 0 ? " + deslocamento " + fracaoKmCalc.toFixed(2) : "",
-        " = ", React.createElement("strong", null, fracaoTotal.toFixed(2))
-      ),
-      React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
-        React.createElement("label", null, "Observações"),
-        React.createElement("textarea", { value: obs, onChange: e => setObs(e.target.value), rows: 2 })
-      ),
-      msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
-      React.createElement("button", { className: "btn btn-primary", onClick: salvar, disabled: loading || !osSel },
-        loading ? "Salvando..." : "Salvar retorno e concluir OS"
-      )
+        React.createElement("button", {
+          className: "bsm",
+          onClick: () => abrirPainelIndividual(o),
+          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+        }, "Preencher")
+      ))
+    ),
+    aba === "lancadas" && React.createElement("div", null,
+      lancadas.length === 0 && React.createElement("div", { className: "empty" },
+        React.createElement("div", { className: "empty-icon" }, "📋"),
+        React.createElement("div", { className: "empty-title" }, "Nenhuma OS lançada manualmente neste mês")),
+      lancadas.map(o => {
+        const r = retornoDe(o);
+        return React.createElement("div", { key: o.numero, className: "card", style: { marginBottom: 8 } },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 } },
+            React.createElement("div", null,
+              React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } },
+                "Concluída em ", o.data_conclusao ? new Date(o.data_conclusao + "T12:00").toLocaleDateString("pt-BR") : "—",
+                " · Km: ", r.km || "0", " · Diárias: ", r.diarias || "0",
+                r.pecas?.length ? " · Peças: " + r.pecas.map(p => p.desc + " ×" + p.qtd).join(", ") : ""
+              ),
+              r.solucao && React.createElement("div", { style: { fontSize: 12, marginTop: 4 } }, React.createElement("em", null, r.solucao))
+            ),
+            React.createElement("button", {
+              className: "bsm",
+              onClick: () => editarLancada(o),
+              style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+            }, "Editar")
+          )
+        );
+      })
     )
   );
 }
