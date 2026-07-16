@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229666 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229857 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3791,7 +3791,7 @@ function PageLancamentoManual({
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
-  const pendentes = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") && (o.contrato || "") === "181/2026" && (o.data_os || "") >= dtIni && (o.data_os || "") <= dtFim);
+  const pendentes = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") && (o.contrato || "") === "181/2026");
   const lancadas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim && retornoDe(o).lancamento_manual);
 
   const toggleSel = numero => {
@@ -3958,7 +3958,7 @@ function PageLancamentoManual({
     React.createElement("div", { className: "ph-row" },
       React.createElement("div", null,
         React.createElement("div", { className: "ph-title" }, "Medição manual"),
-        React.createElement("div", { className: "ph-sub" }, "Feche as OS do mês informando o retorno recebido da Alvo, individualmente ou em lote")
+        React.createElement("div", { className: "ph-sub" }, "Feche as OS pendentes informando o retorno recebido da Alvo, individualmente ou em lote (o filtro de mês abaixo vale só pra aba \"Já lançadas\")")
       )
     ),
     React.createElement("div", { className: "fr", style: { marginBottom: 16, maxWidth: 500 } },
