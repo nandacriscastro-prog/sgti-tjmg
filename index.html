@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784228245 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784228425 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1991,16 +1991,14 @@ function PageRota({ onOsCriada, os: todasOS }) {
         React.createElement("div", { className: "ph-sub" }, "Cria várias OS vinculadas, uma por comarca, cada uma com um ou mais sistemas")
       )
     ),
-    React.createElement("div", { className: "card", style: { maxWidth: 760, marginBottom: 16 } },
-      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+    React.createElement("div", { className: "card", style: { maxWidth: 1100, marginBottom: 16 } },
+      React.createElement("div", { className: "fr", style: { marginBottom: 0 } },
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº da rota (automático)"),
           React.createElement("input", { value: "Rota " + proximaRotaNum, readOnly: true, style: { fontWeight: 700, color: "var(--accent)", background: "var(--surface)" } })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Descrição (opcional)"),
           React.createElement("input", { value: rotaDesc, onChange: e => setRotaDesc(e.target.value), placeholder: "Ex: Triângulo Mineiro" })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data"),
-          React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) }))
-      ),
-      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+          React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Contrato"),
           React.createElement("select", { value: contratoSel, onChange: e => setContratoSel(e.target.value) },
             React.createElement("option", { value: "181/2026" }, "181/2026"),
@@ -2022,35 +2020,41 @@ function PageRota({ onOsCriada, os: todasOS }) {
           ))
       )
     ),
-    stops.map((s, i) => React.createElement("div", { key: i, className: "card", style: { maxWidth: 760, marginBottom: 12 } },
+    stops.map((s, i) => React.createElement("div", { key: i, className: "card", style: { maxWidth: 1100, marginBottom: 12 } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
         React.createElement("strong", { style: { fontSize: 13 } }, "Parada " + (i + 1)),
         stops.length > 1 && React.createElement("button", { onClick: () => removeStop(i), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "Remover")
       ),
-      React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
-        React.createElement("label", null, "Comarca / Local"),
-        React.createElement(ComarcaInput, { value: s.comarca, onChange: (k, dados) => setStopComarca(i, k, dados) })
-      ),
-      React.createElement("div", { className: "fg" },
-        React.createElement("label", null, "Sistemas a atender nessa comarca"),
-        React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
-          SISTEMAS.map(sis => React.createElement("label", {
-            key: sis,
-            style: {
-              display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 10px",
-              border: "1px solid " + (s.sistemas.includes(sis) ? "var(--accent)" : "var(--border)"),
-              borderRadius: 8, cursor: "pointer",
-              background: s.sistemas.includes(sis) ? "var(--accent-bg, #eef6ff)" : "transparent"
-            }
-          },
-            React.createElement("input", { type: "checkbox", checked: s.sistemas.includes(sis), onChange: () => toggleSistema(i, sis) }),
-            sis
-          ))
+      React.createElement("div", { style: { display: "flex", gap: 20, flexWrap: "wrap" } },
+        React.createElement("div", { style: { flex: 1, minWidth: 320 } },
+          React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+            React.createElement("label", null, "Comarca / Local"),
+            React.createElement(ComarcaInput, { value: s.comarca, onChange: (k, dados) => setStopComarca(i, k, dados) })
+          ),
+          React.createElement("div", { className: "fg" },
+            React.createElement("label", null, "Sistemas a atender nessa comarca"),
+            React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+              SISTEMAS.map(sis => React.createElement("label", {
+                key: sis,
+                style: {
+                  display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 10px",
+                  border: "1px solid " + (s.sistemas.includes(sis) ? "var(--accent)" : "var(--border)"),
+                  borderRadius: 8, cursor: "pointer",
+                  background: s.sistemas.includes(sis) ? "var(--accent-bg, #eef6ff)" : "transparent"
+                }
+              },
+                React.createElement("input", { type: "checkbox", checked: s.sistemas.includes(sis), onChange: () => toggleSistema(i, sis) }),
+                sis
+              ))
+            )
+          )
+        ),
+        React.createElement("div", { style: { flex: 1, minWidth: 320 } },
+          React.createElement("div", { className: "fg" },
+            React.createElement("label", null, "Observações desta parada (opcional)"),
+            React.createElement("textarea", { value: s.obs, onChange: e => setStopObs(i, e.target.value), rows: 6, placeholder: "Ex: procurar o administrador na secretaria", style: { height: "100%", minHeight: 110 } })
+          )
         )
-      ),
-      React.createElement("div", { className: "fg", style: { marginTop: 10 } },
-        React.createElement("label", null, "Observações desta parada (opcional)"),
-        React.createElement("textarea", { value: s.obs, onChange: e => setStopObs(i, e.target.value), rows: 2, placeholder: "Ex: procurar o administrador na secretaria" })
       ),
       React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
@@ -2073,12 +2077,12 @@ function PageRota({ onOsCriada, os: todasOS }) {
         )
       )
     )),
-    React.createElement("div", { style: { maxWidth: 760, marginBottom: 16 } },
+    React.createElement("div", { style: { maxWidth: 1100, marginBottom: 16 } },
       React.createElement("button", { className: "btn", onClick: addStop }, "+ Adicionar parada (comarca)")
     ),
-    msg && React.createElement("div", { style: { maxWidth: 760, marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+    msg && React.createElement("div", { style: { maxWidth: 1100, marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
     React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : "Criar OS da rota"),
-    resultado && React.createElement("div", { className: "card", style: { maxWidth: 760, marginTop: 16 } },
+    resultado && React.createElement("div", { className: "card", style: { maxWidth: 1100, marginTop: 16 } },
       React.createElement("div", { className: "card-title" }, "OS criadas nesta rota"),
       resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
         React.createElement("div", null, React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico),
