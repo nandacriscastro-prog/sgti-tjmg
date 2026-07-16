@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231070 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231275 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4094,10 +4094,17 @@ function PageLancamentoManual({
         React.createElement("div", { className: "empty-title" }, "Nenhuma OS lançada manualmente neste mês")),
       lancadas.map(o => {
         const r = retornoDe(o);
+        const avalBadge = o.avaliacao === "satisfatorio"
+          ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--green)", background: "#eafaf0", padding: "3px 8px", borderRadius: 99 } }, "✅ Satisfatório")
+          : o.avaliacao === "insatisfatorio"
+          ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--red, #c0392b)", background: "#fdecea", padding: "3px 8px", borderRadius: 99 } }, "🔄 Insatisfatório (reaberto)")
+          : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Aguardando avaliação");
         return React.createElement("div", { key: o.numero, className: "card", style: { marginBottom: 8 } },
           React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 } },
             React.createElement("div", null,
-              React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+              React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+                React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca, avalBadge
+              ),
               React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } },
                 "Concluída em ", o.data_conclusao ? new Date(o.data_conclusao + "T12:00").toLocaleDateString("pt-BR") : "—",
                 " · Km: ", r.km || "0", " · Diárias: ", r.diarias || "0",
