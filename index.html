@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229857 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784230074 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3792,7 +3792,7 @@ function PageLancamentoManual({
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
   const pendentes = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") && (o.contrato || "") === "181/2026");
-  const lancadas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim && retornoDe(o).lancamento_manual);
+  const lancadas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim);
 
   const toggleSel = numero => {
     const novo = new Set(selecionadas);
@@ -3961,6 +3961,15 @@ function PageLancamentoManual({
         React.createElement("div", { className: "ph-sub" }, "Feche as OS pendentes informando o retorno recebido da Alvo, individualmente ou em lote (o filtro de mês abaixo vale só pra aba \"Já lançadas\")")
       )
     ),
+    (() => {
+      const total181 = os.filter(o => (o.contrato || "") === "181/2026");
+      const porStatus = {};
+      total181.forEach(o => { porStatus[o.status || "(sem status)"] = (porStatus[o.status || "(sem status)"] || 0) + 1; });
+      return React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 12, padding: "8px 10px", background: "var(--surface)", borderRadius: 8 } },
+        "Diagnóstico: ", total181.length, " OS do contrato 181/2026 no total no sistema — ",
+        Object.entries(porStatus).map(([k, v]) => k + ": " + v).join(" · ") || "nenhuma OS encontrada"
+      );
+    })(),
     React.createElement("div", { className: "fr", style: { marginBottom: 16, maxWidth: 500 } },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Mês"),
         React.createElement("select", { value: mes, onChange: e => setMes(parseInt(e.target.value)) },
