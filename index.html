@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229132 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784229312 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2052,7 +2052,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           ),
           React.createElement("div", { className: "fg" },
             React.createElement("label", null, "Sistemas a atender nessa comarca"),
-            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 } },
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 } },
               SISTEMAS.map(sis => React.createElement("label", {
                 key: sis,
                 style: {
@@ -2063,7 +2063,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
                 }
               },
                 React.createElement("input", { type: "checkbox", checked: s.sistemas.includes(sis), onChange: () => toggleSistema(i, sis), style: { flexShrink: 0 } }),
-                sis
+                React.createElement("span", { style: { flex: 1, minWidth: 0, whiteSpace: "normal", wordBreak: "break-word" } }, sis)
               ))
             )
           )
