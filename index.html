@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784226777 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784227357 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1854,6 +1854,195 @@ function abrirEmailLib(os, numOS, htmlLib) {
   setTimeout(() => abrirJanela(htmlLib), 300);
   toast("E-mail Lib. Acesso aberto. Salve como PDF e anexe.", "ok");
 }
+function PageRota({ onOsCriada, os: todasOS }) {
+  const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
+  const [rotaNome, setRotaNome] = useState("");
+  const [tipo, setTipo] = useState("Presencial Programado");
+  const [prio, setPrio] = useState("");
+  const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
+  const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
+  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [] }]);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [resultado, setResultado] = useState(null);
+
+  const buscarProximoNum = ct => {
+    return (async () => {
+      if (ct === "181/2026") {
+        let all = [], offset = 0;
+        while (true) {
+          const batch = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&select=numero&limit=1000&offset=${offset}`);
+          if (!batch?.length) break;
+          all = all.concat(batch); offset += batch.length;
+          if (batch.length < 1000) break;
+        }
+        const seqs = all.map(r => { const m = /^181-(\d+)$/.exec(r.numero || ""); return m ? parseInt(m[1]) : 0; }).filter(n => n > 0);
+        return seqs.length ? Math.max(...seqs) : 0;
+      }
+      let all = [], offset = 0;
+      while (true) {
+        const batch = await sbFetch(`/ordens_servico?select=numero&limit=1000&offset=${offset}`);
+        if (!batch?.length) break;
+        all = all.concat(batch); offset += batch.length;
+        if (batch.length < 1000) break;
+      }
+      const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
+      return nums.length ? Math.max(...nums) : 0;
+    })();
+  };
+  const formatNum = (ct, seq) => ct === "181/2026" ? "181-" + seq : String(seq);
+  const calcPrazo = (com) => {
+    const _mun = (com || "").split(" - ")[0];
+    const isColar = contratoSel === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+    let dias, uteis = false;
+    if (tipo.includes("Emergencial")) { dias = isColar ? 2 : 5; uteis = true; }
+    else { dias = isColar ? 10 : 30; }
+    const r = new Date(dt + "T12:00");
+    if (uteis) { let u = 0; while (u < dias) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) u++; } }
+    else { r.setDate(r.getDate() + dias); }
+    return r.toISOString().slice(0, 10);
+  };
+
+  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [] }]);
+  const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
+  const setStopComarca = (i, k, dados) => setStops(stops.map((s, idx) => idx === i ? { ...s, comarca: k, dadosComarca: dados } : s));
+  const toggleSistema = (i, sis) => setStops(stops.map((s, idx) => idx === i ? { ...s, sistemas: s.sistemas.includes(sis) ? s.sistemas.filter(x => x !== sis) : [...s.sistemas, sis] } : s));
+
+  const criarRota = async () => {
+    if (!rotaNome.trim()) { setMsg("Dê um nome/número pra rota."); return; }
+    const validos = stops.filter(s => s.comarca && s.sistemas.length > 0);
+    if (!validos.length) { setMsg("Adicione ao menos uma parada com comarca e sistema(s) selecionado(s)."); return; }
+    setLoading(true); setMsg(""); setResultado(null);
+    const criadas = [];
+    try {
+      let ultimoSeq = await buscarProximoNum(contratoSel);
+      for (const stop of validos) {
+        ultimoSeq++;
+        let numero = formatNum(contratoSel, ultimoSeq);
+        const servico = "Manutenção: " + stop.sistemas.join(", ");
+        const corpo = {
+          numero,
+          empresa: "Alvo Segurança Ltda",
+          contrato: contratoSel,
+          comarca: stop.comarca,
+          forum: stop.dadosComarca?.forum || "",
+          endereco: stop.dadosComarca?.endereco || "",
+          polo: stop.dadosComarca?.polo || "",
+          telefone: "",
+          contato: "",
+          servico,
+          tipo,
+          prioridade: tipo.includes("Emergencial") ? prio : "",
+          regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
+          observacoes: "Rota: " + rotaNome.trim(),
+          os_origem: null,
+          data_os: dt,
+          status: "Aberta",
+          criado_por: "sistema-rota",
+          criado_em: new Date().toISOString(),
+          email_enviado: false
+        };
+        let tentativas = 0, ok = false;
+        while (tentativas < 4 && !ok) {
+          tentativas++;
+          try {
+            await sbFetch("/ordens_servico", { method: "POST", body: JSON.stringify(corpo) });
+            ok = true;
+          } catch (e) {
+            if (/23505|duplicate key/i.test(e?.message || "") && tentativas < 4) {
+              ultimoSeq++; numero = formatNum(contratoSel, ultimoSeq); corpo.numero = numero;
+            } else throw e;
+          }
+        }
+        criadas.push({ numero, comarca: stop.comarca, servico });
+      }
+      setResultado(criadas);
+      setMsg("✓ " + criadas.length + " OS criada(s) na rota \"" + rotaNome + "\"");
+      setStops([{ comarca: "", dadosComarca: {}, sistemas: [] }]);
+      if (onOsCriada) onOsCriada();
+    } catch (e) {
+      setMsg("Erro ao criar rota: " + e.message + (criadas.length ? " (" + criadas.length + " OS já criada(s) antes do erro)" : ""));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return /*#__PURE__*/React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Abrir rota de atendimento"),
+        React.createElement("div", { className: "ph-sub" }, "Cria várias OS vinculadas, uma por comarca, cada uma com um ou mais sistemas")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 760, marginBottom: 16 } },
+      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nome/número da rota"),
+          React.createElement("input", { value: rotaNome, onChange: e => setRotaNome(e.target.value), placeholder: "Ex: Rota 03 - Triângulo Mineiro" })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data"),
+          React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) }))
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Contrato"),
+          React.createElement("select", { value: contratoSel, onChange: e => setContratoSel(e.target.value) },
+            React.createElement("option", { value: "181/2026" }, "181/2026"),
+            React.createElement("option", { value: "216/2023" }, "216/2023"),
+            React.createElement("option", { value: "217/2023" }, "217/2023"),
+            React.createElement("option", { value: "218/2023" }, "218/2023")
+          )),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Tipo (aplica a todas as paradas)"),
+          React.createElement("select", { value: tipo, onChange: e => { setTipo(e.target.value); setPrio(""); } },
+            React.createElement("option", null, "Presencial Programado"),
+            React.createElement("option", null, "Presencial Emergencial")
+          )),
+        tipo.includes("Emergencial") && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade"),
+          React.createElement("select", { value: prio, onChange: e => setPrio(e.target.value) },
+            React.createElement("option", { value: "" }, "—"),
+            React.createElement("option", { value: "P1 - Crítica" }, "P1 - Crítica"),
+            React.createElement("option", { value: "P2 - Alta" }, "P2 - Alta"),
+            React.createElement("option", { value: "P3 - Média" }, "P3 - Média")
+          ))
+      )
+    ),
+    stops.map((s, i) => React.createElement("div", { key: i, className: "card", style: { maxWidth: 760, marginBottom: 12 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        React.createElement("strong", { style: { fontSize: 13 } }, "Parada " + (i + 1)),
+        stops.length > 1 && React.createElement("button", { onClick: () => removeStop(i), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "Remover")
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+        React.createElement("label", null, "Comarca / Local"),
+        React.createElement(ComarcaInput, { value: s.comarca, onChange: (k, dados) => setStopComarca(i, k, dados) })
+      ),
+      React.createElement("div", { className: "fg" },
+        React.createElement("label", null, "Sistemas a atender nessa comarca"),
+        React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+          SISTEMAS.map(sis => React.createElement("label", {
+            key: sis,
+            style: {
+              display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 10px",
+              border: "1px solid " + (s.sistemas.includes(sis) ? "var(--accent)" : "var(--border)"),
+              borderRadius: 8, cursor: "pointer",
+              background: s.sistemas.includes(sis) ? "var(--accent-bg, #eef6ff)" : "transparent"
+            }
+          },
+            React.createElement("input", { type: "checkbox", checked: s.sistemas.includes(sis), onChange: () => toggleSistema(i, sis) }),
+            sis
+          ))
+        )
+      )
+    )),
+    React.createElement("div", { style: { maxWidth: 760, marginBottom: 16 } },
+      React.createElement("button", { className: "btn", onClick: addStop }, "+ Adicionar parada (comarca)")
+    ),
+    msg && React.createElement("div", { style: { maxWidth: 760, marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+    React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : "Criar OS da rota"),
+    resultado && React.createElement("div", { className: "card", style: { maxWidth: 760, marginTop: 16 } },
+      React.createElement("div", { className: "card-title" }, "OS criadas nesta rota"),
+      resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 } },
+        React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico
+      ))
+    )
+  );
+}
 function PageNovaOS({
   onOsCriada,
   os: todasOS
@@ -3520,8 +3709,6 @@ function PageLancamentoManual({
   const [servicos, setServicos] = useState("");
   const [solucao, setSolucao] = useState("");
   const [km, setKm] = useState("");
-  const [admNome, setAdmNome] = useState("");
-  const [admDoc, setAdmDoc] = useState("");
   const [obs, setObs] = useState("");
   const [pecasLista, setPecasLista] = useState([]);
   const [codSel, setCodSel] = useState("");
@@ -3562,8 +3749,6 @@ function PageLancamentoManual({
         itens_conf: [],
         total_fotos: 0,
         pecas: pecasLista.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
-        adm_nome: admNome,
-        adm_doc: admDoc,
         obs: obs,
         lancamento_manual: true
       };
@@ -3572,7 +3757,7 @@ function PageLancamentoManual({
         body: JSON.stringify({ retorno_campo: JSON.stringify(retorno), status: "Concluída", data_conclusao: dtconc })
       });
       setMsg("✓ Retorno salvo com sucesso!");
-      setNumSel(""); setServicos(""); setSolucao(""); setKm(""); setAdmNome(""); setAdmDoc(""); setObs(""); setPecasLista([]);
+      setNumSel(""); setServicos(""); setSolucao(""); setKm(""); setObs(""); setPecasLista([]);
       if (reload) reload();
     } catch (e) {
       setMsg("Erro ao salvar: " + e.message);
@@ -3639,12 +3824,6 @@ function PageLancamentoManual({
         "Fração de diária calculada: base ", fracaoBase.toFixed(2), " + peças ", fracaoPecas.toFixed(2),
         pecasLista.length > 0 ? " + deslocamento " + fracaoKmCalc.toFixed(2) : "",
         " = ", React.createElement("strong", null, fracaoTotal.toFixed(2))
-      ),
-      React.createElement("div", { className: "fr", style: { marginBottom: 14 } },
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nome do administrador local"),
-          React.createElement("input", { value: admNome, onChange: e => setAdmNome(e.target.value) })),
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "CPF/matrícula"),
-          React.createElement("input", { value: admDoc, onChange: e => setAdmDoc(e.target.value) }))
       ),
       React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
         React.createElement("label", null, "Observações"),
@@ -7396,9 +7575,15 @@ function AppInterno({
             )
           ),
           React.createElement("div",{style:{textAlign:"center",marginTop:16}},
-            React.createElement("button",{className:"btn",onClick:()=>setPage("dashboard")},"← Voltar")
+            React.createElement("button",{className:"btn",onClick:()=>setPage("dashboard")},"← Voltar"),
+            React.createElement("button",{className:"btn btn-primary",style:{marginLeft:10},onClick:()=>setPage("rota")},"🛣️ Abrir rota de atendimento (várias OS)")
           )
         );
+      case "rota":
+        return /*#__PURE__*/React.createElement(PageRota, {
+          onOsCriada: loadOS,
+          os: os
+        });
       case "nova-form":
         return /*#__PURE__*/React.createElement(PageNovaOS, {
           onOsCriada: loadOS,
