@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784198762 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784226777 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -451,6 +451,25 @@ const PRECO_ANEXO_V = {
   "3.9.6": 1047.00, "3.9.7": 3115.63, "3.9.8": 203.35,
   "3.10": 3498.98, "3.11": 36.60
 };
+const ANEXO_V_DESC = {
+  "3.1.1":"Bateria p/ central de alarme","3.1.2":"Fonte de alimentação chaveada","3.1.3":"Placa central de alarme microprocessada",
+  "3.1.4":"Placa expansora central de alarme","3.1.5":"Sensor de fumaça","3.1.6":"Sensor infravermelho dupla tecnologia",
+  "3.1.7":"Sensor infravermelho passivo (IVP)","3.1.8":"Sensor magnético para alarme","3.1.9":"Sensor de porta pesada",
+  "3.1.10":"Sirene para alarme","3.1.11":"Teclado para alarme","3.1.12":"Transformador central de alarme","3.1.13":"Módulo/discadora GSM",
+  "3.2.1":"HD interno 2TB","3.2.2":"HD interno 4TB","3.2.3":"Fonte chaveada 2A","3.2.4":"Fonte chaveada 5A","3.2.5":"Fonte chaveada 10A",
+  "3.2.6":"Adaptador chaveador 4 portas VGA","3.3.1":"HD interno 10TB","3.3.2":"Joystick","3.4":"Remanejamento de câmera",
+  "3.5.1":"Placa CHL portal Magnetec","3.5.2":"Fonte chaveada portal","3.5.3":"Placa pictograma portal","3.5.4":"Placa CV007 portal",
+  "3.5.5":"Sensor TX portal","3.5.6":"Sensor RX portal","3.5.7":"Placa DMP portal","3.5.8":"Painel portal",
+  "3.6.1":"Emissão laudo radiológico scanner","3.6.2":"Remanejamento de scanner de raio-X","3.6.3":"Desfazimento/descarte de scanner de raio-X",
+  "3.6.4":"Transporte de scanner de raio-X (km)","3.7.1":"Infraestrutura elétrica interna","3.7.2":"Infraestrutura lógica interna",
+  "3.7.3":"Infraestrutura elétrica externa","3.7.4":"Infraestrutura lógica externa","3.8.1":"Câmera bullet analógica",
+  "3.8.2":"Câmera dome analógica","3.8.3":"DVR gravador 16 canais","3.8.4":"Monitor de vídeo 18.5\"","3.8.5":"Câmera bullet IP",
+  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP","3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
+  "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
+  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
+};
+const FRAC_D = {'3.1.1':0.125,'3.1.2':0.25,'3.1.3':0.375,'3.1.4':0.25,'3.1.5':0.125,'3.1.6':0.125,'3.1.7':0.125,'3.1.8':0.25,'3.1.9':0.25,'3.1.10':0.125,'3.1.11':0.125,'3.1.12':0.125,'3.1.13':0.375,'3.2.1':0.125,'3.2.2':0.125,'3.2.3':0.125,'3.2.4':0.125,'3.2.5':0.125,'3.2.6':0.125,'3.3.1':0.125,'3.3.2':0.125,'3.4':0.188,'3.5.1':0.125,'3.5.2':0.125,'3.5.3':0.125,'3.5.4':0.125,'3.5.5':0.125,'3.5.6':0.125,'3.5.7':0.125,'3.5.8':0.125,'3.6.1':1.0,'3.6.2':1.0,'3.6.3':1.0,'3.6.4':0.0041667,'3.7.1':0.125,'3.7.2':0.125,'3.7.3':0.125,'3.7.4':0.125,'3.8.1':0.125,'3.8.2':0.125,'3.8.3':0.125,'3.8.4':0.125,'3.8.5':0.125,'3.8.6':0.125,'3.8.7':0.125,'3.9.1':0.125,'3.9.2':0.125,'3.9.3':0.125,'3.9.4':0.125,'3.9.5':0.25,'3.9.6':0.25,'3.9.7':0.5,'3.9.8':0.25,'3.10':0.75};
+const FRACAO_KM_ANEXO_VI = 0.0032468;
 const ANEXO_IV = [{
   id: "rem",
   desc: "Atendimento remoto",
@@ -812,6 +831,11 @@ const NAV = [{
   id: "campo",
   label: "Campo",
   icon: "mobile",
+  sec: null
+}, {
+  id: "lancamento",
+  label: "Lançamento manual",
+  icon: "clip",
   sec: null
 }, {
   id: "medicao",
@@ -3486,6 +3510,153 @@ function PageAvaliacao({
 }
 
 // ── PAGE: CAMPO ───────────────────────────────────────────────
+function PageLancamentoManual({
+  os,
+  reload
+}) {
+  const abertas = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""));
+  const [numSel, setNumSel] = useState("");
+  const [dtconc, setDtconc] = useState(new Date().toISOString().slice(0, 10));
+  const [servicos, setServicos] = useState("");
+  const [solucao, setSolucao] = useState("");
+  const [km, setKm] = useState("");
+  const [admNome, setAdmNome] = useState("");
+  const [admDoc, setAdmDoc] = useState("");
+  const [obs, setObs] = useState("");
+  const [pecasLista, setPecasLista] = useState([]);
+  const [codSel, setCodSel] = useState("");
+  const [qtdSel, setQtdSel] = useState("1");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const osSel = abertas.find(o => o.numero === numSel);
+  const isColarOS = osSel ? ((osSel.contrato || "") === "181/2026" ? COLAR_181.has((osSel.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((osSel.comarca || "").split(" - ")[0])) : false;
+  const isRaio = osSel ? /raio|scanner/i.test(osSel.servico || osSel.tipo || "") : false;
+  const fracaoBase = isRaio ? 1.25 : 1.0;
+  const fracaoPecas = pecasLista.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+  const kmNum = parseFloat(km || 0) || 0;
+  const fracaoKmCalc = pecasLista.length > 0 ? kmNum * FRACAO_KM_ANEXO_VI : 0;
+  const fracaoTotal = fracaoBase + fracaoPecas + fracaoKmCalc;
+
+  const addPecaLinha = () => {
+    if (!codSel) return;
+    setPecasLista([...pecasLista, { cod: codSel, desc: ANEXO_V_DESC[codSel] || codSel, qtd: qtdSel || "1" }]);
+    setCodSel(""); setQtdSel("1");
+  };
+  const removerPecaLinha = i => setPecasLista(pecasLista.filter((_, idx) => idx !== i));
+
+  const salvar = async () => {
+    if (!osSel) { setMsg("Selecione uma OS."); return; }
+    setLoading(true); setMsg("");
+    try {
+      const retorno = {
+        tecnico: "Lançamento manual (fiscalização)",
+        dtconc: dtconc,
+        hora: new Date().toTimeString().slice(0, 5),
+        servicos: servicos,
+        solucao: solucao,
+        pendencias: "nao",
+        diarias: String(Math.round(fracaoTotal * 1000) / 1000),
+        km: String(kmNum),
+        garantia: "90",
+        itens_nc: [],
+        itens_conf: [],
+        total_fotos: 0,
+        pecas: pecasLista.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
+        adm_nome: admNome,
+        adm_doc: admDoc,
+        obs: obs,
+        lancamento_manual: true
+      };
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(osSel.numero)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ retorno_campo: JSON.stringify(retorno), status: "Concluída", data_conclusao: dtconc })
+      });
+      setMsg("✓ Retorno salvo com sucesso!");
+      setNumSel(""); setServicos(""); setSolucao(""); setKm(""); setAdmNome(""); setAdmDoc(""); setObs(""); setPecasLista([]);
+      if (reload) reload();
+    } catch (e) {
+      setMsg("Erro ao salvar: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return /*#__PURE__*/React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Lançamento manual de retorno"),
+        React.createElement("div", { className: "ph-sub" }, "Preencha os dados da visita técnica (sem app do técnico)")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 720 } },
+      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+        React.createElement("label", null, "OS"),
+        React.createElement("select", { value: numSel, onChange: e => setNumSel(e.target.value) },
+          React.createElement("option", { value: "" }, "— Selecione a OS —"),
+          abertas.map(o => React.createElement("option", { key: o.numero, value: o.numero }, "OS " + o.numero + " — " + o.comarca + " — " + (o.servico || o.tipo || "").substring(0, 40)))
+        )
+      ),
+      osSel && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 14, padding: "8px 10px", background: "var(--surface)", borderRadius: 8 } },
+        "Contrato ", osSel.contrato || "—", " · Prioridade ", osSel.prioridade || "—", " · ", isColarOS ? "Colar Metropolitano" : "Interior"
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
+          React.createElement("input", { type: "date", value: dtconc, onChange: e => setDtconc(e.target.value) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
+          React.createElement("input", { type: "number", min: "0", value: km, onChange: e => setKm(e.target.value), placeholder: "Ex: 85" }))
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+        React.createElement("label", null, "Serviços realizados"),
+        React.createElement("textarea", { value: servicos, onChange: e => setServicos(e.target.value), rows: 3, placeholder: "Descreva o que foi feito na visita" })
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+        React.createElement("label", null, "Solução aplicada"),
+        React.createElement("textarea", { value: solucao, onChange: e => setSolucao(e.target.value), rows: 2 })
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Equipamentos/peças substituídos")),
+      React.createElement("div", { className: "fr", style: { marginBottom: 8, alignItems: "flex-end" } },
+        React.createElement("div", { className: "fld", style: { flex: 3 } },
+          React.createElement("select", { value: codSel, onChange: e => setCodSel(e.target.value) },
+            React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
+            Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+          )
+        ),
+        React.createElement("div", { className: "fld", style: { flex: 1 } },
+          React.createElement("input", { type: "number", min: "1", value: qtdSel, onChange: e => setQtdSel(e.target.value), placeholder: "Qtd" })
+        ),
+        React.createElement("button", { className: "btn", onClick: addPecaLinha, style: { height: 42 } }, "+ Adicionar")
+      ),
+      pecasLista.length > 0 && React.createElement("div", { style: { marginBottom: 14 } },
+        pecasLista.map((p, i) => React.createElement("div", {
+          key: i,
+          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
+        },
+          React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+          React.createElement("button", { onClick: () => removerPecaLinha(i), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
+        ))
+      ),
+      osSel && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 14, padding: "8px 10px", background: "#eef6ff", borderRadius: 8 } },
+        "Fração de diária calculada: base ", fracaoBase.toFixed(2), " + peças ", fracaoPecas.toFixed(2),
+        pecasLista.length > 0 ? " + deslocamento " + fracaoKmCalc.toFixed(2) : "",
+        " = ", React.createElement("strong", null, fracaoTotal.toFixed(2))
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 14 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nome do administrador local"),
+          React.createElement("input", { value: admNome, onChange: e => setAdmNome(e.target.value) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "CPF/matrícula"),
+          React.createElement("input", { value: admDoc, onChange: e => setAdmDoc(e.target.value) }))
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
+        React.createElement("label", null, "Observações"),
+        React.createElement("textarea", { value: obs, onChange: e => setObs(e.target.value), rows: 2 })
+      ),
+      msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+      React.createElement("button", { className: "btn btn-primary", onClick: salvar, disabled: loading || !osSel },
+        loading ? "Salvando..." : "Salvar retorno e concluir OS"
+      )
+    )
+  );
+}
 function PageCampo({
   os
 }) {
@@ -7246,6 +7417,11 @@ function AppInterno({
       case "campo":
         return /*#__PURE__*/React.createElement(PageCampo, {
           os: os
+        });
+      case "lancamento":
+        return /*#__PURE__*/React.createElement(PageLancamentoManual, {
+          os: os,
+          reload: loadOS
         });
       case "medicao":
         return /*#__PURE__*/React.createElement(PageMedicao, {
