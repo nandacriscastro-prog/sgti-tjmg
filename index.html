@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231275 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784231583 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3779,6 +3779,7 @@ function PageLancamentoManual({
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
   const [aba, setAba] = useState("pendentes");
+  const [soAguardando, setSoAguardando] = useState(false);
   const [selecionadas, setSelecionadas] = useState(new Set());
   const [painelAberto, setPainelAberto] = useState(false);
   const [linhas, setLinhas] = useState([]);
@@ -4089,10 +4090,14 @@ function PageLancamentoManual({
       ))
     ),
     aba === "lancadas" && React.createElement("div", null,
+      lancadas.length > 0 && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
+        React.createElement("input", { type: "checkbox", checked: soAguardando, onChange: e => setSoAguardando(e.target.checked) }),
+        "Mostrar só as que faltam avaliar (" + lancadas.filter(o => !o.avaliacao).length + ")"
+      ),
       lancadas.length === 0 && React.createElement("div", { className: "empty" },
         React.createElement("div", { className: "empty-icon" }, "📋"),
         React.createElement("div", { className: "empty-title" }, "Nenhuma OS lançada manualmente neste mês")),
-      lancadas.map(o => {
+      lancadas.filter(o => !soAguardando || !o.avaliacao).map(o => {
         const r = retornoDe(o);
         const avalBadge = o.avaliacao === "satisfatorio"
           ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--green)", background: "#eafaf0", padding: "3px 8px", borderRadius: 99 } }, "✅ Satisfatório")
@@ -4115,8 +4120,10 @@ function PageLancamentoManual({
             React.createElement("button", {
               className: "bsm",
               onClick: () => editarLancada(o),
-              style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
-            }, "Editar")
+              style: !o.avaliacao
+                ? { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+                : { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+            }, !o.avaliacao ? "Avaliar agora" : "Editar")
           )
         );
       })
