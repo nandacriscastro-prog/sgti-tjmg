@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784315420 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784315767 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3739,15 +3739,17 @@ function PageAvaliacao({
     key: f,
     className: `chip${filtro === f ? " active" : ""}`,
     onClick: () => setFiltro(f)
-  }, l)))), rotasPendentesAval.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, l)))), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: { marginBottom: 16 }
   }, /*#__PURE__*/React.createElement("div", { className: "fg", style: { marginBottom: filtroRotaAval ? 14 : 0 } },
     /*#__PURE__*/React.createElement("label", null, "🛣️ Fechar por rota (avaliar várias OS de uma vez)"),
-    /*#__PURE__*/React.createElement("select", { value: filtroRotaAval, onChange: e => { setFiltroRotaAval(e.target.value); setSelecionadasAval(new Set()); setLoteMsg(""); } },
-      /*#__PURE__*/React.createElement("option", { value: "" }, "— Selecione uma rota —"),
-      rotasPendentesAval.map(r => /*#__PURE__*/React.createElement("option", { key: r.num, value: r.num }, "Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS aguardando avaliação)"))
-    )
+    rotasPendentesAval.length === 0
+      ? /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, "Nenhuma rota com OS aguardando avaliação no momento (só aparece aqui se a OS foi criada pela tela de Rota).")
+      : /*#__PURE__*/React.createElement("select", { value: filtroRotaAval, onChange: e => { setFiltroRotaAval(e.target.value); setSelecionadasAval(new Set()); setLoteMsg(""); } },
+          /*#__PURE__*/React.createElement("option", { value: "" }, "— Selecione uma rota —"),
+          rotasPendentesAval.map(r => /*#__PURE__*/React.createElement("option", { key: r.num, value: r.num }, "Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS aguardando avaliação)"))
+        )
   ), rotaAvalObj && /*#__PURE__*/React.createElement("div", null,
     /*#__PURE__*/React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 8 } },
       /*#__PURE__*/React.createElement("input", { type: "checkbox", checked: selecionadasAval.size === rotaAvalObj.itens.length, onChange: selecionarTodasAval }),
