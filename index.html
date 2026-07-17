@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784287292 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784289103 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1877,15 +1877,29 @@ function abrirEmailLib(os, numOS, htmlLib) {
 }
 function PageRota({ onOsCriada, os: todasOS }) {
   const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
+  const rotasExistentes = (() => {
+    const vistas = {};
+    (todasOS || []).forEach(o => {
+      const m = /Rota:\s*(\d+)(?:\s*-\s*([^<\n]+))?/i.exec(o.observacoes || "");
+      if (m) {
+        const num = m[1];
+        if (!vistas[num]) vistas[num] = { num, desc: (m[2] || "").trim(), qtd: 0 };
+        vistas[num].qtd++;
+      }
+    });
+    return Object.values(vistas).sort((a, b) => parseInt(b.num) - parseInt(a.num));
+  })();
   const proximaRotaNum = (() => {
-    const nums = (todasOS || []).map(o => {
-      const m = /Rota:\s*(\d+)/i.exec(o.observacoes || "");
-      return m ? parseInt(m[1]) : 0;
-    }).filter(n => n > 0);
+    const nums = rotasExistentes.map(r => parseInt(r.num)).filter(n => n > 0);
     return (nums.length ? Math.max(...nums) : 0) + 1;
   })();
+  const [modoRota, setModoRota] = useState("nova"); // "nova" | "existente"
+  const [rotaExistenteNum, setRotaExistenteNum] = useState("");
   const [rotaDesc, setRotaDesc] = useState("");
-  const rotaNome = String(proximaRotaNum) + (rotaDesc.trim() ? " - " + rotaDesc.trim() : "");
+  const rotaExistenteObj = rotasExistentes.find(r => r.num === rotaExistenteNum);
+  const rotaNome = modoRota === "existente" && rotaExistenteObj
+    ? rotaExistenteObj.num + (rotaExistenteObj.desc ? " - " + rotaExistenteObj.desc : "")
+    : String(proximaRotaNum) + (rotaDesc.trim() ? " - " + rotaDesc.trim() : "");
   const [tipo, setTipo] = useState("Presencial Programado");
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
@@ -2046,10 +2060,37 @@ function PageRota({ onOsCriada, os: todasOS }) {
       )
     ),
     React.createElement("div", { className: "card", style: { maxWidth: 1100, marginBottom: 16 } },
+      rotasExistentes.length > 0 && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+        React.createElement("button", {
+          onClick: () => setModoRota("nova"),
+          style: {
+            flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+            border: "1.5px solid " + (modoRota === "nova" ? "var(--accent)" : "var(--border)"),
+            background: modoRota === "nova" ? "var(--accent)" : "transparent",
+            color: modoRota === "nova" ? "#fff" : "var(--text)"
+          }
+        }, "➕ Nova rota"),
+        React.createElement("button", {
+          onClick: () => { setModoRota("existente"); if (!rotaExistenteNum && rotasExistentes.length) setRotaExistenteNum(rotasExistentes[0].num); },
+          style: {
+            flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+            border: "1.5px solid " + (modoRota === "existente" ? "var(--accent)" : "var(--border)"),
+            background: modoRota === "existente" ? "var(--accent)" : "transparent",
+            color: modoRota === "existente" ? "#fff" : "var(--text)"
+          }
+        }, "✏️ Adicionar parada a rota existente")
+      ),
+      modoRota === "existente" && React.createElement("div", { className: "fg", style: { marginBottom: 14 } },
+        React.createElement("label", null, "Escolha a rota"),
+        React.createElement("select", { value: rotaExistenteNum, onChange: e => setRotaExistenteNum(e.target.value) },
+          rotasExistentes.map(r => React.createElement("option", { key: r.num, value: r.num },
+            "Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.qtd + " OS já criada(s))"))
+        )
+      ),
       React.createElement("div", { className: "fr", style: { marginBottom: 0 } },
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº da rota (automático)"),
+        modoRota === "nova" && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº da rota (automático)"),
           React.createElement("input", { value: "Rota " + proximaRotaNum, readOnly: true, style: { fontWeight: 700, color: "var(--accent)", background: "var(--surface)" } })),
-        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Descrição (opcional)"),
+        modoRota === "nova" && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Descrição (opcional)"),
           React.createElement("input", { value: rotaDesc, onChange: e => setRotaDesc(e.target.value), placeholder: "Ex: Triângulo Mineiro" })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data"),
           React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) })),
@@ -2139,7 +2180,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
       React.createElement("button", { className: "btn", onClick: addStop }, "+ Adicionar parada (comarca)")
     ),
     msg && React.createElement("div", { style: { maxWidth: 1100, marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
-    React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : "Criar OS da rota"),
+    React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : (modoRota === "existente" ? "Adicionar parada(s) à rota" : "Criar OS da rota")),
     resultado && React.createElement("div", { className: "card", style: { maxWidth: 1100, marginTop: 16 } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
         React.createElement("div", { className: "card-title", style: { margin: 0 } }, "OS criadas nesta rota"),
