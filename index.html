@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784289103 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784291616 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2869,6 +2869,7 @@ function PageHistorico({
   const [paraExcluir, setParaExcluir] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
   const [filtroContrato, setFiltroContrato] = useState("todos");
+  const [verPorRota, setVerPorRota] = useState(false);
   const POR_PAG = 25;
   const dados = os.filter(o => {
     const _ct = o.contrato || "218/2023";
@@ -2882,6 +2883,24 @@ function PageHistorico({
     return true;
   }).sort((a, b) => (b.data_os || b.criado_em || "").localeCompare(a.data_os || a.criado_em || ""));
   const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
+  const rotasAgrupadas = (() => {
+    const grupos = {};
+    const semRota = [];
+    dados.forEach(o => {
+      const m = /Rota:\s*(\d+)(?:\s*-\s*([^<\n]+))?/i.exec(o.observacoes || "");
+      if (m) {
+        const num = m[1];
+        if (!grupos[num]) grupos[num] = { num, desc: (m[2] || "").trim(), itens: [] };
+        grupos[num].itens.push(o);
+      } else {
+        semRota.push(o);
+      }
+    });
+    return {
+      rotas: Object.values(grupos).sort((a, b) => parseInt(b.num) - parseInt(a.num)),
+      semRota
+    };
+  })();
   const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
   const stColor = {
     "Aberta": "bg-blue",
@@ -2940,7 +2959,12 @@ function PageHistorico({
     [["todos","Todos"],["181/2026","181/2026"],["218/2023","218/2023"],["217/2023","217/2023"],["216/2023","216/2023"]].map(([v,l])=>
       React.createElement("button",{key:v,onClick:()=>{setFiltroContrato(v);setPag(0);},
         className:"btn btn-sm",style:{fontWeight:filtroContrato===v?700:400,background:filtroContrato===v?"var(--navy)":"",color:filtroContrato===v?"white":""}},l)
-    )
+    ),
+    React.createElement("button",{
+      onClick:()=>setVerPorRota(!verPorRota),
+      className:"btn btn-sm",
+      style:{marginLeft:"auto",fontWeight:verPorRota?700:400,background:verPorRota?"var(--accent)":"",color:verPorRota?"white":""}
+    }, verPorRota ? "☑ Agrupado por rota" : "🛣️ Agrupar por rota")
   ), /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -2952,7 +2976,28 @@ function PageHistorico({
     filtrado: dados.length,
     onExcel: () => exportarCSV(dadosExpOS, colsOS, `OS_Historico_${new Date().toISOString().slice(0, 10)}`),
     onPDF: () => exportarPDF('Histórico de Ordens de Serviço', 'Contrato 218/2023 — Segurança Eletrônica', colsOS, dadosExpOS, `OS_Historico`)
-  })), /*#__PURE__*/React.createElement("div", {
+  })), verPorRota && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
+    rotasAgrupadas.rotas.length === 0 && React.createElement("div", { className: "empty" },
+      React.createElement("div", { className: "empty-icon" }, "🛣️"),
+      React.createElement("div", { className: "empty-title" }, "Nenhuma OS com rota encontrada no filtro atual")),
+    rotasAgrupadas.rotas.map(r => React.createElement("div", { key: r.num, className: "card", style: { marginBottom: 10 } },
+      React.createElement("div", { className: "card-title" }, "🛣️ Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS)"),
+      r.itens.map(o => React.createElement("div", {
+        key: o.id,
+        onClick: () => setSel(o),
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13 }
+      },
+        React.createElement("div", null,
+          React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca || "—", " — ",
+          React.createElement("span", { className: "text-muted" }, (o.servico || "—").substring(0, 60))
+        ),
+        React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída")
+      ))
+    )),
+    rotasAgrupadas.semRota.length > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } },
+      rotasAgrupadas.semRota.length + " OS sem rota (não mostradas aqui — desmarque \"Agrupar por rota\" pra ver todas na tabela)"
+    )
+  ), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       padding: "14px 18px",
@@ -3024,7 +3069,7 @@ function PageHistorico({
       setFDt2("");
       setPag(0);
     }
-  }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u2715"))), !verPorRota && /*#__PURE__*/React.createElement("div", {
     className: "table-card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "table-wrap"
