@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292828 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784293337 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1889,6 +1889,16 @@ function abrirEmailLib(os, numOS, htmlLib) {
   setTimeout(() => abrirJanela(htmlLib), 300);
   toast("E-mail Lib. Acesso aberto. Salve como PDF e anexe.", "ok");
 }
+// Abrir e-mail combinado: todas as OS de uma rota de uma vez
+function abrirEmailRota(criadas, rotaNome, htmlRota) {
+  const fiscal = FISCAIS.find(f => f.email === criadas[0]?.corpo?.criado_por) || FISCAIS[2];
+  const assunto = encodeURIComponent(`Rota ${rotaNome} — ${criadas.length} OS — Segurança Eletrônica`);
+  const listaOS = criadas.map(r => `• OS ${r.numero} — ${r.comarca || "—"} — ${r.servico || "—"}`).join("\n");
+  const corpo = encodeURIComponent(`Prezados,\n\nSegue a Rota ${rotaNome}, com ${criadas.length} Ordem(ns) de Serviço para execução:\n\n${listaOS}\n\n` + `Salve o arquivo em anexo (Rota_${rotaNome}.pdf, com todas as OS) e encaminhe à empresa.\n\n` + `Atenciosamente,\n${fiscal.nome}\nGEASI — COTESI | TJMG\n${fiscal.email || ""}`);
+  window.open(`https://mail.google.com/mail/?view=cm&su=${assunto}&body=${corpo}`, "_blank");
+  setTimeout(() => abrirJanela(htmlRota), 300);
+  toast("E-mail da rota aberto. Salve o PDF combinado e anexe.", "ok");
+}
 function PageRota({ onOsCriada, os: todasOS }) {
   const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
   const rotasExistentes = (() => {
@@ -2198,10 +2208,16 @@ function PageRota({ onOsCriada, os: todasOS }) {
     resultado && React.createElement("div", { className: "card", style: { maxWidth: 1100, marginTop: 16 } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
         React.createElement("div", { className: "card-title", style: { margin: 0 } }, "OS criadas nesta rota"),
-        React.createElement("button", {
-          onClick: () => abrirJanela(gerarHTMLRota(resultado, "Rota " + resultadoRotaNome)),
-          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-        }, "📄 PDF de todas as OS da rota (" + resultado.length + ")")
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", {
+            onClick: () => abrirEmailRota(resultado, resultadoRotaNome, gerarHTMLRota(resultado, "Rota " + resultadoRotaNome)),
+            style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📧 E-mail com todas as OS da rota"),
+          React.createElement("button", {
+            onClick: () => abrirJanela(gerarHTMLRota(resultado, "Rota " + resultadoRotaNome)),
+            style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📄 PDF de todas as OS da rota (" + resultado.length + ")")
+        )
       ),
       resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } },
         React.createElement("div", null, React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico),
@@ -3004,10 +3020,16 @@ function PageHistorico({
     rotasAgrupadas.rotas.map(r => React.createElement("div", { key: r.num, className: "card", style: { marginBottom: 10 } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 } },
         React.createElement("div", { className: "card-title", style: { margin: 0 } }, "🛣️ Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS)"),
-        React.createElement("button", {
-          onClick: () => abrirJanela(gerarHTMLRota(r.itens.map(o => ({ numero: o.numero, corpo: { ...o, prazo: calcPrazoLabelParaPDF(o) } })), "Rota " + r.num + (r.desc ? " - " + r.desc : ""))),
-          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-        }, "📄 PDF de todas as OS dessa rota")
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", {
+            onClick: () => abrirEmailRota(r.itens.map(o => ({ numero: o.numero, comarca: o.comarca, servico: o.servico, corpo: o })), r.num + (r.desc ? " - " + r.desc : ""), gerarHTMLRota(r.itens.map(o => ({ numero: o.numero, corpo: { ...o, prazo: calcPrazoLabelParaPDF(o) } })), "Rota " + r.num + (r.desc ? " - " + r.desc : ""))),
+            style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📧 E-mail com todas"),
+          React.createElement("button", {
+            onClick: () => abrirJanela(gerarHTMLRota(r.itens.map(o => ({ numero: o.numero, corpo: { ...o, prazo: calcPrazoLabelParaPDF(o) } })), "Rota " + r.num + (r.desc ? " - " + r.desc : ""))),
+            style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📄 PDF de todas as OS dessa rota")
+        )
       ),
       r.itens.map(o => React.createElement("div", {
         key: o.id,
