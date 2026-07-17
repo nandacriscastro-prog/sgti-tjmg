@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784294002 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784294161 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1981,13 +1981,13 @@ function PageRota({ onOsCriada, os: todasOS }) {
       }
       let all = [], offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=numero&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?contrato=in.(216%2F2023,217%2F2023,218%2F2023)&select=numero&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         all = all.concat(batch); offset += batch.length;
         if (batch.length < 1000) break;
       }
       const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
-      return nums.length ? Math.max(...nums) : 0;
+      return Math.max(87, nums.length ? Math.max(...nums) : 0);
     })();
   };
   const formatNum = (ct, seq) => ct === "181/2026" ? "181-" + seq : String(seq);
@@ -2315,14 +2315,14 @@ function PageNovaOS({
       }
       let all = [], offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=numero&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?contrato=in.(216%2F2023,217%2F2023,218%2F2023)&select=numero&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         all = all.concat(batch);
         offset += batch.length;
         if (batch.length < 1000) break;
       }
       const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
-      return [{ numero: String(nums.length ? Math.max(...nums) : 0) }];
+      return [{ numero: String(Math.max(87, nums.length ? Math.max(...nums) : 0)) }];
     })().catch(() => [{ numero: ct === "181/2026" ? "181-0" : "0" }]);
   };
   const proximoNumeroDe = row => {
