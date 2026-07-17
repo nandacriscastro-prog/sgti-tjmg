@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292532 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292630 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -8063,7 +8063,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
