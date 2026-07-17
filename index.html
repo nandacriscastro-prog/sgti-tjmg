@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292630 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292828 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2203,13 +2203,20 @@ function PageRota({ onOsCriada, os: todasOS }) {
           style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "📄 PDF de todas as OS da rota (" + resultado.length + ")")
       ),
-      resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
+      resultado.map(r => React.createElement("div", { key: r.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } },
         React.createElement("div", null, React.createElement("strong", null, "OS " + r.numero), " — ", r.comarca, " — ", r.servico),
-        React.createElement("button", {
-          className: "bsm",
-          onClick: () => abrirJanela(gerarHTMLOS(r.corpo, r.numero)),
-          style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
-        }, "📄 Ver/baixar PDF")
+        React.createElement("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+          React.createElement("button", {
+            className: "bsm",
+            onClick: () => abrirEmailOS(r.corpo, r.numero, gerarHTMLOS(r.corpo, r.numero)),
+            style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📧 E-mail + OS (PDF)"),
+          React.createElement("button", {
+            className: "bsm",
+            onClick: () => abrirJanela(gerarHTMLOS(r.corpo, r.numero)),
+            style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, "📄 Ver/baixar PDF")
+        )
       ))
     ),
     React.createElement("div", { className: "card", style: { maxWidth: 1100, marginTop: 24, border: "1.5px dashed var(--red, #c0392b)" } },
@@ -3013,6 +3020,11 @@ function PageHistorico({
         ),
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } },
           React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída"),
+          React.createElement("button", {
+            onClick: e => { e.stopPropagation(); abrirEmailOS(o, o.numero, gerarHTMLOS({ ...o, prazo: calcPrazoLabelParaPDF(o) }, o.numero)); },
+            className: "btn btn-sm",
+            style: { background: "var(--accent)", color: "#fff", border: "none" }
+          }, "📧 E-mail"),
           React.createElement("button", {
             onClick: e => { e.stopPropagation(); abrirJanela(gerarHTMLOS({ ...o, prazo: calcPrazoLabelParaPDF(o) }, o.numero)); },
             className: "btn btn-sm"
