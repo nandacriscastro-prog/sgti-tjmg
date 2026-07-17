@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784291616 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784292532 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1532,6 +1532,20 @@ ${blocoOS(os, numOS)}
 <button class="no-print" onclick="window.print()" style="margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px">🖨️ Imprimir / PDF</button>
 </body></html>`;
 }
+function calcPrazoLabelParaPDF(o) {
+  const t = o.tipo || "";
+  if (!t || !o.data_os) return "";
+  const _mun = (o.comarca || "").split(" - ")[0];
+  const isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+  let dias, uteis = false;
+  if (t.includes("Emergencial")) { dias = isColar ? 2 : 5; uteis = true; }
+  else if (t.includes("Correção") || t.includes("Correcao")) { dias = isColar ? 1 : 3; uteis = true; }
+  else { dias = isColar ? 10 : 30; }
+  const r = new Date(o.data_os + "T12:00");
+  if (uteis) { let u = 0; while (u < dias) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) u++; } }
+  else { r.setDate(r.getDate() + dias); }
+  return r.toLocaleDateString("pt-BR");
+}
 function gerarHTMLRota(criadas, rotaNome) {
   const blocos = criadas.map(r => `<div class="os-bloco">${blocoOS(r.corpo, r.numero)}</div>`).join("");
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -2981,17 +2995,29 @@ function PageHistorico({
       React.createElement("div", { className: "empty-icon" }, "🛣️"),
       React.createElement("div", { className: "empty-title" }, "Nenhuma OS com rota encontrada no filtro atual")),
     rotasAgrupadas.rotas.map(r => React.createElement("div", { key: r.num, className: "card", style: { marginBottom: 10 } },
-      React.createElement("div", { className: "card-title" }, "🛣️ Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS)"),
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 } },
+        React.createElement("div", { className: "card-title", style: { margin: 0 } }, "🛣️ Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS)"),
+        React.createElement("button", {
+          onClick: () => abrirJanela(gerarHTMLRota(r.itens.map(o => ({ numero: o.numero, corpo: { ...o, prazo: calcPrazoLabelParaPDF(o) } })), "Rota " + r.num + (r.desc ? " - " + r.desc : ""))),
+          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "📄 PDF de todas as OS dessa rota")
+      ),
       r.itens.map(o => React.createElement("div", {
         key: o.id,
         onClick: () => setSel(o),
-        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13 }
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13, gap: 8 }
       },
         React.createElement("div", null,
           React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca || "—", " — ",
           React.createElement("span", { className: "text-muted" }, (o.servico || "—").substring(0, 60))
         ),
-        React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída")
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } },
+          React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída"),
+          React.createElement("button", {
+            onClick: e => { e.stopPropagation(); abrirJanela(gerarHTMLOS({ ...o, prazo: calcPrazoLabelParaPDF(o) }, o.numero)); },
+            className: "btn btn-sm"
+          }, "📄 PDF")
+        )
       ))
     )),
     rotasAgrupadas.semRota.length > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } },
