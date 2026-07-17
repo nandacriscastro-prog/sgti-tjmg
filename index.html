@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784285558 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784285883 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1895,6 +1895,38 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
   const [resultadoRotaNome, setResultadoRotaNome] = useState("");
+  const [excluirNumRota, setExcluirNumRota] = useState("");
+  const [osParaExcluir, setOsParaExcluir] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [msgExcluir, setMsgExcluir] = useState("");
+
+  const buscarOSDaRotaParaExcluir = () => {
+    if (!excluirNumRota.trim()) return;
+    const alvo = "rota: " + excluirNumRota.trim().toLowerCase();
+    const encontradas = (todasOS || []).filter(o => (o.observacoes || "").toLowerCase().includes(alvo));
+    setOsParaExcluir(encontradas);
+    setMsgExcluir("");
+  };
+  const excluirRotaInteira = async () => {
+    if (!osParaExcluir || !osParaExcluir.length) return;
+    if (!window.confirm("Tem certeza que quer excluir permanentemente essas " + osParaExcluir.length + " OS? Essa ação não pode ser desfeita.")) return;
+    setExcluindo(true); setMsgExcluir("");
+    let ok = 0;
+    try {
+      for (const o of osParaExcluir) {
+        await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(o.numero)}`, { method: "DELETE" });
+        ok++;
+      }
+      setMsgExcluir("✓ " + ok + " OS excluída(s) com sucesso!");
+      setOsParaExcluir([]);
+      setExcluirNumRota("");
+      if (onOsCriada) onOsCriada();
+    } catch (e) {
+      setMsgExcluir("Erro ao excluir (" + ok + " já excluída(s) antes do erro): " + e.message);
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const buscarProximoNum = ct => {
     return (async () => {
@@ -2112,6 +2144,30 @@ function PageRota({ onOsCriada, os: todasOS }) {
           style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
         }, "📄 Ver/baixar PDF")
       ))
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 1100, marginTop: 24, border: "1.5px dashed var(--red, #c0392b)" } },
+      React.createElement("div", { className: "card-title" }, "🗑️ Excluir uma rota (e todas as OS dela)"),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } }, "Útil pra limpar rotas de teste. Digite o número da rota (ex: 1) pra ver e excluir todas as OS vinculadas a ela."),
+      React.createElement("div", { className: "fr", style: { alignItems: "flex-end" } },
+        React.createElement("div", { className: "fld", style: { flex: 1 } },
+          React.createElement("label", null, "Número da rota"),
+          React.createElement("input", { value: excluirNumRota, onChange: e => setExcluirNumRota(e.target.value), placeholder: "Ex: 1" })
+        ),
+        React.createElement("button", { className: "btn", onClick: buscarOSDaRotaParaExcluir, style: { height: 42 } }, "Buscar OS dessa rota")
+      ),
+      osParaExcluir !== null && React.createElement("div", { style: { marginTop: 12 } },
+        osParaExcluir.length === 0
+          ? React.createElement("div", { style: { fontSize: 13, color: "var(--text3)" } }, "Nenhuma OS encontrada com \"Rota: " + excluirNumRota + "\".")
+          : React.createElement("div", null,
+              osParaExcluir.map(o => React.createElement("div", { key: o.numero, style: { fontSize: 13, padding: "4px 0" } }, "OS " + o.numero + " — " + o.comarca + " — " + (o.servico || ""))),
+              React.createElement("button", {
+                onClick: excluirRotaInteira,
+                disabled: excluindo,
+                style: { marginTop: 10, background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+              }, excluindo ? "Excluindo..." : "Excluir essas " + osParaExcluir.length + " OS definitivamente")
+            )
+      ),
+      msgExcluir && React.createElement("div", { style: { marginTop: 10, fontSize: 13, color: msgExcluir.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msgExcluir)
     )
   );
 }
