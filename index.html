@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784285883 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784286179 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2066,6 +2066,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
         tipo.includes("Emergencial") && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade"),
           React.createElement("select", { value: prio, onChange: e => setPrio(e.target.value) },
             React.createElement("option", { value: "" }, "—"),
+            React.createElement("option", { value: "P0 - Urgente" }, "P0 - Urgente (só Colar Metropolitano)"),
             React.createElement("option", { value: "P1 - Crítica" }, "P1 - Crítica"),
             React.createElement("option", { value: "P2 - Alta" }, "P2 - Alta"),
             React.createElement("option", { value: "P3 - Média" }, "P3 - Média")
@@ -2113,13 +2114,18 @@ function PageRota({ onOsCriada, os: todasOS }) {
               React.createElement("option", null, "Presencial Programado"),
               React.createElement("option", null, "Presencial Emergencial")
             )),
-          s.tipoOverride.includes("Emergencial") && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade desta parada"),
-            React.createElement("select", { value: s.prioOverride, onChange: e => setStopPrio(i, e.target.value) },
-              React.createElement("option", { value: "" }, "—"),
-              React.createElement("option", { value: "P1 - Crítica" }, "P1 - Crítica"),
-              React.createElement("option", { value: "P2 - Alta" }, "P2 - Alta"),
-              React.createElement("option", { value: "P3 - Média" }, "P3 - Média")
-            ))
+          s.tipoOverride.includes("Emergencial") && (() => {
+            const _munParada = (s.comarca || "").split(" - ")[0];
+            const _isColarParada = contratoSel === "181/2026" ? COLAR_181.has(_munParada) : COLAR_CIDADES.has(_munParada);
+            return React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade desta parada"),
+              React.createElement("select", { value: s.prioOverride, onChange: e => setStopPrio(i, e.target.value) },
+                React.createElement("option", { value: "" }, "—"),
+                _isColarParada && React.createElement("option", { value: "P0 - Urgente" }, "P0 - Urgente"),
+                React.createElement("option", { value: "P1 - Crítica" }, "P1 - Crítica"),
+                React.createElement("option", { value: "P2 - Alta" }, "P2 - Alta"),
+                React.createElement("option", { value: "P3 - Média" }, "P3 - Média")
+              ));
+          })()
         )
       )
     )),
