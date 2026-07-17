@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784293337 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784294002 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2918,7 +2918,12 @@ function PageHistorico({
     if (fDt1 && (o.data_os || "") < fDt1) return false;
     if (fDt2 && (o.data_os || "") > fDt2) return false;
     return true;
-  }).sort((a, b) => (b.data_os || b.criado_em || "").localeCompare(a.data_os || a.criado_em || ""));
+  }).sort((a, b) => {
+    const chaveData = o => (o.data_os || (o.criado_em || "").slice(0, 10) || "");
+    const cmp = chaveData(b).localeCompare(chaveData(a));
+    if (cmp !== 0) return cmp;
+    return (b.criado_em || "").localeCompare(a.criado_em || "");
+  });
   const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
   const rotasAgrupadas = (() => {
     const grupos = {};
@@ -8097,7 +8102,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes,criado_em&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
