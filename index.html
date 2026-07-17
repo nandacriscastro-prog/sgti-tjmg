@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784286568 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784286625 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1890,7 +1890,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
-  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
+  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "" }]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -1966,9 +1966,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
     return r.toISOString().slice(0, 10);
   };
 
-  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
+  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "" }]);
   const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
   const setStopObs = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, obs: val } : s));
+  const setStopContato = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, contato: val } : s));
   const toggleOverride = i => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: s.tipoOverride === null ? tipo : null, prioOverride: "" } : s));
   const setStopTipo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: val, prioOverride: "" } : s));
   const setStopPrio = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, prioOverride: val } : s));
@@ -1998,7 +1999,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           endereco: stop.dadosComarca?.e || "",
           polo: stop.dadosComarca?.p || "",
           telefone: "",
-          contato: "",
+          contato: stop.contato || "",
           servico,
           tipo: stopTipo,
           prioridade: stopPrio,
@@ -2099,6 +2100,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
             React.createElement("span", { style: { flex: 1, minWidth: 0, whiteSpace: "normal", wordBreak: "break-word" } }, sis)
           ))
         )
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+        React.createElement("label", null, "Contato no local (opcional)"),
+        React.createElement("input", { value: s.contato, onChange: e => setStopContato(i, e.target.value), placeholder: "Ex: João - (31) 99999-9999" })
       ),
       React.createElement("div", { className: "fg" },
         React.createElement("label", null, "Observações desta parada (opcional)"),
