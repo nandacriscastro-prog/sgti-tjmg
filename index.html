@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784233239 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784285558 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3792,7 +3792,7 @@ function PageLancamentoManual({
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
-  const pendentes = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") && (o.contrato || "") === "181/2026");
+  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
   const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
   const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
 
@@ -4077,24 +4077,32 @@ function PageLancamentoManual({
       pendentes.length === 0 && React.createElement("div", { className: "empty" },
         React.createElement("div", { className: "empty-icon" }, "✅"),
         React.createElement("div", { className: "empty-title" }, "Nenhuma OS pendente neste mês")),
-      pendentes.map(o => React.createElement("div", {
-        key: o.numero,
-        className: "card",
-        style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }
-      },
-        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
-          React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
-          React.createElement("div", null,
-            React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
-            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
-          )
-        ),
-        React.createElement("button", {
-          className: "bsm",
-          onClick: () => abrirPainelIndividual(o),
-          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
-        }, "Preencher")
-      ))
+      pendentes.map(o => {
+        const precisaAvaliar = o.status === "Concluída" && !o.avaliacao;
+        return React.createElement("div", {
+          key: o.numero,
+          className: "card",
+          style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }
+        },
+          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
+            React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
+            React.createElement("div", null,
+              React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+                React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+                precisaAvaliar
+                  ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Falta avaliar")
+                  : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", background: "var(--surface)", padding: "3px 8px", borderRadius: 99 } }, "📝 Falta preencher")
+              ),
+              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
+            )
+          ),
+          React.createElement("button", {
+            className: "bsm",
+            onClick: () => abrirPainelIndividual(o),
+            style: { background: precisaAvaliar ? "var(--red, #c0392b)" : "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+          }, precisaAvaliar ? "Avaliar agora" : "Preencher")
+        );
+      })
     ),
     aba === "lancadas" && React.createElement("div", null,
       lancadas.length > 0 && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
