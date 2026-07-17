@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784286179 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784286568 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1953,11 +1953,12 @@ function PageRota({ onOsCriada, os: todasOS }) {
     })();
   };
   const formatNum = (ct, seq) => ct === "181/2026" ? "181-" + seq : String(seq);
-  const calcPrazo = (com) => {
+  const calcPrazo = (com, tipoParada) => {
     const _mun = (com || "").split(" - ")[0];
     const isColar = contratoSel === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+    const t = tipoParada || tipo;
     let dias, uteis = false;
-    if (tipo.includes("Emergencial")) { dias = isColar ? 2 : 5; uteis = true; }
+    if (t.includes("Emergencial")) { dias = isColar ? 2 : 5; uteis = true; }
     else { dias = isColar ? 10 : 30; }
     const r = new Date(dt + "T12:00");
     if (uteis) { let u = 0; while (u < dias) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) u++; } }
@@ -1993,9 +1994,9 @@ function PageRota({ onOsCriada, os: todasOS }) {
           empresa: "Alvo Segurança Ltda",
           contrato: contratoSel,
           comarca: stop.comarca,
-          forum: stop.dadosComarca?.forum || "",
-          endereco: stop.dadosComarca?.endereco || "",
-          polo: stop.dadosComarca?.polo || "",
+          forum: stop.dadosComarca?.f || "",
+          endereco: stop.dadosComarca?.e || "",
+          polo: stop.dadosComarca?.p || "",
           telefone: "",
           contato: "",
           servico,
@@ -2022,7 +2023,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
             } else throw e;
           }
         }
-        criadas.push({ numero, comarca: stop.comarca, servico, corpo: { ...corpo } });
+        criadas.push({ numero, comarca: stop.comarca, servico, corpo: { ...corpo, prazo: new Date(calcPrazo(stop.comarca, stopTipo) + "T12:00").toLocaleDateString("pt-BR") } });
       }
       setResultado(criadas);
       setResultadoRotaNome(rotaNome);
