@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785160197 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785162269 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1551,8 +1551,8 @@ function blocoOS(os, numOS) {
   </tr>
   <tr>
     <td>${os.tipo || "—"}${os.prioridade ? "<br><small style='color:#666'>" + os.prioridade + "</small>" : ""}</td>
-    <td>${os.prazo || "Selecione comarca e tipo."}</td>
-    <td>03(três) meses contado da data de conclusão</td>
+    <td>${os.tipo === "Atendimento Remoto" ? "2 horas" : (os.prazo || "Selecione comarca e tipo.")}</td>
+    <td>${os.tipo === "Atendimento Remoto" ? "Não se aplica" : "03(três) meses contado da data de conclusão"}</td>
   </tr>
 </table>
 ${os.observacoes ? `<table><tr><td><span class="lbl">OBSERVAÇÕES</span>${os.observacoes}</td></tr></table>` : ""}
