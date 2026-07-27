@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785158813 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785159745 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1452,7 +1452,7 @@ function PageDashboard({
 // ── HELPERS DOCUMENTOS ───────────────────────────────────────
 function gerarHTMLAtendimentoRemoto(d) {
   const chk = v => v ? "☑" : "☐";
-  const hoje = new Date().toLocaleDateString("pt-BR");
+  const dataFmt = d.dataAtend ? new Date(d.dataAtend + "T12:00").toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR");
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>${d.numero} — Atendimento Remoto</title>
 <style>${ESTILO_OS_PDF}
@@ -1466,7 +1466,7 @@ function gerarHTMLAtendimentoRemoto(d) {
 <table>
   <tr>
     <td style="width:50%"><span class="lbl">Nº DA OS</span><span class="val red">${d.numero}</span></td>
-    <td style="width:50%"><span class="lbl">DATA</span><span class="val">${hoje}</span></td>
+    <td style="width:50%"><span class="lbl">DATA</span><span class="val">${dataFmt}</span></td>
   </tr>
   <tr>
     <td colspan="2"><span class="lbl">COMARCA / EDIFÍCIO</span><span class="val">${d.comarca || "—"}</span></td>
@@ -1475,7 +1475,7 @@ function gerarHTMLAtendimentoRemoto(d) {
     <td colspan="2"><span class="lbl">CONTATO ADM. PREDIAL</span><span class="val">${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}</span></td>
   </tr>
   <tr>
-    <td colspan="2"><span class="lbl">TÉCNICO RESPONSÁVEL (ALVO)</span><span class="blank">&nbsp;</span></td>
+    <td colspan="2"><span class="lbl">TÉCNICO RESPONSÁVEL (ALVO)</span>${d.tecnicoResp ? `<span class="val">${d.tecnicoResp}</span>` : `<span class="blank">&nbsp;</span>`}</td>
   </tr>
 </table>
 <table>
@@ -1492,16 +1492,16 @@ function gerarHTMLAtendimentoRemoto(d) {
   <tr><td style="min-height:50px">${(d.problemas || "—").replace(/\n/g, "<br>")}</td></tr>
 </table>
 <table>
-  <tr><th style="background:#f5f5f5">MEDIDAS ADOTADAS (SUPORTE REMOTO VIA ÁUDIO/VÍDEO) — a preencher pela Alvo</th></tr>
-  <tr><td style="min-height:60px">&nbsp;<br><br><br></td></tr>
+  <tr><th style="background:#f5f5f5">MEDIDAS ADOTADAS (SUPORTE REMOTO VIA ÁUDIO/VÍDEO)${d.medidasAdotadas ? "" : " — a preencher pela Alvo"}</th></tr>
+  <tr><td style="min-height:60px">${d.medidasAdotadas ? d.medidasAdotadas.replace(/\n/g, "<br>") : "&nbsp;<br><br><br>"}</td></tr>
 </table>
 <table>
-  <tr><th colspan="2" style="background:#f5f5f5">SITUAÇÃO FINAL E ENCAMINHAMENTOS — a preencher pela Alvo</th></tr>
+  <tr><th colspan="2" style="background:#f5f5f5">SITUAÇÃO FINAL E ENCAMINHAMENTOS${d.statusAtend ? "" : " — a preencher pela Alvo"}</th></tr>
   <tr>
-    <td style="width:50%">☐ SOLUCIONADO</td>
-    <td style="width:50%">☐ PENDENTE / NÃO SOLUCIONADO</td>
+    <td style="width:50%">${d.statusAtend === "solucionado" ? "☑" : "☐"} SOLUCIONADO</td>
+    <td style="width:50%">${d.statusAtend === "pendente" ? "☑" : "☐"} PENDENTE / NÃO SOLUCIONADO</td>
   </tr>
-  <tr><td colspan="2"><span class="lbl">Medidas futuras / recomendações (informar se há necessidade de intervenção presencial, substituição de peças ou orientações adicionais)</span><br>&nbsp;<br><br></td></tr>
+  <tr><td colspan="2"><span class="lbl">Medidas futuras / recomendações (informar se há necessidade de intervenção presencial, substituição de peças ou orientações adicionais)</span><br>${d.medidasFuturas ? d.medidasFuturas.replace(/\n/g, "<br>") : "&nbsp;<br><br>"}</td></tr>
 </table>
 <div class="footer">Gerado pelo SGTI — ${new Date().toLocaleString("pt-BR")}. Se PENDENTE / NÃO SOLUCIONADO, será aberta OS presencial para atendimento in loco.</div>
 <button class="no-print" onclick="window.print()" style="margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px">🖨️ Imprimir / PDF</button>
@@ -1972,11 +1972,16 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
   })();
   const [comarca, setComarca] = useState("");
   const [dadosComarca, setDadosComarca] = useState({});
+  const [dataAtend, setDataAtend] = useState(new Date().toISOString().slice(0, 10));
   const [contatoNome, setContatoNome] = useState("");
   const [contatoTel, setContatoTel] = useState("");
   const [contatoEmail, setContatoEmail] = useState("");
   const [sistemas, setSistemas] = useState([]);
   const [problemas, setProblemas] = useState("");
+  const [tecnicoResp, setTecnicoResp] = useState("");
+  const [medidasAdotadas, setMedidasAdotadas] = useState("");
+  const [statusAtend, setStatusAtend] = useState(""); // "solucionado" | "pendente" | ""
+  const [medidasFuturas, setMedidasFuturas] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [gerado, setGerado] = useState(null);
@@ -1988,10 +1993,12 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
     if (!sistemas.length) { setMsg("Marque ao menos um sistema afetado."); return; }
     setSalvando(true); setMsg("");
     const numero = "OS-REM-2026-" + proximoNum;
+    const jaResolvido = statusAtend !== "";
     const dados = {
       numero, comarca,
       contatoNome, contatoTel, contatoEmail,
-      sistemas, problemas
+      sistemas, problemas,
+      dataAtend, tecnicoResp, medidasAdotadas, statusAtend, medidasFuturas
     };
     try {
       await sbFetch("/ordens_servico", {
@@ -2007,11 +2014,12 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           contato: contatoTel || contatoNome || "",
           servico: "Atendimento remoto: " + sistemas.join(", "),
           tipo: "Atendimento Remoto",
-          status: "Aberta",
-          data_os: new Date().toISOString().slice(0, 10),
+          status: jaResolvido ? "Concluída" : "Aberta",
+          data_os: dataAtend,
+          data_conclusao: jaResolvido ? dataAtend : null,
           criado_por: "sistema-remoto",
           criado_em: new Date().toISOString(),
-          observacoes: "Problemas identificados: " + (problemas || "—")
+          observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "")
         })
       });
       setGerado(dados);
@@ -2039,6 +2047,8 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
         React.createElement(ComarcaInput, { value: comarca, onChange: (k, dados) => { setComarca(k); setDadosComarca(dados); if (dados?.t && !contatoTel) setContatoTel(dados.t); } })
       ),
       React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data do atendimento"),
+          React.createElement("input", { type: "date", value: dataAtend, onChange: e => setDataAtend(e.target.value) })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Contato Adm. Predial (nome)"),
           React.createElement("input", { value: contatoNome, onChange: e => setContatoNome(e.target.value) })),
         React.createElement("div", { className: "fld" }, React.createElement("label", null, "Telefone"),
@@ -2067,6 +2077,25 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
         React.createElement("label", null, "Problemas identificados"),
         React.createElement("textarea", { value: problemas, onChange: e => setProblemas(e.target.value), rows: 3, placeholder: "Descrição clara e sucinta das falhas e anomalias constatadas durante a apuração com a Administração Predial" })
       ),
+      React.createElement("div", { style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text3)", marginBottom: 8, paddingTop: 8, borderTop: "1px dashed var(--border)" } }, "Já foi executado? Preencha pra cadastro retroativo (senão deixe em branco pra Alvo preencher depois)"),
+      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Técnico responsável (Alvo)"),
+          React.createElement("input", { value: tecnicoResp, onChange: e => setTecnicoResp(e.target.value) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Situação"),
+          React.createElement("select", { value: statusAtend, onChange: e => setStatusAtend(e.target.value) },
+            React.createElement("option", { value: "" }, "— Ainda não sei (deixa em aberto) —"),
+            React.createElement("option", { value: "solucionado" }, "✅ Solucionado"),
+            React.createElement("option", { value: "pendente" }, "🔄 Pendente / Não solucionado")
+          ))
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+        React.createElement("label", null, "Medidas adotadas (suporte remoto via áudio/vídeo)"),
+        React.createElement("textarea", { value: medidasAdotadas, onChange: e => setMedidasAdotadas(e.target.value), rows: 2, placeholder: "Detalhamento das instruções repassadas e executadas em conjunto com o funcionário da unidade" })
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
+        React.createElement("label", null, "Medidas futuras / recomendações (opcional)"),
+        React.createElement("textarea", { value: medidasFuturas, onChange: e => setMedidasFuturas(e.target.value), rows: 2 })
+      ),
       msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
       React.createElement("button", { className: "btn btn-primary", onClick: gerarEEnviar, disabled: salvando }, salvando ? "Gerando..." : "Gerar solicitação")
     ),
@@ -2080,7 +2109,15 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
         React.createElement("button", {
           onClick: () => abrirJanela(gerarHTMLAtendimentoRemoto(gerado)),
           style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-        }, "📄 Ver/baixar PDF")
+        }, "📄 Ver/baixar PDF"),
+        React.createElement("button", {
+          onClick: () => {
+            setComarca(""); setDadosComarca({}); setContatoNome(""); setContatoTel(""); setContatoEmail("");
+            setSistemas([]); setProblemas(""); setTecnicoResp(""); setMedidasAdotadas(""); setStatusAtend(""); setMedidasFuturas("");
+            setDataAtend(new Date().toISOString().slice(0, 10)); setGerado(null); setMsg("");
+          },
+          style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "+ Cadastrar outro")
       )
     )
   );
