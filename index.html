@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785162269 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785162624 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3221,10 +3221,17 @@ function PageHistorico({
     if (fDt2 && (o.data_os || "") > fDt2) return false;
     return true;
   }).sort((a, b) => {
-    const chaveData = o => (o.data_os || (o.criado_em || "").slice(0, 10) || "");
-    const cmp = chaveData(b).localeCompare(chaveData(a));
+    const numOrdenavel = o => {
+      const n = o.numero || "";
+      const m = /^181-(\d+)$/.exec(n);
+      if (m) return parseInt(m[1]);
+      const asInt = parseInt(n);
+      return isNaN(asInt) ? -1 : asInt;
+    };
+    const cmp = numOrdenavel(b) - numOrdenavel(a);
     if (cmp !== 0) return cmp;
-    return (b.criado_em || "").localeCompare(a.criado_em || "");
+    const chaveData = o => (o.data_os || (o.criado_em || "").slice(0, 10) || "");
+    return chaveData(b).localeCompare(chaveData(a));
   });
   const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
   const rotasAgrupadas = (() => {
