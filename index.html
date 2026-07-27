@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785159745 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785160197 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1985,6 +1985,38 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [gerado, setGerado] = useState(null);
+  const remotos = (todasOS || []).filter(o => o.tipo === "Atendimento Remoto" && /^OS-REM-2026-\d+$/.test(o.numero || "")).sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
+  const [respondendoId, setRespondendoId] = useState(null);
+  const [respTecnico, setRespTecnico] = useState("");
+  const [respMedidas, setRespMedidas] = useState("");
+  const [respSituacao, setRespSituacao] = useState("solucionado");
+  const [respMsg, setRespMsg] = useState("");
+  const [respLoading, setRespLoading] = useState(false);
+
+  const abrirResposta = o => {
+    setRespondendoId(o.id);
+    setRespTecnico(""); setRespMedidas(""); setRespSituacao("solucionado"); setRespMsg("");
+  };
+  const salvarResposta = async (o) => {
+    setRespLoading(true); setRespMsg("");
+    try {
+      await sbFetch(`/ordens_servico?id=eq.${o.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "Concluída",
+          data_conclusao: new Date().toISOString().slice(0, 10),
+          avaliacao: respSituacao,
+          observacoes: (o.observacoes || "") + ` | Técnico Alvo: ${respTecnico || "—"} | Medidas adotadas: ${respMedidas || "—"} | Situação: ${respSituacao === "solucionado" ? "Solucionado" : "Pendente/Não solucionado"}`
+        })
+      });
+      setRespondendoId(null);
+      if (reload) reload();
+    } catch (e) {
+      setRespMsg("Erro: " + e.message);
+    } finally {
+      setRespLoading(false);
+    }
+  };
 
   const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
 
@@ -2119,6 +2151,53 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "+ Cadastrar outro")
       )
+    ),
+    remotos.length > 0 && React.createElement("div", { className: "card", style: { maxWidth: 760, marginTop: 24 } },
+      React.createElement("div", { className: "card-title" }, "Atendimentos remotos (" + remotos.length + ")"),
+      remotos.map(o => {
+        const aguardando = o.status !== "Concluída";
+        const badge = aguardando
+          ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "🟡 Aguardando resposta da Alvo")
+          : o.avaliacao === "pendente"
+            ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--red, #c0392b)", background: "#fdecea", padding: "3px 8px", borderRadius: 99 } }, "🔄 Não solucionado")
+            : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--green)", background: "#eafaf0", padding: "3px 8px", borderRadius: 99 } }, "✅ Solucionado");
+        return React.createElement("div", { key: o.id, style: { padding: "8px 0", borderBottom: "1px solid var(--border)" } },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 } },
+            React.createElement("div", { style: { fontSize: 13 } },
+              React.createElement("strong", null, o.numero), " — ", o.comarca, " — ", (o.servico || "").substring(0, 50), " ", badge
+            ),
+            aguardando && respondendoId !== o.id && React.createElement("button", {
+              onClick: () => abrirResposta(o),
+              className: "bsm",
+              style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+            }, "Marcar resposta da Alvo")
+          ),
+          respondendoId === o.id && React.createElement("div", { style: { marginTop: 10, padding: 12, background: "var(--surface)", borderRadius: 8 } },
+            React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+              React.createElement("div", { className: "fld" }, React.createElement("label", null, "Técnico da Alvo"),
+                React.createElement("input", { value: respTecnico, onChange: e => setRespTecnico(e.target.value) })),
+              React.createElement("div", { className: "fld" }, React.createElement("label", null, "Situação"),
+                React.createElement("select", { value: respSituacao, onChange: e => setRespSituacao(e.target.value) },
+                  React.createElement("option", { value: "solucionado" }, "✅ Solucionado"),
+                  React.createElement("option", { value: "pendente" }, "🔄 Pendente / Não solucionado (abrir OS presencial)")
+                ))
+            ),
+            React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+              React.createElement("label", null, "Medidas adotadas"),
+              React.createElement("textarea", { value: respMedidas, onChange: e => setRespMedidas(e.target.value), rows: 2 })
+            ),
+            respMsg && React.createElement("div", { style: { marginBottom: 8, fontSize: 12, color: "var(--red, #c0392b)" } }, respMsg),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+              React.createElement("button", { onClick: () => setRespondendoId(null), className: "btn", disabled: respLoading }, "Cancelar"),
+              React.createElement("button", {
+                onClick: () => salvarResposta(o),
+                disabled: respLoading,
+                style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+              }, respLoading ? "Salvando..." : "Salvar resposta")
+            )
+          )
+        );
+      })
     )
   );
 }
