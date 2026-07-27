@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1784315947 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785158813 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -837,6 +837,11 @@ const NAV = [{
   icon: "mobile",
   sec: null
 }, {
+  id: "remoto",
+  label: "Atendimento remoto",
+  icon: "phone",
+  sec: null
+}, {
   id: "lancamento",
   label: "Medição manual",
   icon: "clip",
@@ -1445,6 +1450,63 @@ function PageDashboard({
 
 // ── PAGE: NOVA OS ─────────────────────────────────────────────
 // ── HELPERS DOCUMENTOS ───────────────────────────────────────
+function gerarHTMLAtendimentoRemoto(d) {
+  const chk = v => v ? "☑" : "☐";
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>${d.numero} — Atendimento Remoto</title>
+<style>${ESTILO_OS_PDF}
+.chkline{margin:4px 0;font-size:11px}
+.blank{border-bottom:1px solid #888;display:inline-block;min-width:200px;height:14px}
+</style></head><body>
+<div class="cab">
+  <div class="cab-title">Tribunal de Justiça do Estado de Minas Gerais</div>
+  <div class="cab-sub">Solicitação de Atendimento Remoto — Segurança Eletrônica (Contrato 181/2026)</div>
+</div>
+<table>
+  <tr>
+    <td style="width:50%"><span class="lbl">Nº DA OS</span><span class="val red">${d.numero}</span></td>
+    <td style="width:50%"><span class="lbl">DATA</span><span class="val">${hoje}</span></td>
+  </tr>
+  <tr>
+    <td colspan="2"><span class="lbl">COMARCA / EDIFÍCIO</span><span class="val">${d.comarca || "—"}</span></td>
+  </tr>
+  <tr>
+    <td colspan="2"><span class="lbl">CONTATO ADM. PREDIAL</span><span class="val">${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}</span></td>
+  </tr>
+  <tr>
+    <td colspan="2"><span class="lbl">TÉCNICO RESPONSÁVEL (ALVO)</span><span class="blank">&nbsp;</span></td>
+  </tr>
+</table>
+<table>
+  <tr><th style="background:#f5f5f5">SISTEMA / EQUIPAMENTO AFETADO</th></tr>
+  <tr><td>
+    <div class="chkline">${chk(d.sistemas.includes("Alarme"))} Sistema de Alarme (configuração básica, discadora, reset, teste de detecção de sensores, troca de nº na discadora, criação de senha)</div>
+    <div class="chkline">${chk(d.sistemas.includes("CFTV"))} Sistema de Videomonitoramento – CFTV (configuração básica, reset, orientação para localização de imagem gravada, orientação para backup de imagens)</div>
+    <div class="chkline">${chk(d.sistemas.includes("Portal"))} Portal Detector de Metal (configuração básica, reset, ajuste de sensibilidade e sonoro, teste e detecção)</div>
+    <div class="chkline">${chk(d.sistemas.includes("Scanner"))} Scanner Raio X (configuração básica, reset, ajuste de sensibilidade, teste e detecção)</div>
+  </td></tr>
+</table>
+<table>
+  <tr><th style="background:#f5f5f5">PROBLEMAS IDENTIFICADOS</th></tr>
+  <tr><td style="min-height:50px">${(d.problemas || "—").replace(/\n/g, "<br>")}</td></tr>
+</table>
+<table>
+  <tr><th style="background:#f5f5f5">MEDIDAS ADOTADAS (SUPORTE REMOTO VIA ÁUDIO/VÍDEO) — a preencher pela Alvo</th></tr>
+  <tr><td style="min-height:60px">&nbsp;<br><br><br></td></tr>
+</table>
+<table>
+  <tr><th colspan="2" style="background:#f5f5f5">SITUAÇÃO FINAL E ENCAMINHAMENTOS — a preencher pela Alvo</th></tr>
+  <tr>
+    <td style="width:50%">☐ SOLUCIONADO</td>
+    <td style="width:50%">☐ PENDENTE / NÃO SOLUCIONADO</td>
+  </tr>
+  <tr><td colspan="2"><span class="lbl">Medidas futuras / recomendações (informar se há necessidade de intervenção presencial, substituição de peças ou orientações adicionais)</span><br>&nbsp;<br><br></td></tr>
+</table>
+<div class="footer">Gerado pelo SGTI — ${new Date().toLocaleString("pt-BR")}. Se PENDENTE / NÃO SOLUCIONADO, será aberta OS presencial para atendimento in loco.</div>
+<button class="no-print" onclick="window.print()" style="margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px">🖨️ Imprimir / PDF</button>
+</body></html>`;
+}
 function blocoOS(os, numOS) {
   const fiscal = FISCAIS.find(f => f.email === os.criado_por) || FISCAIS[2];
   const dtFmt = v => v ? new Date(v + "T12:00").toLocaleDateString("pt-BR") : "—";
@@ -1898,6 +1960,130 @@ function abrirEmailRota(criadas, rotaNome, htmlRota) {
   window.open(`https://mail.google.com/mail/?view=cm&su=${assunto}&body=${corpo}`, "_blank");
   setTimeout(() => abrirJanela(htmlRota), 300);
   toast("E-mail da rota aberto. Salve o PDF combinado e anexe.", "ok");
+}
+function PageAtendimentoRemoto({ os: todasOS, reload }) {
+  const SISTEMAS_REM = ["Alarme", "CFTV", "Portal", "Scanner"];
+  const proximoNum = (() => {
+    const nums = (todasOS || []).map(o => {
+      const m = /^OS-REM-2026-(\d+)$/.exec(o.numero || "");
+      return m ? parseInt(m[1]) : 0;
+    }).filter(n => n > 0);
+    return (nums.length ? Math.max(...nums) : 0) + 1;
+  })();
+  const [comarca, setComarca] = useState("");
+  const [dadosComarca, setDadosComarca] = useState({});
+  const [contatoNome, setContatoNome] = useState("");
+  const [contatoTel, setContatoTel] = useState("");
+  const [contatoEmail, setContatoEmail] = useState("");
+  const [sistemas, setSistemas] = useState([]);
+  const [problemas, setProblemas] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [gerado, setGerado] = useState(null);
+
+  const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
+
+  const gerarEEnviar = async () => {
+    if (!comarca) { setMsg("Selecione a comarca."); return; }
+    if (!sistemas.length) { setMsg("Marque ao menos um sistema afetado."); return; }
+    setSalvando(true); setMsg("");
+    const numero = "OS-REM-2026-" + proximoNum;
+    const dados = {
+      numero, comarca,
+      contatoNome, contatoTel, contatoEmail,
+      sistemas, problemas
+    };
+    try {
+      await sbFetch("/ordens_servico", {
+        method: "POST",
+        body: JSON.stringify({
+          numero,
+          empresa: "Alvo Segurança Ltda",
+          contrato: "181/2026",
+          comarca,
+          forum: dadosComarca?.f || "",
+          endereco: dadosComarca?.e || "",
+          polo: dadosComarca?.p || "",
+          contato: contatoTel || contatoNome || "",
+          servico: "Atendimento remoto: " + sistemas.join(", "),
+          tipo: "Atendimento Remoto",
+          status: "Aberta",
+          data_os: new Date().toISOString().slice(0, 10),
+          criado_por: "sistema-remoto",
+          criado_em: new Date().toISOString(),
+          observacoes: "Problemas identificados: " + (problemas || "—")
+        })
+      });
+      setGerado(dados);
+      setMsg("✓ " + numero + " criada e salva!");
+      if (reload) reload();
+    } catch (e) {
+      setMsg("Erro ao salvar: " + e.message + " — mas você ainda pode ver/baixar o PDF abaixo.");
+      setGerado(dados);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Atendimento remoto"),
+        React.createElement("div", { className: "ph-sub" }, "Abrir solicitação de suporte remoto para a Alvo — o restante (medidas adotadas e status) é preenchido por eles")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 760 } },
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 14 } }, "Próximo número: ", React.createElement("strong", { style: { color: "var(--accent)" } }, "OS-REM-2026-" + proximoNum)),
+      React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+        React.createElement("label", null, "Comarca / Local"),
+        React.createElement(ComarcaInput, { value: comarca, onChange: (k, dados) => { setComarca(k); setDadosComarca(dados); if (dados?.t && !contatoTel) setContatoTel(dados.t); } })
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Contato Adm. Predial (nome)"),
+          React.createElement("input", { value: contatoNome, onChange: e => setContatoNome(e.target.value) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Telefone"),
+          React.createElement("input", { value: contatoTel, onChange: e => setContatoTel(e.target.value) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "E-mail"),
+          React.createElement("input", { value: contatoEmail, onChange: e => setContatoEmail(e.target.value) }))
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Sistema / equipamento afetado")),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, marginBottom: 14 } },
+        [["Alarme", "Sistema de Alarme"], ["CFTV", "Videomonitoramento (CFTV)"], ["Portal", "Portal detector de metal"], ["Scanner", "Scanner Raio X"]].map(([k, l]) =>
+          React.createElement("label", {
+            key: k,
+            style: {
+              display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "10px 12px",
+              border: "1px solid " + (sistemas.includes(k) ? "var(--accent)" : "var(--border)"),
+              borderRadius: 8, cursor: "pointer",
+              background: sistemas.includes(k) ? "var(--accent-bg, #eef6ff)" : "transparent"
+            }
+          },
+            React.createElement("input", { type: "checkbox", checked: sistemas.includes(k), onChange: () => toggleSistema(k) }),
+            React.createElement("span", { style: { flex: 1, minWidth: 0 } }, l)
+          )
+        )
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
+        React.createElement("label", null, "Problemas identificados"),
+        React.createElement("textarea", { value: problemas, onChange: e => setProblemas(e.target.value), rows: 3, placeholder: "Descrição clara e sucinta das falhas e anomalias constatadas durante a apuração com a Administração Predial" })
+      ),
+      msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+      React.createElement("button", { className: "btn btn-primary", onClick: gerarEEnviar, disabled: salvando }, salvando ? "Gerando..." : "Gerar solicitação")
+    ),
+    gerado && React.createElement("div", { className: "card", style: { maxWidth: 760, marginTop: 16 } },
+      React.createElement("div", { className: "card-title" }, "✓ " + gerado.numero),
+      React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
+        React.createElement("button", {
+          onClick: () => abrirEmailOS({ ...gerado, criado_por: "" }, gerado.numero, gerarHTMLAtendimentoRemoto(gerado)),
+          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "📧 E-mail + documento (PDF)"),
+        React.createElement("button", {
+          onClick: () => abrirJanela(gerarHTMLAtendimentoRemoto(gerado)),
+          style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "📄 Ver/baixar PDF")
+      )
+    )
+  );
 }
 function PageRota({ onOsCriada, os: todasOS }) {
   const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
@@ -8315,6 +8501,11 @@ function AppInterno({
       case "campo":
         return /*#__PURE__*/React.createElement(PageCampo, {
           os: os
+        });
+      case "remoto":
+        return /*#__PURE__*/React.createElement(PageAtendimentoRemoto, {
+          os: os,
+          reload: loadOS
         });
       case "lancamento":
         return /*#__PURE__*/React.createElement(PageLancamentoManual, {
