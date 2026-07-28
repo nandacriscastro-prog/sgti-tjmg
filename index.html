@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785162624 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247040 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1933,6 +1933,20 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 }
 
 // Abrir e-mail separado: OS para empresa
+// E-mail específico do Atendimento Remoto (campos diferentes de uma OS normal)
+function abrirEmailAtendimentoRemoto(d, htmlRemoto) {
+  const assunto = encodeURIComponent(`${d.numero} — Solicitação de Atendimento Remoto — ${d.comarca || ""}`);
+  const corpo = encodeURIComponent(`Prezados,\n\nSegue solicitação de atendimento remoto ${d.numero} para execução:\n\n` +
+    `• Comarca: ${d.comarca || "—"}\n` +
+    `• Sistema(s) afetado(s): ${(d.sistemas || []).join(", ") || "—"}\n` +
+    `• Contato Adm. Predial: ${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}\n` +
+    `• Problemas identificados: ${d.problemas || "—"}\n\n` +
+    `Salve o arquivo em anexo (${d.numero}.pdf) e retorne com a situação do atendimento (solucionado ou pendente).\n\n` +
+    `Atenciosamente,\nGEASI — COTESI | TJMG`);
+  window.open(`https://mail.google.com/mail/?view=cm&su=${assunto}&body=${corpo}`, "_blank");
+  setTimeout(() => abrirJanela(htmlRemoto), 300);
+  toast("E-mail aberto. Salve o PDF e anexe.", "ok");
+}
 function abrirEmailOS(os, numOS, htmlOS) {
   const fiscal = FISCAIS.find(f => f.email === os.criado_por) || FISCAIS[2];
   const assunto = encodeURIComponent(`OS Nº ${numOS} — ${os.comarca || ""} — Segurança Eletrônica`);
@@ -2135,7 +2149,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
       React.createElement("div", { className: "card-title" }, "✓ " + gerado.numero),
       React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
         React.createElement("button", {
-          onClick: () => abrirEmailOS({ ...gerado, criado_por: "" }, gerado.numero, gerarHTMLAtendimentoRemoto(gerado)),
+          onClick: () => abrirEmailAtendimentoRemoto(gerado, gerarHTMLAtendimentoRemoto(gerado)),
           style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "📧 E-mail + documento (PDF)"),
         React.createElement("button", {
@@ -3357,7 +3371,7 @@ function PageHistorico({
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } },
           React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída"),
           React.createElement("button", {
-            onClick: e => { e.stopPropagation(); abrirEmailOS(o, o.numero, gerarHTMLOS({ ...o, prazo: calcPrazoLabelParaPDF(o) }, o.numero)); },
+            onClick: e => { e.stopPropagation(); const oComPrazo = { ...o, prazo: calcPrazoLabelParaPDF(o) }; abrirEmailOS(oComPrazo, o.numero, gerarHTMLOS(oComPrazo, o.numero)); },
             className: "btn btn-sm",
             style: { background: "var(--accent)", color: "#fff", border: "none" }
           }, "📧 E-mail"),
@@ -3683,8 +3697,9 @@ function PageHistorico({
         className:"btn btn-navy btn-sm",
         onClick: () => {
           const fiscal = FISCAIS.find(f=>f.email===sel.criado_por)||FISCAIS[2];
-          const htmlOS = gerarHTMLOS({...sel, prazo:sel.prazo||"—", criado_por:fiscal.email}, sel.numero);
-          abrirEmailOS({...sel, prazo:sel.prazo||"—", criado_por:fiscal.email}, sel.numero, htmlOS);
+          const selComPrazo = {...sel, prazo: calcPrazoLabelParaPDF(sel), criado_por: fiscal.email};
+          const htmlOS = gerarHTMLOS(selComPrazo, sel.numero);
+          abrirEmailOS(selComPrazo, sel.numero, htmlOS);
         }
       }, "📧 E-mail + OS"),
       React.createElement("button", {
