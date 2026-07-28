@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785249389 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785253712 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2403,6 +2403,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
       setMsg("✓ " + criadas.length + " OS criada(s) na rota \"" + rotaNome + "\"");
       setStops([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
       if (onOsCriada) onOsCriada();
+      // Abre automaticamente o e-mail com todas as OS da rota, sem precisar clicar
+      setTimeout(() => abrirEmailRota(criadas, rotaNome, gerarHTMLRota(criadas, "Rota " + rotaNome)), 400);
     } catch (e) {
       setMsg("Erro ao criar rota: " + e.message + (criadas.length ? " (" + criadas.length + " OS já criada(s) antes do erro)" : ""));
     } finally {
