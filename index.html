@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785253712 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785259833 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4494,6 +4494,34 @@ function PageLancamentoManual({
   const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
   const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
 
+  const osMedidas = todasConcluidas.filter(o => o.avaliacao === "satisfatorio" && o.data_conclusao && o.data_conclusao >= dtIni && o.data_conclusao <= dtFim);
+  const medicaoResumo = (() => {
+    const valorDiariaUnit = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const valorKmUnit = ANEXO_IV.find(a => a.id === "km").vu;
+    let qtdAlarme = 0, qtdPortal = 0, qtdRaio = 0, totalKm = 0, totalDiarias = 0, brutoMateriais = 0;
+    osMedidas.forEach(o => {
+      const s = (o.servico || o.tipo || "").toLowerCase();
+      if (s.includes("portal") || s.includes("detector")) qtdPortal++; else if (s.includes("raio") || s.includes("scanner")) qtdRaio++; else qtdAlarme++;
+      let r = {};
+      try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+      const kmOS = parseFloat(r.km || 0) || 0;
+      totalKm += kmOS;
+      const _mun = (o.comarca || "").split(" - ")[0];
+      const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+      const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
+      const fracaoDeslocamento = isColarOS ? 0 : (kmOS * valorKmUnit * FRACAO_KM_ANEXO_VI) / valorDiariaUnit;
+      totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
+      brutoMateriais += (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+    });
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
+    const brutoServicos = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
+    const bruto = brutoServicos + brutoMateriais;
+    const autoPts = osMedidas.reduce((a, o) => a + (calcPtsAutoOS(o).pts || 0), 0);
+    const pct = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
+    const glosa = bruto * pct / 100;
+    return { qtd: osMedidas.length, brutoServicos, brutoMateriais, bruto, autoPts, pct, glosa, liq: bruto - glosa };
+  })();
+
   const toggleSel = numero => {
     const novo = new Set(selecionadas);
     novo.has(numero) ? novo.delete(numero) : novo.add(numero);
@@ -4752,6 +4780,24 @@ function PageLancamentoManual({
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Ano"),
         React.createElement("select", { value: ano, onChange: e => setAno(parseInt(e.target.value)) },
           [ano - 1, ano, ano + 1].map(a => React.createElement("option", { key: a, value: a }, a))))
+    ),
+    React.createElement("div", { className: "card", style: { marginBottom: 16, maxWidth: 700 } },
+      React.createElement("div", { className: "card-title" }, "💰 Medição calculada automaticamente (" + MESES_FULL[mes] + "/" + ano + ")"),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } },
+        medicaoResumo.qtd + " OS satisfatória(s) e concluída(s) neste mês entram na conta abaixo — vá fechando/avaliando na aba Pendentes que o valor atualiza sozinho"
+      ),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 } },
+        [
+          ["Serviços", fmtR(medicaoResumo.brutoServicos)],
+          ["Materiais", fmtR(medicaoResumo.brutoMateriais)],
+          ["Total bruto", fmtR(medicaoResumo.bruto)],
+          ["Glosa SLA (" + medicaoResumo.pct + "%)", fmtR(medicaoResumo.glosa)],
+          ["Total líquido", fmtR(medicaoResumo.liq)]
+        ].map(([label, val]) => React.createElement("div", { key: label, style: { padding: "10px", background: "var(--surface)", borderRadius: 8, textAlign: "center" } },
+          React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--accent)" } }, val),
+          React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, label)
+        ))
+      )
     ),
     React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16, borderBottom: "1px solid var(--border)" } },
       React.createElement("button", {
