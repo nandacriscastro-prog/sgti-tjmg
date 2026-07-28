@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247040 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247194 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1597,6 +1597,7 @@ ${blocoOS(os, numOS)}
 function calcPrazoLabelParaPDF(o) {
   const t = o.tipo || "";
   if (!t || !o.data_os) return "";
+  if (t === "Atendimento Remoto") return "2 horas";
   const _mun = (o.comarca || "").split(" - ")[0];
   const isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
   let dias, uteis = false;
