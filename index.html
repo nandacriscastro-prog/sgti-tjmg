@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247194 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247649 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1472,6 +1472,9 @@ function gerarHTMLAtendimentoRemoto(d) {
     <td colspan="2"><span class="lbl">COMARCA / EDIFÍCIO</span><span class="val">${d.comarca || "—"}</span></td>
   </tr>
   <tr>
+    <td colspan="2"><span class="lbl">PRAZO DE ATENDIMENTO</span><span class="val red">2 horas</span></td>
+  </tr>
+  <tr>
     <td colspan="2"><span class="lbl">CONTATO ADM. PREDIAL</span><span class="val">${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}</span></td>
   </tr>
   <tr>
@@ -1939,6 +1942,7 @@ function abrirEmailAtendimentoRemoto(d, htmlRemoto) {
   const assunto = encodeURIComponent(`${d.numero} — Solicitação de Atendimento Remoto — ${d.comarca || ""}`);
   const corpo = encodeURIComponent(`Prezados,\n\nSegue solicitação de atendimento remoto ${d.numero} para execução:\n\n` +
     `• Comarca: ${d.comarca || "—"}\n` +
+    `• Prazo de atendimento: 2 horas\n` +
     `• Sistema(s) afetado(s): ${(d.sistemas || []).join(", ") || "—"}\n` +
     `• Contato Adm. Predial: ${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}\n` +
     `• Problemas identificados: ${d.problemas || "—"}\n\n` +
