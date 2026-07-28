@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247649 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247811 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -71,28 +71,32 @@ const FISCAIS = [{
   email: "",
   matricula: "85365",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP"
+  setor: "COMEP",
+  assinatura: ""
 }, {
   id: 2,
   nome: "Aguilar Ozanan de Souza",
   email: "aguilar.souza@tjmg.jus.br",
   matricula: "P0012862",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP"
+  setor: "COMEP",
+  assinatura: ""
 }, {
   id: 3,
   nome: "Fernanda Cristine Leão Castro",
   email: "fernanda.leao@tjmg.jus.br",
   matricula: "P0168250",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP"
+  setor: "COMEP",
+  assinatura: ""
 }, {
   id: 5,
   nome: "André Luiz de Oliveira",
   email: "andre.luiz.oliveira@tjmg.jus.br",
   matricula: "P0169809",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP"
+  setor: "COMEP",
+  assinatura: ""
 }];
 const TECNICOS_DEFAULT = [{
   id: 1,
@@ -1562,7 +1566,7 @@ ${os.observacoes ? `<table><tr><td><span class="lbl">OBSERVAÇÕES</span>${os.ob
 <table class="ass-row">
   <tr>
     <td style="width:50%">Nome e assinatura do representante</td>
-    <td>${fiscal.nome} — TJ ${fiscal.matricula}</td>
+    <td>${fiscal.assinatura ? `<img src="${fiscal.assinatura}" style="max-height:50px;max-width:100%;display:block;margin-bottom:2px">` : ""}${fiscal.nome} — TJ ${fiscal.matricula}</td>
   </tr>
   <tr>
     <td>DATA</td>
