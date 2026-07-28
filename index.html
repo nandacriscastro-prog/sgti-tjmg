@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247973 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785249389 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1951,6 +1951,7 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 // Abrir e-mail separado: OS para empresa
 // E-mail específico do Atendimento Remoto (campos diferentes de uma OS normal)
 function abrirEmailAtendimentoRemoto(d, htmlRemoto) {
+  const fiscal = getSession()?.fiscal || FISCAIS[2];
   const assunto = encodeURIComponent(`${d.numero} — Solicitação de Atendimento Remoto — ${d.comarca || ""}`);
   const corpo = encodeURIComponent(`Prezados,\n\nSegue solicitação de atendimento remoto ${d.numero} para execução:\n\n` +
     `• Comarca: ${d.comarca || "—"}\n` +
@@ -1959,7 +1960,7 @@ function abrirEmailAtendimentoRemoto(d, htmlRemoto) {
     `• Contato Adm. Predial: ${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}\n` +
     `• Problemas identificados: ${d.problemas || "—"}\n\n` +
     `Salve o arquivo em anexo (${d.numero}.pdf) e retorne com a situação do atendimento (solucionado ou pendente).\n\n` +
-    `Atenciosamente,\nGEASI — COTESI | TJMG`);
+    `Atenciosamente,\n${fiscal.nome}\nGEASI — COTESI | TJMG\n${fiscal.email || ""}`);
   window.open(`https://mail.google.com/mail/?view=cm&su=${assunto}&body=${corpo}`, "_blank");
   setTimeout(() => abrirJanela(htmlRemoto), 300);
   toast("E-mail aberto. Salve o PDF e anexe.", "ok");
