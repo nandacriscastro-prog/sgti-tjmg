@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247811 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785247973 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -94,6 +94,14 @@ const FISCAIS = [{
   nome: "André Luiz de Oliveira",
   email: "andre.luiz.oliveira@tjmg.jus.br",
   matricula: "P0169809",
+  equipe: "CFTV/alarme/Portal",
+  setor: "COMEP",
+  assinatura: ""
+}, {
+  id: 6,
+  nome: "Gustavo Souza Ferreira",
+  email: "gustavo.souza.ferreira@tjmg.jus.br",
+  matricula: "",
   equipe: "CFTV/alarme/Portal",
   setor: "COMEP",
   assinatura: ""
@@ -2072,7 +2080,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           status: jaResolvido ? "Concluída" : "Aberta",
           data_os: dataAtend,
           data_conclusao: jaResolvido ? dataAtend : null,
-          criado_por: "sistema-remoto",
+          criado_por: (getSession()?.fiscal?.email || "sistema-remoto"),
           criado_em: new Date().toISOString(),
           observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "")
         })
@@ -2371,7 +2379,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           os_origem: null,
           data_os: dt,
           status: "Aberta",
-          criado_por: "sistema-rota",
+          criado_por: (getSession()?.fiscal?.email || "sistema-rota"),
           criado_em: new Date().toISOString(),
           email_enviado: false
         };
@@ -3927,7 +3935,7 @@ function PageAvaliacao({
           status: "Aberta",
           os_origem: o.numero,
           data_os: new Date().toISOString().slice(0, 10),
-          criado_por: "avaliacao-lote",
+          criado_por: (getSession()?.fiscal?.email || "avaliacao-lote"),
           criado_em: new Date().toISOString(),
           observacoes: (o.observacoes ? o.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).`
         })
@@ -4600,7 +4608,7 @@ function PageLancamentoManual({
               status: "Aberta",
               os_origem: l.numero,
               data_os: new Date().toISOString().slice(0, 10),
-              criado_por: "medicao-manual",
+              criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
               criado_em: new Date().toISOString(),
               observacoes: (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`
             })
@@ -7604,7 +7612,7 @@ const USUARIOS = [{
   user: "gustavo.souza.ferreira@tjmg.jus.br",
   senha: "12345678",
   nome: "Gustavo Souza Ferreira",
-  fiscal: FISCAIS[2]
+  fiscal: FISCAIS[4]
 }, {
   user: "andre.luiz.oliveira@tjmg.jus.br",
   senha: "12345678",
