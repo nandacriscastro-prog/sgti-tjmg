@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785260271 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785330317 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4510,7 +4510,7 @@ function PageLancamentoManual({
       const _mun = (o.comarca || "").split(" - ")[0];
       const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
       const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
-      const fracaoDeslocamento = isColarOS ? 0 : (kmOS * valorKmUnit * FRACAO_KM_ANEXO_VI) / valorDiariaUnit;
+      const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
       const pecasOS = r.pecas || [];
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
@@ -4584,9 +4584,7 @@ function PageLancamentoManual({
     const base = isRaio ? 1.25 : 1.0;
     const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
-    const valorDiariaUnit = ANEXO_IV.find(a => a.id === "diaria").vu;
-    const valorKmUnit = ANEXO_IV.find(a => a.id === "km").vu;
-    const fracaoDeslocamento = (kmNum * valorKmUnit * FRACAO_KM_ANEXO_VI) / valorDiariaUnit;
+    const fracaoDeslocamento = kmNum * FRACAO_KM_ANEXO_VI;
     return base + fracaoPecas + fracaoDeslocamento;
   };
 
@@ -5125,9 +5123,9 @@ function PageMedicao({
             const _mun = (o.comarca || "").split(" - ")[0];
             const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
             const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
-            // Deslocamento: km * R$2,98 * fração 0,0032468 -> valor em R$, convertido pra "quantidade de diária" equivalente pra somar junto (só no Interior)
-            const valorDeslocamentoDiaria = isColarOS ? 0 : kmOS * valorKmUnitCalc * FRACAO_KM;
-            const fracaoDeslocamento = valorDeslocamentoDiaria / valorDiariaUnitCalc;
+            // Deslocamento: fração de diária = km × 0,0032468 (direto, sem envolver o valor em R$ do km ou da diária)
+            const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM;
+            const valorDeslocamentoDiaria = fracaoDeslocamento * valorDiariaUnitCalc;
             totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
             diariaDetalhe.push({
               numero: o.numero,
