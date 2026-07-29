@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785331874 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785333739 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2613,7 +2613,9 @@ function PageNovaOS({
   const [prio, setPrio] = useState("");
   const [serv, setServ] = useState(_prefill?.servico || "");
   const [servDesc, setServDesc] = useState(_prefill?.servDesc || "");
+  const [sistemas, setSistemas] = useState([]);
   const [obs, setObs] = useState(_prefill?.obs || "");
+  const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [prazo, setPrazo] = useState("");
   const [prazoDate, setPrazoDate] = useState("");
@@ -2730,6 +2732,7 @@ function PageNovaOS({
     setTipo("");
     setPrio("");
     setServ("");
+    setSistemas([]);
     setServDesc("");
     setObs("");
     setPrazo("");
@@ -2744,8 +2747,9 @@ function PageNovaOS({
     }).catch(() => {});
   };
   const abrirPreview = () => {
-    if (!comarca || !tipo || !serv) {
-      toast("Preencha comarca, tipo e serviço", "error");
+    const servicoValido = contratoSel === "181/2026" ? sistemas.length > 0 : !!serv;
+    if (!comarca || !tipo || !servicoValido) {
+      toast(contratoSel === "181/2026" ? "Preencha comarca, tipo e selecione ao menos um sistema" : "Preencha comarca, tipo e serviço", "error");
       return;
     }
     setPv({
@@ -2755,7 +2759,7 @@ function PageNovaOS({
       polo: dadosComarca.p || "",
       tipo,
       prioridade: prio,
-      servico: serv + (servDesc ? " — " + servDesc : ""),
+      servico: contratoSel === "181/2026" ? ("Manutenção: " + sistemas.join(", ")) + (servDesc ? " — " + servDesc : "") : serv + (servDesc ? " — " + servDesc : ""),
       observacoes: obs,
       data_os: dt,
       contrato: contratoSel || "181/2026",
@@ -2996,7 +3000,24 @@ function PageNovaOS({
     className: "form-grid"
   }, /*#__PURE__*/React.createElement("div", {
     className: "fg"
-  }, /*#__PURE__*/React.createElement("label", null, "Servi\xE7o"), /*#__PURE__*/React.createElement("select", {
+  }, /*#__PURE__*/React.createElement("label", null, "Servi\xE7o"), contratoSel === "181/2026"
+    ? /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 } },
+        [["CFTV", "Sistema de Videomonitoramento (CFTV)"], ["Alarme", "Sistema de Alarme"], ["Portal", "Portal detector de metais"], ["Scanner", "Scanner de raio-X"], ["Acesso", "Controle de acesso"]].map(([k, l]) =>
+          /*#__PURE__*/React.createElement("label", {
+            key: k,
+            style: {
+              display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "10px 12px",
+              border: "1px solid " + (sistemas.includes(k) ? "var(--accent)" : "var(--border)"),
+              borderRadius: 8, cursor: "pointer",
+              background: sistemas.includes(k) ? "var(--accent-bg, #eef6ff)" : "transparent"
+            }
+          },
+            /*#__PURE__*/React.createElement("input", { type: "checkbox", checked: sistemas.includes(k), onChange: () => toggleSistema(k) }),
+            /*#__PURE__*/React.createElement("span", { style: { flex: 1, minWidth: 0 } }, l)
+          )
+        )
+      )
+    : /*#__PURE__*/React.createElement("select", {
     value: serv,
     onChange: e => setServ(e.target.value)
   }, /*#__PURE__*/React.createElement("option", {
