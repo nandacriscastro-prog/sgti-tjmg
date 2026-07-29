@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785336466 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785347817 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1497,6 +1497,13 @@ function gerarHTMLAtendimentoRemoto(d) {
     <div class="chkline">${chk(d.sistemas.includes("Scanner"))} Scanner Raio X (configuração básica, reset, ajuste de sensibilidade, teste e detecção)</div>
   </td></tr>
 </table>
+<table><tr><td style="background:#fff3cd;border:1.5px solid #e0a800">
+  <span class="lbl" style="color:#7a5c00">⚠️ ATENÇÃO TÉCNICO — LEITURA OBRIGATÓRIA</span>
+  <div style="font-size:11px;line-height:1.5">
+    Independentemente do sistema pelo qual esta OS foi aberta, <b>verifique também o Sistema de Alarme e o Sistema de CFTV/Videomonitoramento</b> durante o atendimento, conferindo o funcionamento geral e reportando qualquer anomalia — isso evita retorno futuro à comarca por um defeito que já poderia ter sido identificado agora.<br>
+    Confira também se o <b>endereço de IP registrado</b> para os equipamentos desta comarca está correto e atualizado.
+  </div>
+</td></tr></table>
 <table>
   <tr><th style="background:#f5f5f5">PROBLEMAS IDENTIFICADOS</th></tr>
   <tr><td style="min-height:50px">${(d.problemas || "—").replace(/\n/g, "<br>")}</td></tr>
@@ -1565,6 +1572,17 @@ function blocoOS(os, numOS) {
     <td>${os.tipo === "Atendimento Remoto" ? "Não se aplica" : "03(três) meses contado da data de conclusão"}</td>
   </tr>
 </table>
+${(os.contrato || "") === "181/2026" ? `<table><tr><td style="background:#fff3cd;border:1.5px solid #e0a800">
+  <span class="lbl" style="color:#7a5c00">⚠️ ATENÇÃO TÉCNICO — LEITURA OBRIGATÓRIA</span>
+  <div style="font-size:11px;line-height:1.5">
+    Independentemente do sistema pelo qual esta OS foi aberta, <b>verifique também o Sistema de Alarme e o Sistema de CFTV/Videomonitoramento</b> na mesma visita, conferindo o funcionamento geral e reportando qualquer anomalia encontrada — isso evita a necessidade de retorno futuro à comarca por um defeito que já poderia ter sido identificado agora.<br>
+    Confira também se o <b>endereço de IP registrado</b> para os equipamentos desta comarca está correto e atualizado.
+  </div>
+</td></tr></table>` : ""}
+${(os.contrato || "") === "181/2026" && os.tipo !== "Atendimento Remoto" ? `<table><tr><td>
+  <span class="lbl">INFRAESTRUTURA</span>
+  <div style="font-size:11px">${os.infra_backbone ? "☑" : "☐"} Necessário fazer infraestrutura - Backbone</div>
+</td></tr></table>` : ""}
 ${os.observacoes ? `<table><tr><td><span class="lbl">OBSERVAÇÕES</span>${os.observacoes}</td></tr></table>` : ""}
 <table class="ass-row">
   <tr>
@@ -2257,7 +2275,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [prio, setPrio] = useState("");
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
-  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "" }]);
+  const [stops, setStops] = useState([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "", infraBackbone: false }]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -2333,9 +2351,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
     return r.toISOString().slice(0, 10);
   };
 
-  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "" }]);
+  const addStop = () => setStops([...stops, { comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "", contato: "", infraBackbone: false }]);
   const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
   const setStopObs = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, obs: val } : s));
+  const setStopInfra = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, infraBackbone: val } : s));
   const setStopContato = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, contato: val } : s));
   const toggleOverride = i => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: s.tipoOverride === null ? tipo : null, prioOverride: "" } : s));
   const setStopTipo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: val, prioOverride: "" } : s));
@@ -2371,7 +2390,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           tipo: stopTipo,
           prioridade: stopPrio,
           regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + "Rota: " + rotaNome.trim(),
+          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + (stop.infraBackbone ? "Necessário fazer infraestrutura - Backbone<br>" : "") + "Rota: " + rotaNome.trim(),
           os_origem: null,
           data_os: dt,
           status: "Aberta",
@@ -2505,6 +2524,10 @@ function PageRota({ onOsCriada, os: todasOS }) {
         React.createElement("label", null, "Observações desta parada (opcional)"),
         React.createElement("textarea", { value: s.obs, onChange: e => setStopObs(i, e.target.value), rows: 2, placeholder: "Ex: procurar o administrador na secretaria" })
       ),
+      React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 10, cursor: "pointer" } },
+        React.createElement("input", { type: "checkbox", checked: !!s.infraBackbone, onChange: e => setStopInfra(i, e.target.checked) }),
+        "Necessário fazer infraestrutura - Backbone"
+      ),
       React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
           React.createElement("input", { type: "checkbox", checked: s.tipoOverride !== null, onChange: () => toggleOverride(i) }),
@@ -2614,6 +2637,7 @@ function PageNovaOS({
   const [serv, setServ] = useState(_prefill?.servico || "");
   const [servDesc, setServDesc] = useState(_prefill?.servDesc || "");
   const [sistemas, setSistemas] = useState([]);
+  const [infraBackbone, setInfraBackbone] = useState(false);
   const [obs, setObs] = useState(_prefill?.obs || "");
   const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
@@ -2733,6 +2757,7 @@ function PageNovaOS({
     setPrio("");
     setServ("");
     setSistemas([]);
+    setInfraBackbone(false);
     setServDesc("");
     setObs("");
     setPrazo("");
@@ -2761,6 +2786,7 @@ function PageNovaOS({
       prioridade: prio,
       servico: contratoSel === "181/2026" ? ("Manutenção: " + sistemas.join(", ")) + (servDesc ? " — " + servDesc : "") : serv + (servDesc ? " — " + servDesc : ""),
       observacoes: obs,
+      infra_backbone: infraBackbone,
       data_os: dt,
       contrato: contratoSel || "181/2026",
       prazo,
@@ -2797,7 +2823,7 @@ function PageNovaOS({
           tipo: pv.tipo || "",
           prioridade: pv.prioridade || "",
           regiao: COLAR_CIDADES.has((pv.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: pv.observacoes || "",
+          observacoes: (pv.observacoes || "") + (pv.infra_backbone ? (pv.observacoes ? " | " : "") + "Necessário fazer infraestrutura - Backbone" : ""),
           os_origem: pv.os_origem || null,
           data_os: pv.data_os || new Date().toISOString().slice(0, 10),
           status: "Aberta",
@@ -3136,7 +3162,13 @@ function PageNovaOS({
     style: {
       minHeight: 60
     }
-  })))), /*#__PURE__*/React.createElement("div", {
+  }), contratoSel === "181/2026" && /*#__PURE__*/React.createElement("label", {
+    style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginTop: 10, cursor: "pointer" }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: infraBackbone,
+    onChange: e => setInfraBackbone(e.target.checked)
+  }), "Necess\xE1rio fazer infraestrutura - Backbone")))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
