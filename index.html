@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785330317 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785331874 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -852,11 +852,6 @@ const NAV = [{
   id: "remoto",
   label: "Atendimento remoto",
   icon: "phone",
-  sec: null
-}, {
-  id: "lancamento",
-  label: "Medição manual",
-  icon: "clip",
   sec: null
 }, {
   id: "medicao",
@@ -5070,7 +5065,8 @@ function calcPtsAutoOS(o) {
   return { pts: blocos * bloco.pts, diasAtraso };
 }
 function PageMedicao({
-  os
+  os,
+  reload
 }) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
@@ -5081,6 +5077,272 @@ function PageMedicao({
   const [hist, setHist] = useState(() => JSON.parse(localStorage.getItem(STORAGE_MED) || "[]"));
   const getSLAPts = () => SLA_CRITERIOS.reduce((a, r) => a + (parseInt(slaVals[r.id]) || 0) * r.pts, 0);
   const getSLAPct = pts => pts <= 10 ? 0 : pts <= 20 ? 2 : pts <= 30 ? 4 : pts <= 40 ? 6 : pts <= 50 ? 8 : 10;
+
+  // ===== Fechar OS (fusão da antiga Medição manual) =====
+  const [aba, setAba] = useState("pendentes");
+  const [soAguardando, setSoAguardando] = useState(false);
+  const [selecionadas, setSelecionadas] = useState(new Set());
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [linhas, setLinhas] = useState([]);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+
+  const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
+
+  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
+  const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
+  const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
+
+  const osMedidas = todasConcluidas.filter(o => o.avaliacao === "satisfatorio" && o.data_conclusao && o.data_conclusao >= dtIni && o.data_conclusao <= dtFim);
+  const medicaoResumo = (() => {
+    const valorDiariaUnit = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const valorKmUnit = ANEXO_IV.find(a => a.id === "km").vu;
+    let qtdAlarme = 0, qtdPortal = 0, qtdRaio = 0, totalKm = 0, totalDiarias = 0, brutoMateriais = 0;
+    const detalhe = [];
+    osMedidas.forEach(o => {
+      const s = (o.servico || o.tipo || "").toLowerCase();
+      if (s.includes("portal") || s.includes("detector")) qtdPortal++; else if (s.includes("raio") || s.includes("scanner")) qtdRaio++; else qtdAlarme++;
+      let r = {};
+      try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+      const kmOS = parseFloat(r.km || 0) || 0;
+      totalKm += kmOS;
+      const _mun = (o.comarca || "").split(" - ")[0];
+      const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+      const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
+      const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
+      totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
+      const pecasOS = r.pecas || [];
+      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      brutoMateriais += valorMateriaisOS;
+      detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoBaseEPecas + fracaoDeslocamento });
+    });
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
+    const brutoServicos = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
+    const bruto = brutoServicos + brutoMateriais;
+    const autoPts = osMedidas.reduce((a, o) => a + (calcPtsAutoOS(o).pts || 0), 0);
+    const pct = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
+    const glosa = bruto * pct / 100;
+    return { qtd: osMedidas.length, brutoServicos, brutoMateriais, bruto, autoPts, pct, glosa, liq: bruto - glosa, detalhe };
+  })();
+
+  const toggleSel = numero => {
+    const novo = new Set(selecionadas);
+    novo.has(numero) ? novo.delete(numero) : novo.add(numero);
+    setSelecionadas(novo);
+  };
+  const selecionarTodos = () => {
+    if (selecionadas.size === pendentes.length) setSelecionadas(new Set());
+    else setSelecionadas(new Set(pendentes.map(o => o.numero)));
+  };
+
+  const linhaDe = (o, existente) => ({
+    id: o.id,
+    numero: o.numero,
+    comarca: o.comarca,
+    servico: o.servico || o.tipo || "",
+    prioridade: o.prioridade || "",
+    contrato: o.contrato,
+    observacoesOS: o.observacoes || "",
+    dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
+    solucao: existente?.solucao || "",
+    km: existente?.km || "",
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    obs: existente?.obs || "",
+    avaliacao: o.avaliacao || "satisfatorio",
+    avaliacaoObs: o.avaliacao_obs || "",
+    _codSel: "",
+    _qtdSel: "1"
+  });
+
+  const abrirPainelIndividual = o => {
+    setLinhas([linhaDe(o, retornoDe(o))]);
+    setPainelAberto(true); setMsg("");
+  };
+  const abrirPainelLote = () => {
+    const selecionadosOS = pendentes.filter(o => selecionadas.has(o.numero));
+    if (!selecionadosOS.length) return;
+    setLinhas(selecionadosOS.map(o => linhaDe(o, null)));
+    setPainelAberto(true); setMsg("");
+  };
+  const editarLancada = o => {
+    setLinhas([linhaDe(o, retornoDe(o))]);
+    setPainelAberto(true); setMsg("");
+  };
+
+  const atualizarLinha = (i, campo, val) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, [campo]: val } : l));
+  const addPecaNaLinha = i => setLinhas(linhas.map((l, idx) => {
+    if (idx !== i || !l._codSel) return l;
+    return { ...l, pecas: [...l.pecas, { cod: l._codSel, desc: ANEXO_V_DESC[l._codSel] || l._codSel, qtd: l._qtdSel || "1" }], _codSel: "", _qtdSel: "1" };
+  }));
+  const removerPecaDaLinha = (i, pi) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, pecas: l.pecas.filter((_, x) => x !== pi) } : l));
+
+  const calcFracao = l => {
+    const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
+    if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
+    const isRaio = /raio|scanner/i.test(l.servico || "");
+    const base = isRaio ? 1.25 : 1.0;
+    const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+    const kmNum = parseFloat(l.km || 0) || 0;
+    const fracaoDeslocamento = kmNum * FRACAO_KM_ANEXO_VI;
+    return base + fracaoPecas + fracaoDeslocamento;
+  };
+
+  const salvarTudo = async () => {
+    setSalvando(true); setMsg("");
+    let ok = 0;
+    try {
+      for (const l of linhas) {
+        const fracaoTotal = calcFracao(l);
+        const retorno = {
+          tecnico: "Lançamento manual (fiscalização)",
+          dtconc: l.dtconc,
+          hora: new Date().toTimeString().slice(0, 5),
+          servicos: l.servico,
+          solucao: l.solucao,
+          pendencias: "nao",
+          diarias: String(Math.round(fracaoTotal * 1000) / 1000),
+          km: String(parseFloat(l.km || 0) || 0),
+          garantia: "90",
+          itens_nc: [],
+          itens_conf: [],
+          total_fotos: 0,
+          pecas: l.pecas.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
+          obs: l.obs,
+          lancamento_manual: true
+        };
+        await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            retorno_campo: JSON.stringify(retorno),
+            status: l.avaliacao === "satisfatorio" ? "Concluída" : "Reaberta",
+            data_conclusao: l.dtconc,
+            avaliacao: l.avaliacao,
+            avaliacao_obs: l.avaliacaoObs
+          })
+        });
+        if (l.avaliacao === "insatisfatorio") {
+          const _mSel = /^181-(\d+)$/.exec(l.numero || "");
+          const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(l.numero) + 10000);
+          const _mun = (l.comarca || "").split(" - ")[0];
+          const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+          const diasCorrecao = _isColar ? 1 : 3;
+          const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
+          await sbFetch("/ordens_servico", {
+            method: "POST",
+            body: JSON.stringify({
+              numero: novoNum,
+              empresa: "Alvo Segurança Ltda",
+              contrato: l.contrato,
+              comarca: l.comarca,
+              servico: l.servico,
+              tipo: "Correção",
+              prioridade: l.prioridade,
+              status: "Aberta",
+              os_origem: l.numero,
+              data_os: new Date().toISOString().slice(0, 10),
+              criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
+              criado_em: new Date().toISOString(),
+              observacoes: (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`
+            })
+          });
+        }
+        ok++;
+      }
+      setMsg("✓ " + ok + " OS salva(s) com sucesso!");
+      setPainelAberto(false); setLinhas([]); setSelecionadas(new Set());
+      if (reload) reload();
+      calcular();
+    } catch (e) {
+      setMsg("Erro ao salvar (" + ok + " já salva(s) antes do erro): " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const renderLinha = (l, i) => React.createElement("div", { key: l.numero, className: "card", style: { marginBottom: 12 } },
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 6 } },
+      React.createElement("div", null,
+        React.createElement("strong", null, "OS " + l.numero), " — ", l.comarca,
+        React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, l.servico, l.prioridade ? " · " + l.prioridade : "")
+      ),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } },
+        "Fração diária: " + calcFracao(l).toFixed(2),
+        (l.contrato === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((l.comarca || "").split(" - ")[0])
+          ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
+      )
+    ),
+    React.createElement("div", { className: "fr" },
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
+        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) })),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
+        React.createElement("input", { type: "number", min: "0", value: l.km, onChange: e => atualizarLinha(i, "km", e.target.value), placeholder: "Ex: 85" }))
+    ),
+    React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+      React.createElement("label", null, "Solução aplicada"),
+      React.createElement("textarea", { value: l.solucao, onChange: e => atualizarLinha(i, "solucao", e.target.value), rows: 2 })
+    ),
+    React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Equipamentos/peças substituídos")),
+    React.createElement("div", { className: "fr", style: { alignItems: "flex-end" } },
+      React.createElement("div", { className: "fld", style: { flex: 3 } },
+        React.createElement("select", { value: l._codSel, onChange: e => atualizarLinha(i, "_codSel", e.target.value) },
+          React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
+          Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+        )),
+      React.createElement("div", { className: "fld", style: { flex: 1 } },
+        React.createElement("input", { type: "number", min: "1", value: l._qtdSel, onChange: e => atualizarLinha(i, "_qtdSel", e.target.value) })),
+      React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
+    ),
+    l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
+      l.pecas.map((p, pi) => React.createElement("div", {
+        key: pi,
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
+      },
+        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+        React.createElement("button", { onClick: () => removerPecaDaLinha(i, pi), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
+      ))
+    ),
+    React.createElement("div", { className: "fg" },
+      React.createElement("label", null, "Observações"),
+      React.createElement("textarea", { value: l.obs, onChange: e => atualizarLinha(i, "obs", e.target.value), rows: 2 })
+    ),
+    React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
+      React.createElement("div", { className: "fg", style: { marginBottom: l.avaliacao === "insatisfatorio" ? 10 : 0 } },
+        React.createElement("label", null, "Avaliação do serviço"),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", {
+            onClick: () => atualizarLinha(i, "avaliacao", "satisfatorio"),
+            style: {
+              flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: "1.5px solid " + (l.avaliacao === "satisfatorio" ? "var(--green)" : "var(--border)"),
+              background: l.avaliacao === "satisfatorio" ? "var(--green)" : "transparent",
+              color: l.avaliacao === "satisfatorio" ? "#fff" : "var(--text)"
+            }
+          }, "✅ Satisfatório"),
+          React.createElement("button", {
+            onClick: () => atualizarLinha(i, "avaliacao", "insatisfatorio"),
+            style: {
+              flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: "1.5px solid " + (l.avaliacao === "insatisfatorio" ? "var(--red, #c0392b)" : "var(--border)"),
+              background: l.avaliacao === "insatisfatorio" ? "var(--red, #c0392b)" : "transparent",
+              color: l.avaliacao === "insatisfatorio" ? "#fff" : "var(--text)"
+            }
+          }, "🔄 Insatisfatório (reabrir)")
+        )
+      ),
+      l.avaliacao === "insatisfatorio" && React.createElement("div", { className: "fg" },
+        React.createElement("label", null, "Motivo (gera automaticamente uma OS de correção)"),
+        React.createElement("textarea", { value: l.avaliacaoObs, onChange: e => atualizarLinha(i, "avaliacaoObs", e.target.value), rows: 2, placeholder: "Ex: câmera continuou sem gravar após a visita" })
+      )
+    )
+  );
+
+
+  // ===== fim Fechar OS =====
+
   const calcular = async () => {
     const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
     const ultimo = new Date(ano, mes + 1, 0);
@@ -5251,6 +5513,29 @@ function PageMedicao({
     liq: h.liq.toFixed(2).replace('.', ','),
     pct: h.pct + '%'
   }));
+
+  // Calcula automaticamente ao abrir a tela e sempre que o mês/ano mudar - não precisa mais clicar em "Calcular"
+  useEffect(() => { calcular(); }, [mes, ano]);
+
+  if (painelAberto) {
+    return React.createElement("div", null,
+      React.createElement("div", { className: "ph-row" },
+        React.createElement("div", null,
+          React.createElement("div", { className: "ph-title" }, linhas.length > 1 ? "Preenchimento em lote (" + linhas.length + " OS)" : "Preencher retorno — OS " + linhas[0]?.numero),
+          React.createElement("div", { className: "ph-sub" }, "Confira/edite cada OS e salve tudo de uma vez")
+        )
+      ),
+      React.createElement("div", { style: { maxWidth: 900 } },
+        linhas.map((l, i) => renderLinha(l, i)),
+        msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+        React.createElement("div", { style: { display: "flex", gap: 10 } },
+          React.createElement("button", { className: "btn", onClick: () => { setPainelAberto(false); setLinhas([]); }, disabled: salvando }, "Cancelar"),
+          React.createElement("button", { className: "btn btn-primary", onClick: salvarTudo, disabled: salvando },
+            salvando ? "Salvando..." : "Salvar " + (linhas.length > 1 ? "todas (" + linhas.length + ")" : "e avaliar OS"))
+        )
+      )
+    );
+  }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -5262,7 +5547,57 @@ function PageMedicao({
     filtrado: hist.length,
     onExcel: () => exportarCSV(dadosMed, colsMed, `Medicoes_${new Date().getFullYear()}`),
     onPDF: () => exportarPDF('Histórico de Medições', 'Contrato 218/2023 — Anexo IV', colsMed, dadosMed, 'Medicoes')
-  })), /*#__PURE__*/React.createElement("div", {
+  })),
+    React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+      React.createElement("div", { className: "card-title" }, "🗂️ Fechar OS (preencher e avaliar)"),
+      pendentes.length > 0 && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
+          React.createElement("input", { type: "checkbox", checked: selecionadas.size === pendentes.length && pendentes.length > 0, onChange: selecionarTodos }),
+          "Selecionar todas"
+        ),
+        selecionadas.size > 0 && React.createElement("button", { className: "btn btn-primary", onClick: abrirPainelLote }, "Preencher em lote (" + selecionadas.size + " selecionada(s))")
+      ),
+      pendentes.length === 0 && React.createElement("div", { style: { fontSize: 13, color: "var(--text3)" } }, "✅ Nenhuma OS pendente no momento"),
+      pendentes.map(o => {
+        const precisaAvaliar = o.status === "Concluída" && !o.avaliacao;
+        return React.createElement("div", {
+          key: o.numero,
+          style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }
+        },
+          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
+            React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
+            React.createElement("div", null,
+              React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+                React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+                precisaAvaliar
+                  ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Falta avaliar")
+                  : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", background: "var(--surface)", padding: "3px 8px", borderRadius: 99 } }, "📝 Falta preencher")
+              ),
+              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
+            )
+          ),
+          React.createElement("button", {
+            onClick: () => abrirPainelIndividual(o),
+            style: { background: precisaAvaliar ? "var(--red, #c0392b)" : "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+          }, precisaAvaliar ? "Avaliar agora" : "Preencher")
+        );
+      })
+    ),
+    medicaoResumo.detalhe.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+      React.createElement("div", { className: "card-title" }, "📋 OS consideradas neste cálculo (" + medicaoResumo.detalhe.length + ")"),
+      medicaoResumo.detalhe.map(d => React.createElement("div", { key: d.numero, style: { padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 12 } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 } },
+          React.createElement("strong", null, "OS " + d.numero + " — " + d.comarca),
+          React.createElement("span", null, "Km: " + d.km + " · Fração diária: " + d.fracaoDiaria.toFixed(2) + " · Materiais: " + fmtR(d.valorMateriais))
+        ),
+        d.pecas.length > 0
+          ? React.createElement("div", { style: { color: "var(--text3)", marginTop: 2 } },
+              d.pecas.map(p => "[" + (p.cod || "sem código") + "] " + p.desc + " ×" + p.qtd + (PRECO_ANEXO_V[p.cod] ? " (" + fmtR(PRECO_ANEXO_V[p.cod]) + "/un)" : " ⚠️ sem preço cadastrado")).join(" · ")
+            )
+          : React.createElement("div", { style: { color: "var(--text3)", marginTop: 2, fontStyle: "italic" } }, "Nenhuma peça registrada nesta OS")
+      ))
+    ),
+  /*#__PURE__*/React.createElement("div", {
     style: {
       background: "linear-gradient(135deg,var(--navy),var(--navy3))",
       borderRadius: 10,
@@ -8728,13 +9063,10 @@ function AppInterno({
           reload: loadOS
         });
       case "lancamento":
-        return /*#__PURE__*/React.createElement(PageLancamentoManual, {
-          os: os,
-          reload: loadOS
-        });
       case "medicao":
         return /*#__PURE__*/React.createElement(PageMedicao, {
-          os: os
+          os: os,
+          reload: loadOS
         });
       case "chamados":
         return /*#__PURE__*/React.createElement(PageChamados, null);
