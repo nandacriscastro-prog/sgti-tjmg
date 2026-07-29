@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alvo Segurança — Portal de Consulta | TJMG</title>
+<style>
+  :root{--navy:#0f1f3d;--navy2:#16305c;--accent:#2563eb;--bg:#f4f6fb;--border:#dde3ee;--text:#1a2233;--text3:#6b7686;--green:#1b8a5a;--red:#c0392b;--amber:#b8860b;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+  header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  header .brand{font-weight:700;font-size:16px}
+  header .brand small{display:block;font-weight:400;font-size:11px;color:#b9c4dd}
+  header button{background:transparent;border:1px solid #fff;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px}
+  #login{max-width:380px;margin:80px auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+  #login h2{margin-top:0;font-size:18px}
+  #login input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px}
+  #login button{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+  #login .err{color:var(--red);font-size:13px;margin-bottom:10px;display:none}
+  main{max-width:1100px;margin:0 auto;padding:20px;display:none}
+  .tabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+  .tabs button{background:none;border:none;padding:10px 6px;cursor:pointer;font-weight:700;font-size:13px;color:var(--text3);border-bottom:2px solid transparent}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+  .card h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--navy);color:#fff;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:hover td{background:#f8fafc}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
+  .badge.green{background:#e2f5ea;color:var(--green)}
+  .muted{color:var(--text3);font-size:12px}
+  select,input[type=number]{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+  .kpi{background:var(--bg);border-radius:8px;padding:12px;text-align:center}
+  .kpi .val{font-size:18px;font-weight:700;color:var(--navy)}
+  .kpi .lbl{font-size:11px;color:var(--text3);margin-top:2px}
+  .empty{text-align:center;padding:40px 20px;color:var(--text3)}
+  .loading{text-align:center;padding:40px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h2>🔒 Portal Alvo Segurança</h2>
+  <p class="muted">Acesso somente-leitura ao histórico de OS satisfatórias e à medição do contrato 181/2026.</p>
+  <div class="err" id="loginErr">Senha incorreta.</div>
+  <input type="password" id="senha" placeholder="Senha de acesso" onkeydown="if(event.key==='Enter')fazerLogin()">
+  <button onclick="fazerLogin()">Entrar</button>
+</div>
+
+<header id="header" style="display:none">
+  <div class="brand">Portal Alvo Segurança<small>Contrato 181/2026 — Consulta (somente leitura)</small></div>
+  <button onclick="sair()">Sair</button>
+</header>
+
+<main id="main">
+  <div class="tabs">
+    <button id="tabHist" class="active" onclick="mudarAba('hist')">Histórico de OS</button>
+    <button id="tabMed" onclick="mudarAba('med')">Medição</button>
+  </div>
+
+  <div id="painelHist"></div>
+  <div id="painelMed" style="display:none"></div>
+</main>
+
+<script>
+const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
+const SENHA_ALVO = "Alvo-TJMG-85EF";
+
+async function sbFetch(path){
+  const r = await fetch(SB_URL + "/rest/v1" + path, {
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function fazerLogin(){
+  const v = document.getElementById("senha").value;
+  if(v === SENHA_ALVO){
+    sessionStorage.setItem("alvo_ok","1");
+    mostrarApp();
+  } else {
+    document.getElementById("loginErr").style.display = "block";
+  }
+}
+function sair(){
+  sessionStorage.removeItem("alvo_ok");
+  location.reload();
+}
+function mostrarApp(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("header").style.display = "flex";
+  document.getElementById("main").style.display = "block";
+  carregarHistorico();
+  carregarMedicao();
+}
+if(sessionStorage.getItem("alvo_ok") === "1") mostrarApp();
+
+function mudarAba(aba){
+  document.getElementById("tabHist").classList.toggle("active", aba==="hist");
+  document.getElementById("tabMed").classList.toggle("active", aba==="med");
+  document.getElementById("painelHist").style.display = aba==="hist" ? "block" : "none";
+  document.getElementById("painelMed").style.display = aba==="med" ? "block" : "none";
+}
+
+function fmtR(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtData(d){ return d ? new Date(d+"T12:00").toLocaleDateString("pt-BR") : "—"; }
+
+// ===== HISTÓRICO =====
+async function carregarHistorico(){
+  const el = document.getElementById("painelHist");
+  el.innerHTML = '<div class="loading">Carregando...</div>';
+  try{
+    const dados = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&select=numero,comarca,servico,tipo,data_os,data_conclusao,retorno_campo&order=data_conclusao.desc.nullslast&limit=500`);
+    if(!dados.length){
+      el.innerHTML = '<div class="card"><div class="empty">Nenhuma OS satisfatória encontrada ainda.</div></div>';
+      return;
+    }
+    let rows = "";
+    dados.forEach(o=>{
+      let r = {};
+      try{ r = JSON.parse(o.retorno_campo||"{}"); }catch(e){}
+      const pecas = (r.pecas||[]).filter(p=>p.desc).map(p=>p.desc+" ×"+p.qtd).join(", ") || "—";
+      rows += `<tr>
+        <td><strong>${o.numero}</strong></td>
+        <td>${o.comarca||"—"}</td>
+        <td>${o.servico||o.tipo||"—"}</td>
+        <td>${fmtData(o.data_os)}</td>
+        <td>${fmtData(o.data_conclusao || r.dtconc)}</td>
+        <td>${r.km || "0"} km</td>
+        <td style="max-width:260px">${pecas}</td>
+        <td><span class="badge green">✅ Satisfatório</span></td>
+      </tr>`;
+    });
+    el.innerHTML = `<div class="card">
+      <h3>Histórico de OS satisfatórias (${dados.length})</h3>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Nº OS</th><th>Comarca</th><th>Serviço</th><th>Abertura</th><th>Conclusão</th><th>Km</th><th>Peças substituídas</th><th>Situação</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }catch(e){
+    el.innerHTML = '<div class="card"><div class="empty">Erro ao carregar: '+e.message+'</div></div>';
+  }
+}
+
+// ===== MEDIÇÃO (somente leitura) =====
+const ANEXO_IV = [
+  {id:"rem",desc:"Atendimento remoto",unid:"MÊS",vu:8169.59},
+  {id:"pres",desc:"Atend. alarme/CFTV/acesso",unid:"UNID",vu:271.45},
+  {id:"portal",desc:"Atend. portal detector metais",unid:"UNID",vu:271.45},
+  {id:"raio",desc:"Atend. scanner raio-X",unid:"UNID",vu:339.32},
+  {id:"km",desc:"Deslocamento",unid:"KM",vu:2.95},
+  {id:"diaria",desc:"Diária",unid:"UNID",vu:231.73}
+];
+const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.88,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60};
+const FRACAO_KM_ANEXO_VI = 0.0032468;
+const COLAR_181 = new Set(["Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas","Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"]);
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+let medMes = new Date().getMonth();
+let medAno = new Date().getFullYear();
+
+function renderMedicaoShell(){
+  const el = document.getElementById("painelMed");
+  const anos = [medAno-1, medAno, medAno+1];
+  el.innerHTML = `<div class="card">
+    <h3>Selecionar período</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div><label class="muted">Mês</label><br>
+        <select id="selMes">${MESES.map((m,i)=>`<option value="${i}" ${i===medMes?"selected":""}>${m}</option>`).join("")}</select>
+      </div>
+      <div><label class="muted">Ano</label><br>
+        <select id="selAno">${anos.map(a=>`<option value="${a}" ${a===medAno?"selected":""}>${a}</option>`).join("")}</select>
+      </div>
+    </div>
+  </div>
+  <div id="resultadoMed"></div>`;
+  document.getElementById("selMes").onchange = e=>{ medMes = parseInt(e.target.value); carregarMedicao(); };
+  document.getElementById("selAno").onchange = e=>{ medAno = parseInt(e.target.value); carregarMedicao(); };
+}
+
+async function carregarMedicao(){
+  renderMedicaoShell();
+  const resEl = document.getElementById("resultadoMed");
+  resEl.innerHTML = '<div class="card"><div class="loading">Calculando...</div></div>';
+  try{
+    const dtIni = `${medAno}-${String(medMes+1).padStart(2,"0")}-01`;
+    const ultimo = new Date(medAno, medMes+1, 0);
+    const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-${String(ultimo.getDate()).padStart(2,"0")}`;
+    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
+
+    let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0;
+    const pecasDetalhe = [];
+    osMes.forEach(o=>{
+      const s=(o.servico||o.tipo||"").toLowerCase();
+      if(s.includes("portal")||s.includes("detector")) qtdPortal++;
+      else if(s.includes("raio")||s.includes("scanner")) qtdRaio++;
+      else qtdAlarme++;
+      let r={}; try{ r=JSON.parse(o.retorno_campo||"{}"); }catch(e){}
+      const kmOS = parseFloat(r.km||0)||0;
+      totalKm += kmOS;
+      const mun=(o.comarca||"").split(" - ")[0];
+      const isColar = COLAR_181.has(mun);
+      const fracaoBase = isColar ? 0 : parseFloat(r.diarias||0);
+      const fracaoDesloc = isColar ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
+      totalDiarias += fracaoBase + fracaoDesloc;
+      (r.pecas||[]).filter(p=>p.desc).forEach(p=>{
+        const vUnit = PRECO_ANEXO_V[p.cod]||0;
+        const qtd = parseFloat(p.qtd)||1;
+        brutoMateriais += vUnit*qtd;
+        pecasDetalhe.push({numero:o.numero, comarca:o.comarca, desc:p.desc, qtd, vUnit, total:vUnit*qtd});
+      });
+    });
+    const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+    const brutoServicos = ANEXO_IV.reduce((a,it)=>a+(qtds[it.id]||0)*it.vu,0);
+    const bruto = brutoServicos + brutoMateriais;
+
+    let linhasAnexo = "";
+    ANEXO_IV.forEach(it=>{
+      const q = qtds[it.id]||0;
+      const qFmt = Number.isInteger(q) ? q : q.toFixed(2);
+      linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(q*it.vu)}</td></tr>`;
+    });
+
+    let linhasPecas = pecasDetalhe.length ? pecasDetalhe.map(p=>`<tr><td>${p.numero}</td><td>${p.comarca}</td><td>${p.desc}</td><td style="text-align:center">${p.qtd}</td><td style="text-align:right">${fmtR(p.vUnit)}</td><td style="text-align:right;font-weight:700">${fmtR(p.total)}</td></tr>`).join("") : `<tr><td colspan="6" class="muted" style="text-align:center;padding:16px">Nenhuma peça substituída neste mês</td></tr>`;
+
+    resEl.innerHTML = `
+    <div class="card">
+      <h3>Resumo — ${MESES[medMes]}/${medAno}</h3>
+      <div class="kpis">
+        <div class="kpi"><div class="val">${osMes.length}</div><div class="lbl">OS no período</div></div>
+        <div class="kpi"><div class="val">${fmtR(brutoServicos)}</div><div class="lbl">Serviços</div></div>
+        <div class="kpi"><div class="val">${fmtR(brutoMateriais)}</div><div class="lbl">Materiais</div></div>
+        <div class="kpi"><div class="val">${fmtR(bruto)}</div><div class="lbl">Total Bruto</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Detalhamento — Anexo IV (Serviços)</h3>
+      <table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+      <tbody>${linhasAnexo}</tbody></table>
+    </div>
+    <div class="card">
+      <h3>Peças/Materiais substituídos no mês</h3>
+      <div style="overflow-x:auto"><table><thead><tr><th>OS</th><th>Comarca</th><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor unit.</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${linhasPecas}</tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>Total do mês</h3>
+      <table>
+        <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicos)}</td></tr>
+        <tr><td>+ Materiais/equipamentos (peças substituídas)</td><td style="text-align:right;font-weight:700">${fmtR(brutoMateriais)}</td></tr>
+        <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Bruto</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(bruto)}</td></tr>
+      </table>
+      <p class="muted" style="margin-top:10px">Valores finais (com eventual glosa por SLA) são conferidos junto à fiscalização. Esta tela mostra o cálculo base de serviços + materiais do período.</p>
+    </div>`;
+  }catch(e){
+    resEl.innerHTML = '<div class="card"><div class="empty">Erro ao calcular: '+e.message+'</div></div>';
+  }
+}
+</script>
+</body>
+</html>
