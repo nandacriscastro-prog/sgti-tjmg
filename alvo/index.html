@@ -383,17 +383,18 @@ function simMostrarClassificacao(){
 }
 function simCalcularOS(o){
   const isColar = ehColar(o.comarca);
-  const base = o.sistema === "raio" ? 1.25 : 1.0;
-  const fracaoPecas = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
+  const base = isColar ? 0 : (o.sistema === "raio" ? 1.25 : 1.0);
+  const fracaoPecasRaw = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
+  const fracaoPecas = isColar ? 0 : fracaoPecasRaw;
   const fracaoDeslocamento = isColar ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
-  const fracaoTotal = isColar ? 0 : (base + fracaoPecas + fracaoDeslocamento);
+  const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;
   const valorDiaria = fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu;
   const valorKm = o.km * ANEXO_IV.find(a=>a.id==="km").vu;
   const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
   const valorAtendimento = atendItem.vu;
   const valorMateriais = o.pecas.reduce((a,p)=>a+((PRECO_ANEXO_V[p.cod]||0)*p.qtd),0);
   const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
-  return {isColar, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
+  return {isColar, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
 }
 
 function simAddOS(){
@@ -448,19 +449,24 @@ function simRenderTabela(){
 }
 
 function simExportar(){
-  const linhas = [["Comarca","Km","Sistema","Peças substituídas","Fração diária","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","Total OS (R$)"]];
+  const linhas = [["Comarca","Região","Km","Sistema","Peças substituídas (item ×qtd)","Fração base","Fração peças","Fração deslocamento","FRAÇÃO TOTAL","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","TOTAL OS (R$)"]];
   let totalGeral = 0;
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
     totalGeral += c.total;
-    const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
+    const pecasTxt = o.pecas.length ? o.pecas.map(p=>`[${p.cod}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
     const sistemaTxt = o.sistema==="portal"?"Portal detector de metais":o.sistema==="raio"?"Scanner de raio-X":"Alarme/CFTV/Acesso";
-    linhas.push([o.comarca, o.km, sistemaTxt, pecasTxt, Number(c.fracaoTotal.toFixed(3)), Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))]);
+    const regiaoTxt = c.isColar ? "Colar Metropolitano" : "Interior";
+    linhas.push([
+      o.comarca, regiaoTxt, o.km, sistemaTxt, pecasTxt,
+      Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
+      Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))
+    ]);
   });
   linhas.push([]);
-  linhas.push(["", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
+  linhas.push(["", "", "", "", "", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
   const ws = XLSX.utils.aoa_to_sheet(linhas);
-  ws["!cols"] = [{wch:22},{wch:8},{wch:22},{wch:38},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
+  ws["!cols"] = [{wch:22},{wch:18},{wch:8},{wch:22},{wch:42},{wch:11},{wch:11},{wch:13},{wch:12},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Simulação de Medição");
   XLSX.writeFile(wb, "Simulacao_Medicao_181_2026.xlsx");
