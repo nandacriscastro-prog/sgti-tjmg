@@ -304,7 +304,9 @@ function renderSim(){
   <div class="card">
     <h3>Adicionar OS simulada</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
-      <div><label class="muted">Comarca</label><br><input type="text" id="simComarca" placeholder="Ex: Barão de Cocais" style="width:100%"></div>
+      <div><label class="muted">Comarca</label><br><input type="text" id="simComarca" placeholder="Ex: Barão de Cocais" style="width:100%" list="simComarcasList" oninput="simMostrarClassificacao()"><div id="simClassifBadge" style="margin-top:4px;font-size:11px"></div>
+        <datalist id="simComarcasList">${[...COLAR_181].sort().map(c=>`<option value="${c}">`).join("")}</datalist>
+      </div>
       <div><label class="muted">Km percorridos (ida e volta)</label><br><input type="number" id="simKm" min="0" value="0" style="width:100%"></div>
       <div><label class="muted">Tipo de sistema</label><br>
         <select id="simTipoSistema" style="width:100%">
@@ -361,9 +363,26 @@ function simRenderPecasTemp(){
   </div>`).join("");
 }
 
+function normalizarCidade(s){
+  return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+}
+const COLAR_181_NORM = new Set([...COLAR_181].map(normalizarCidade));
+function ehColar(comarca){
+  return COLAR_181_NORM.has(normalizarCidade(comarca));
+}
+function simMostrarClassificacao(){
+  const el = document.getElementById("simClassifBadge");
+  if(!el) return;
+  const v = document.getElementById("simComarca").value;
+  if(!v.trim()){ el.innerHTML = ""; return; }
+  if(ehColar(v)){
+    el.innerHTML = '<span style="color:var(--green);font-weight:700">✅ Reconhecida como Colar Metropolitano/Região Metropolitana — sem diária, só km</span>';
+  } else {
+    el.innerHTML = '<span style="color:var(--amber);font-weight:700">📍 Considerada Interior — paga diária normalmente. Confira a grafia se não for isso.</span>';
+  }
+}
 function simCalcularOS(o){
-  const mun = (o.comarca||"").trim();
-  const isColar = COLAR_181.has(mun);
+  const isColar = ehColar(o.comarca);
   const base = o.sistema === "raio" ? 1.25 : 1.0;
   const fracaoPecas = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
   const fracaoDeslocamento = isColar ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
