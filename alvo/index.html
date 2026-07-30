@@ -121,7 +121,7 @@ async function carregarHistorico(){
   const el = document.getElementById("painelHist");
   el.innerHTML = '<div class="loading">Carregando...</div>';
   try{
-    const dados = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&select=numero,comarca,servico,tipo,data_os,data_conclusao,retorno_campo&order=data_conclusao.desc.nullslast&limit=500`);
+    const dados = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=numero,comarca,servico,tipo,data_os,data_conclusao,retorno_campo&order=data_conclusao.desc.nullslast&limit=500`);
     if(!dados.length){
       el.innerHTML = '<div class="card"><div class="empty">Nenhuma OS satisfatória encontrada ainda.</div></div>';
       return;
@@ -198,7 +198,7 @@ async function carregarMedicao(){
     const dtIni = `${medAno}-${String(medMes+1).padStart(2,"0")}-01`;
     const ultimo = new Date(medAno, medMes+1, 0);
     const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-${String(ultimo.getDate()).padStart(2,"0")}`;
-    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
+    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
 
     let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0;
     const pecasDetalhe = [];
