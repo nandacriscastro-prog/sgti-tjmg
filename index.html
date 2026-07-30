@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785349367 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785405519 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -5157,11 +5157,11 @@ function PageMedicao({
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
-  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
+  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
   const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
   const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
 
-  const osMedidas = todasConcluidas.filter(o => o.avaliacao === "satisfatorio" && o.data_conclusao && o.data_conclusao >= dtIni && o.data_conclusao <= dtFim);
+  const osMedidas = todasConcluidas.filter(o => o.avaliacao === "satisfatorio" && o.tipo !== "Atendimento Remoto" && o.data_conclusao && o.data_conclusao >= dtIni && o.data_conclusao <= dtFim);
   const medicaoResumo = (() => {
     const valorDiariaUnit = ANEXO_IV.find(a => a.id === "diaria").vu;
     const valorKmUnit = ANEXO_IV.find(a => a.id === "km").vu;
@@ -5412,7 +5412,7 @@ function PageMedicao({
     const ultimo = new Date(ano, mes + 1, 0);
     const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimo.getDate()).padStart(2, "0")}`;
     try {
-      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes&limit=500`)) || [];
+      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes&limit=500`)) || [];
       let qtdAlarme = 0,
         qtdPortal = 0,
         qtdRaio = 0,
