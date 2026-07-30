@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785405519 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785407042 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6097,8 +6097,53 @@ function PageMedicao({
       const wsRota = XLSX.utils.aoa_to_sheet(linhasRota);
       wsRota["!cols"] = [{ wch: 24 }, { wch: 10 }, { wch: 40 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 16 }];
 
+      // ---- Aba: Detalhamento Completo do Cálculo (passo a passo, por OS) ----
+      const valorKmUnitDet = ANEXO_IV.find(a=>a.id==="km").vu;
+      const valorDiariaUnitDet = ANEXO_IV.find(a=>a.id==="diaria").vu;
+      const linhasDetCompleto = [[
+        "Nº OS", "Comarca", "Região", "Data conclusão", "Serviço/Tipo",
+        "Fração base atendimento", "Peças substituídas (item ×qtd)", "Fração das peças",
+        "Km da OS", "Fração deslocamento (km×0,0032468)", "FRAÇÃO TOTAL DA OS",
+        "Valor diária (fração×R$)", "Valor km (km×R$)", "Valor atendimento presencial",
+        "Valor materiais/peças (R$)", "TOTAL DA OS (R$)"
+      ]];
+      (resultado.osMes || []).forEach(o => {
+        let r = {};
+        try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+        const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero) || {};
+        const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
+        const isPortalServ = /portal|detector/i.test(o.servico || o.tipo || "");
+        const fracaoBase = d.regiao === "Colar Metropolitano" ? 0 : (isRaioServ ? 1.25 : 1.0);
+        const pecasOS = (r.pecas || []).filter(p => p.desc);
+        const fracaoPecas = pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const pecasTxt = pecasOS.length ? pecasOS.map(p => `[${p.cod || "?"}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
+        const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const kmOS = parseFloat(r.km || 0) || 0;
+        const valorKmOS = kmOS * valorKmUnitDet;
+        const valorDiariaOS = (d.fracaoTotal || 0) * valorDiariaUnitDet;
+        const atendItem = isPortalServ ? ANEXO_IV.find(a=>a.id==="portal") : isRaioServ ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
+        const valorAtendOS = atendItem.vu;
+        const totalOS = valorDiariaOS + valorKmOS + valorAtendOS + valorMateriaisOS;
+        linhasDetCompleto.push([
+          o.numero, o.comarca || "", d.regiao || "", o.data_conclusao || r.dtconc || "", o.servico || o.tipo || "",
+          Number(fracaoBase.toFixed(3)), pecasTxt, Number(fracaoPecas.toFixed(3)),
+          kmOS, Number((d.fracaoDeslocamento || 0).toFixed(3)), Number((d.fracaoTotal || 0).toFixed(3)),
+          Number(valorDiariaOS.toFixed(2)), Number(valorKmOS.toFixed(2)), Number(valorAtendOS.toFixed(2)),
+          Number(valorMateriaisOS.toFixed(2)), Number(totalOS.toFixed(2))
+        ]);
+      });
+      const wsDetCompleto = XLSX.utils.aoa_to_sheet(linhasDetCompleto);
+      wsDetCompleto["!cols"] = [
+        { wch: 9 }, { wch: 24 }, { wch: 18 }, { wch: 13 }, { wch: 20 },
+        { wch: 12 }, { wch: 42 }, { wch: 12 },
+        { wch: 9 }, { wch: 14 }, { wch: 12 },
+        { wch: 14 }, { wch: 12 }, { wch: 16 },
+        { wch: 16 }, { wch: 14 }
+      ];
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+      XLSX.utils.book_append_sheet(wb, wsDetCompleto, "Detalhamento Completo");
       XLSX.utils.book_append_sheet(wb, wsAnexoIV, "Anexo IV - Serviços");
       XLSX.utils.book_append_sheet(wb, wsPecas, "Peças substituídas");
       XLSX.utils.book_append_sheet(wb, wsOS, "OS do período");
