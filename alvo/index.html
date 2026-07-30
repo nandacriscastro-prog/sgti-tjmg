@@ -110,7 +110,7 @@ function mudarAba(aba){
   document.getElementById("painelHist").style.display = aba==="hist" ? "block" : "none";
   document.getElementById("painelMed").style.display = aba==="med" ? "block" : "none";
   document.getElementById("painelSim").style.display = aba==="sim" ? "block" : "none";
-  if(aba==="sim" && !simIniciado){ simIniciado=true; renderSim(); }
+  if(aba==="sim" && !simIniciado){ simIniciado=true; simCarregarLocal(); renderSim(); }
 }
 
 function fmtR(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -290,9 +290,24 @@ const ANEXO_V_DESC = {
 };
 const FRAC_D = {'3.1.1':0.125,'3.1.2':0.25,'3.1.3':0.375,'3.1.4':0.25,'3.1.5':0.125,'3.1.6':0.125,'3.1.7':0.125,'3.1.8':0.25,'3.1.9':0.25,'3.1.10':0.125,'3.1.11':0.125,'3.1.12':0.125,'3.1.13':0.375,'3.2.1':0.125,'3.2.2':0.125,'3.2.3':0.125,'3.2.4':0.125,'3.2.5':0.125,'3.2.6':0.125,'3.3.1':0.125,'3.3.2':0.125,'3.4':0.188,'3.5.1':0.125,'3.5.2':0.125,'3.5.3':0.125,'3.5.4':0.125,'3.5.5':0.125,'3.5.6':0.125,'3.5.7':0.125,'3.5.8':0.125,'3.6.1':1.0,'3.6.2':1.0,'3.6.3':1.0,'3.6.4':0.0041667,'3.7.1':0.125,'3.7.2':0.125,'3.7.3':0.125,'3.7.4':0.125,'3.8.1':0.125,'3.8.2':0.125,'3.8.3':0.125,'3.8.4':0.125,'3.8.5':0.125,'3.8.6':0.125,'3.8.7':0.125,'3.9.1':0.125,'3.9.2':0.125,'3.9.3':0.125,'3.9.4':0.125,'3.9.5':0.25,'3.9.6':0.25,'3.9.7':0.5,'3.9.8':0.25,'3.10':0.75};
 
-let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, pecas:[{cod,desc,qtd}]}
+let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, rota, pecas:[{cod,desc,qtd}]}
 let simIdSeq = 1;
 let simPecasTemp = []; // peças sendo montadas na OS atual do formulário
+let simEditandoId = null; // id da OS em edição, ou null se for uma nova
+
+function simSalvarLocal(){
+  try{ localStorage.setItem("alvo_simulacoes", JSON.stringify({ os: simOS, seq: simIdSeq })); }catch(e){}
+}
+function simCarregarLocal(){
+  try{
+    const raw = localStorage.getItem("alvo_simulacoes");
+    if(raw){
+      const dados = JSON.parse(raw);
+      simOS = dados.os || [];
+      simIdSeq = dados.seq || (simOS.length ? Math.max(...simOS.map(o=>o.id))+1 : 1);
+    }
+  }catch(e){}
+}
 
 function renderSim(){
   const el = document.getElementById("painelSim");
@@ -302,8 +317,9 @@ function renderSim(){
     <p class="muted">Essa aba é só uma calculadora local no seu navegador — não lê nem grava nada no sistema do TJMG. Serve pra vocês estimarem a medição por conta própria.</p>
   </div>
   <div class="card">
-    <h3>Adicionar OS simulada</h3>
+    <h3>${simEditandoId ? "Editando OS simulada" : "Adicionar OS simulada"}</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
+      <div><label class="muted">Rota/Grupo (opcional)</label><br><input type="text" id="simRota" placeholder="Ex: Rota Norte de Minas" style="width:100%"></div>
       <div><label class="muted">Comarca</label><br><input type="text" id="simComarca" placeholder="Ex: Barão de Cocais" style="width:100%" list="simComarcasList" oninput="simMostrarClassificacao()"><div id="simClassifBadge" style="margin-top:4px;font-size:11px"></div>
         <datalist id="simComarcasList">${["Abaeté","Abre Campo","Aimorés","Aiuruoca","Alfenas","Almenara","Alpinópolis","Alto Rio Doce","Alvinópolis","Além Paraíba","Andradas","Andrelândia","Araguari","Araxá","Araçuaí","Arcos","Areado","Arinos","Açucena","Baependi","Bambuí","Barbacena","Barroso","Barão de Cocais","Belo Horizonte","Belo Vale","Betim","Bicas","Boa Esperança","Bocaiuva","Bocaiúva","Bom Despacho","Bom Sucesso","Bonfim","Bonfinópolis de Minas","Borda da Mata","Botelhos","Brasília de Minas","Brazópolis","Brumadinho","Bueno Brandão","Buenópolis","Buritis","Cabo Verde","Cachoeira de Minas","Caeté","Caldas","Camanducaia","Cambuquira","Cambuí","Campanha","Campestre","Campina Verde","Campo Belo","Campos Altos","Campos Gerais","Candeias","Canápolis","Capelinha","Capinópolis","Carandaí","Carangola","Caratinga","Carlos Chagas","Carmo da Mata","Carmo de Minas","Carmo do Cajuru","Carmo do Paranaíba","Carmo do Rio Claro","Carmópolis de Minas","Cataguases","Caxambu","Cláudio","Coluna","Conceição das Alagoas","Conceição do Mato Dentro","Conceição do Rio Verde","Congonhas","Conquista","Conselheiro Lafaiete","Conselheiro Pena","Contagem","Contagem (Cincão)","Coração de Jesus","Corinto","Coromandel","Coronel Fabriciano","Cristina","Cruzília","Curvelo","Cássia","Diamantina","Divino","Divinópolis","Dores do Indaiá","Elói Mendes","Entre Rios de Minas","Ervália","Esmeraldas","Espera Feliz","Espinosa","Estrela do Sul","Eugenópolis","Extrema","Ferros","Formiga","Francisco Sá","Fronteira","Frutal","Galileia","Governador Valadares","Grão Mogol","Guanhães","Guapé","Guarani","Guaranésia","Guaxupé","Ibiraci","Ibirité","Ibiá","Igarapé","Iguatama","Inhapim","Ipanema","Ipatinga","Itabira","Itabirito","Itaguara","Itajubá","Itamarandiba","Itambacuri","Itamogi","Itamonte","Itanhandu","Itanhomi","Itapagipe","Itapecerica","Itaúna","Ituiutaba","Itumirim","Iturama","Jaboticatubas","Jabuticatubas","Jacinto","Jacutinga","Jacuí","Janaúba","Januaria","Januária","Jaíba","Jequeri","Jequitinhonha","João Monlevade","João Pinheiro","Juatuba","Juiz de Fora","Lagoa Grande","Lagoa Santa","Lagoa da Prata","Lajinha","Lambari","Lavras","Leopoldina","Lima Duarte","Luz","Machado","Malacacheta","Manga","Manhuaçu","Manhumirim","Mantena","Mar de Espanha","Mariana","Martinho Campos","Mateus Leme","Matias Barbosa","Matozinhos","Medina","Mercês","Mesquita","Minas Novas","Miradouro","Miraí","Montalvânia","Monte Alegre de Minas","Monte Azul","Monte Belo","Monte Carmelo","Monte Santo de Minas","Monte Sião","Montes Claros","Morada Nova de Minas","Muriaé","Mutum","Muzambinho","Nanuque","Natércia","Nepomuceno","Nova Era","Nova Lima","Nova Ponte","Nova Resende","Nova Serrana","Novo Cruzeiro","Oliveira","Ouro Branco","Ouro Fino","Ouro Preto","Padre Paraíso","Palma","Papagaios","Paracatu","Paraguaçu","Paraisópolis","Paraopeba","Pará de Minas","Passa Quatro","Passa Tempo","Passos","Patos de Minas","Patrocínio","Pedra Azul","Pedralva","Pedro Leopoldo","Perdizes","Perdões","Peçanha","Piranga","Pirapetinga","Pirapora","Pitangui","Pitanguí","Piumhi","Pompéu","Ponte Nova","Porteirinha","Pouso Alegre","Poço Fundo","Poços de Caldas","Prados","Prata","Pratápolis","Presidente Olegário","Raul Soares","Resende Costa","Resplendor","Ribeirão das Neves","Rio Casca","Rio Novo","Rio Paranaíba","Rio Pardo de Minas","Rio Piracicaba","Rio Pomba","Rio Preto","Rio Vermelho","Sabará","Sabinópolis","Sacramento","Salinas","Santa Bárbara","Santa Luzia","Santa Maria do Suaçuí","Santa Rita de Caldas","Santa Rita do Sapucaí","Santa Vitória","Santo Antônio do Monte","Santos Dumont","Senador Firmino","Serro","Sete Lagoas","Silvianópolis","São Domingos do Prata","São Francisco","São Gonçalo do Sapucaí","São Gotardo","São João Del Rei","São João Evangelista","São João Nepomuceno","São João da Ponte","São João del-Rei","São João do Paraíso","São Lourenço","São Romão","São Roque de Minas","São Sebastião do Paraíso","Taiobeiras","Tarumirim","Teixeiras","Teófilo Otoni","Timóteo","Tiros","Tombos","Três Corações","Três Marias","Três Pontas","Tupaciguara","Turmalina","Uberaba","Uberlândia","Ubá","Unaí","Varginha","Vazante","Venda Nova","Vespasiano","Virginópolis","Visconde do Rio Branco","Viçosa","Várzea da Palma","Águas Formosas","Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas","Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"].filter((v,i,a)=>a.indexOf(v)===i).sort().map(c=>`<option value="${c}">`).join("")}</datalist>
       </div>
@@ -326,13 +342,20 @@ function renderSim(){
       <button onclick="simAddPeca()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">+ Adicionar peça</button>
     </div>
     <div id="simPecasLista" class="muted" style="margin-bottom:14px">Nenhuma peça adicionada ainda.</div>
-    <button onclick="simAddOS()" style="padding:10px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">✓ Adicionar esta OS à simulação</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="simAddOS()" style="padding:10px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">${simEditandoId ? "💾 Salvar alterações" : "✓ Adicionar esta OS à simulação"}</button>
+      ${simEditandoId ? '<button onclick="simCancelarEdicao()" style="padding:10px 20px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer">Cancelar edição</button>' : ""}
+    </div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <h3 style="margin:0">OS simuladas (${simOS.length})</h3>
-      ${simOS.length ? '<button onclick="simExportar()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">⬇ Exportar Excel</button>' : ""}
+      <div style="display:flex;gap:8px">
+        ${simOS.length ? '<button onclick="simExportar()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">⬇ Exportar Excel</button>' : ""}
+        ${simOS.length ? '<button onclick="simLimparTudo()" style="padding:8px 16px;background:var(--red);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">🗑️ Limpar tudo</button>' : ""}
+      </div>
     </div>
+    <p class="muted" style="margin-top:6px">Salvo automaticamente neste navegador — pode fechar e voltar depois que continua aqui.</p>
     <div id="simTabela" style="margin-top:12px"></div>
     <div id="simTotais"></div>
   </div>`;
@@ -401,15 +424,55 @@ function simAddOS(){
   const comarca = document.getElementById("simComarca").value.trim();
   const km = parseFloat(document.getElementById("simKm").value) || 0;
   const sistema = document.getElementById("simTipoSistema").value;
+  const rota = document.getElementById("simRota").value.trim();
   if(!comarca){ alert("Informe a comarca."); return; }
-  simOS.push({ id: simIdSeq++, comarca, km, sistema, pecas: simPecasTemp.slice() });
+  if(simEditandoId){
+    const idx = simOS.findIndex(o=>o.id===simEditandoId);
+    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, rota, pecas: simPecasTemp.slice() };
+    simEditandoId = null;
+  } else {
+    simOS.push({ id: simIdSeq++, comarca, km, sistema, rota, pecas: simPecasTemp.slice() });
+  }
   simPecasTemp = [];
   document.getElementById("simComarca").value = "";
   document.getElementById("simKm").value = "0";
+  document.getElementById("simRota").value = "";
+  simSalvarLocal();
+  renderSim();
+}
+function simEditarOS(id){
+  const o = simOS.find(x=>x.id===id);
+  if(!o) return;
+  simEditandoId = id;
+  simPecasTemp = o.pecas.slice();
+  renderSim();
+  document.getElementById("simComarca").value = o.comarca;
+  document.getElementById("simKm").value = o.km;
+  document.getElementById("simTipoSistema").value = o.sistema;
+  document.getElementById("simRota").value = o.rota || "";
+  document.getElementById("simComarca").scrollIntoView({behavior:"smooth", block:"center"});
+}
+function simCancelarEdicao(){
+  simEditandoId = null;
+  simPecasTemp = [];
   renderSim();
 }
 function simRemoverOS(id){
+  if(!confirm("Excluir essa OS simulada?")) return;
   simOS = simOS.filter(o=>o.id!==id);
+  simSalvarLocal();
+  renderSim();
+}
+function simExcluirRota(rota){
+  if(!confirm(`Excluir todas as OS da rota "${rota}"?`)) return;
+  simOS = simOS.filter(o=>(o.rota||"")!==rota);
+  simSalvarLocal();
+  renderSim();
+}
+function simLimparTudo(){
+  if(!confirm("Excluir TODAS as OS simuladas? Essa ação não pode ser desfeita.")) return;
+  simOS = [];
+  simSalvarLocal();
   renderSim();
 }
 
@@ -422,34 +485,56 @@ function simRenderTabela(){
     elTot.innerHTML = "";
     return;
   }
-  let totalGeral = 0;
-  let rows = "";
+  // Agrupa por rota (os sem rota ficam num grupo "Sem rota/grupo")
+  const grupos = {};
   simOS.forEach(o=>{
-    const c = simCalcularOS(o);
-    totalGeral += c.total;
-    const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
-    rows += `<tr>
-      <td>${o.comarca}${c.isColar ? '<div class="muted">Colar Metropolitano — sem diária</div>' : ''}</td>
-      <td style="text-align:center">${o.km}</td>
-      <td>${pecasTxt}</td>
-      <td style="text-align:center">${c.fracaoTotal.toFixed(3)}</td>
-      <td style="text-align:right">${fmtR(c.valorDiaria)}</td>
-      <td style="text-align:right">${fmtR(c.valorKm)}</td>
-      <td style="text-align:right">${fmtR(c.valorAtendimento)}</td>
-      <td style="text-align:right">${fmtR(c.valorMateriais)}</td>
-      <td style="text-align:right;font-weight:700">${fmtR(c.total)}</td>
-      <td style="text-align:center;cursor:pointer;color:var(--red);font-weight:700" onclick="simRemoverOS(${o.id})">×</td>
-    </tr>`;
+    const chave = o.rota || "— Sem rota/grupo —";
+    if(!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(o);
   });
-  elT.innerHTML = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>Comarca</th><th>Km</th><th>Peças</th><th>Fração diária</th><th>Vlr. diária</th><th>Vlr. km</th><th>Vlr. atendimento</th><th>Vlr. materiais</th><th>Total OS</th><th></th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table></div>`;
+  let totalGeral = 0;
+  let html = "";
+  Object.keys(grupos).forEach(rota=>{
+    let rows = "";
+    let totalRota = 0;
+    grupos[rota].forEach(o=>{
+      const c = simCalcularOS(o);
+      totalGeral += c.total;
+      totalRota += c.total;
+      const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
+      rows += `<tr>
+        <td>${o.comarca}${c.isColar ? '<div class="muted">Colar Metropolitano — sem diária</div>' : ''}</td>
+        <td style="text-align:center">${o.km}</td>
+        <td>${pecasTxt}</td>
+        <td style="text-align:center">${c.fracaoTotal.toFixed(3)}</td>
+        <td style="text-align:right">${fmtR(c.valorDiaria)}</td>
+        <td style="text-align:right">${fmtR(c.valorKm)}</td>
+        <td style="text-align:right">${fmtR(c.valorAtendimento)}</td>
+        <td style="text-align:right">${fmtR(c.valorMateriais)}</td>
+        <td style="text-align:right;font-weight:700">${fmtR(c.total)}</td>
+        <td style="text-align:center;white-space:nowrap">
+          <span style="cursor:pointer;color:var(--accent);font-weight:700;margin-right:8px" onclick="simEditarOS(${o.id})">✎</span>
+          <span style="cursor:pointer;color:var(--red);font-weight:700" onclick="simRemoverOS(${o.id})">×</span>
+        </td>
+      </tr>`;
+    });
+    html += `<div style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong style="font-size:13px">${rota} <span class="muted">(${grupos[rota].length} OS — ${fmtR(totalRota)})</span></strong>
+        ${rota !== "— Sem rota/grupo —" ? `<span style="cursor:pointer;color:var(--red);font-size:12px;font-weight:700" onclick="simExcluirRota('${rota.replace(/'/g,"\\'")}')">🗑️ Excluir rota</span>` : ""}
+      </div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Comarca</th><th>Km</th><th>Peças</th><th>Fração diária</th><th>Vlr. diária</th><th>Vlr. km</th><th>Vlr. atendimento</th><th>Vlr. materiais</th><th>Total OS</th><th>Ações</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  });
+  elT.innerHTML = html;
   elTot.innerHTML = `<div class="kpis"><div class="kpi"><div class="val">${fmtR(totalGeral)}</div><div class="lbl">Total simulado (${simOS.length} OS)</div></div></div>`;
 }
 
 function simExportar(){
-  const linhas = [["Comarca","Região","Km","Sistema","Peças substituídas (item ×qtd)","Fração base","Fração peças","Fração deslocamento","FRAÇÃO TOTAL","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","TOTAL OS (R$)"]];
+  const linhas = [["Rota/Grupo","Comarca","Região","Km","Sistema","Peças substituídas (item ×qtd)","Fração base","Fração peças","Fração deslocamento","FRAÇÃO TOTAL","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","TOTAL OS (R$)"]];
   let totalGeral = 0;
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
@@ -458,15 +543,15 @@ function simExportar(){
     const sistemaTxt = o.sistema==="portal"?"Portal detector de metais":o.sistema==="raio"?"Scanner de raio-X":"Alarme/CFTV/Acesso";
     const regiaoTxt = c.isColar ? "Colar Metropolitano" : "Interior";
     linhas.push([
-      o.comarca, regiaoTxt, o.km, sistemaTxt, pecasTxt,
+      o.rota || "—", o.comarca, regiaoTxt, o.km, sistemaTxt, pecasTxt,
       Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
       Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))
     ]);
   });
   linhas.push([]);
-  linhas.push(["", "", "", "", "", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
+  linhas.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
   const ws = XLSX.utils.aoa_to_sheet(linhas);
-  ws["!cols"] = [{wch:22},{wch:18},{wch:8},{wch:22},{wch:42},{wch:11},{wch:11},{wch:13},{wch:12},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
+  ws["!cols"] = [{wch:20},{wch:22},{wch:18},{wch:8},{wch:22},{wch:42},{wch:11},{wch:11},{wch:13},{wch:12},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Simulação de Medição");
   XLSX.writeFile(wb, "Simulacao_Medicao_181_2026.xlsx");
