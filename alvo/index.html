@@ -67,11 +67,12 @@
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
+const SB_KEY_READONLY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFsdm9fcmVhZG9ubHkiLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.mcJhrbM-8xMdevn0cSD7nDrOPPtFNj7U6TqeTNB1N70";
 const SENHA_ALVO = "Alvo-TJMG-85EF";
 
 async function sbFetch(path){
   const r = await fetch(SB_URL + "/rest/v1" + path, {
-    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY_READONLY }
   });
   if(!r.ok) throw new Error(await r.text());
   return r.json();
