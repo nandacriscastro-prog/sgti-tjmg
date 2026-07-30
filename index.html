@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785407042 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785424822 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1579,9 +1579,9 @@ ${(os.contrato || "") === "181/2026" ? `<table><tr><td style="background:#fff3cd
     Confira também se o <b>endereço de IP registrado</b> para os equipamentos desta comarca está correto e atualizado.
   </div>
 </td></tr></table>` : ""}
-${(os.contrato || "") === "181/2026" && os.tipo !== "Atendimento Remoto" ? `<table><tr><td>
-  <span class="lbl">INFRAESTRUTURA</span>
-  <div style="font-size:11px">${os.infra_backbone ? "☑" : "☐"} Necessário fazer infraestrutura - Backbone</div>
+${os.infra_backbone ? `<table><tr><td style="background:#fff3cd">
+  <span class="lbl">⚠️ INFRAESTRUTURA</span>
+  <div style="font-size:11px"><b>Foi marcado que é necessário fazer infraestrutura — Backbone</b> para esta OS.</div>
 </td></tr></table>` : ""}
 ${os.observacoes ? `<table><tr><td><span class="lbl">OBSERVAÇÕES</span>${os.observacoes}</td></tr></table>` : ""}
 <table class="ass-row">
