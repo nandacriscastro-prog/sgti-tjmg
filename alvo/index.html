@@ -58,12 +58,15 @@
   <div class="tabs">
     <button id="tabHist" class="active" onclick="mudarAba('hist')">Histórico de OS</button>
     <button id="tabMed" onclick="mudarAba('med')">Medição</button>
+    <button id="tabSim" onclick="mudarAba('sim')">Simulação de Medição</button>
   </div>
 
+  <div id="painelSim" style="display:none"></div>
   <div id="painelHist"></div>
   <div id="painelMed" style="display:none"></div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
@@ -103,8 +106,11 @@ if(sessionStorage.getItem("alvo_ok") === "1") mostrarApp();
 function mudarAba(aba){
   document.getElementById("tabHist").classList.toggle("active", aba==="hist");
   document.getElementById("tabMed").classList.toggle("active", aba==="med");
+  document.getElementById("tabSim").classList.toggle("active", aba==="sim");
   document.getElementById("painelHist").style.display = aba==="hist" ? "block" : "none";
   document.getElementById("painelMed").style.display = aba==="med" ? "block" : "none";
+  document.getElementById("painelSim").style.display = aba==="sim" ? "block" : "none";
+  if(aba==="sim" && !simIniciado){ simIniciado=true; renderSim(); }
 }
 
 function fmtR(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -261,6 +267,184 @@ async function carregarMedicao(){
   }catch(e){
     resEl.innerHTML = '<div class="card"><div class="empty">Erro ao calcular: '+e.message+'</div></div>';
   }
+}
+
+// ===== SIMULAÇÃO DE MEDIÇÃO (100% local, nunca lê nem grava no banco de dados) =====
+let simIniciado = false;
+const ANEXO_V_DESC = {
+  "3.1.1":"Bateria p/ central de alarme","3.1.2":"Fonte de alimentação chaveada","3.1.3":"Placa central de alarme microprocessada",
+  "3.1.4":"Placa expansora central de alarme","3.1.5":"Sensor de fumaça","3.1.6":"Sensor infravermelho dupla tecnologia",
+  "3.1.7":"Sensor infravermelho passivo (IVP)","3.1.8":"Sensor magnético para alarme","3.1.9":"Sensor de porta pesada",
+  "3.1.10":"Sirene para alarme","3.1.11":"Teclado para alarme","3.1.12":"Transformador central de alarme","3.1.13":"Módulo/discadora GSM",
+  "3.2.1":"HD interno 2TB","3.2.2":"HD interno 4TB","3.2.3":"Fonte chaveada 2A","3.2.4":"Fonte chaveada 5A","3.2.5":"Fonte chaveada 10A",
+  "3.2.6":"Adaptador chaveador 4 portas VGA","3.3.1":"HD interno 10TB","3.3.2":"Joystick","3.4":"Remanejamento de câmera",
+  "3.5.1":"Placa CHL portal Magnetec","3.5.2":"Fonte chaveada portal","3.5.3":"Placa pictograma portal","3.5.4":"Placa CV007 portal",
+  "3.5.5":"Sensor TX portal","3.5.6":"Sensor RX portal","3.5.7":"Placa DMP portal","3.5.8":"Painel portal",
+  "3.6.1":"Emissão laudo radiológico scanner","3.6.2":"Remanejamento de scanner de raio-X","3.6.3":"Desfazimento/descarte de scanner de raio-X",
+  "3.6.4":"Transporte de scanner de raio-X (km)","3.7.1":"Infraestrutura elétrica interna","3.7.2":"Infraestrutura lógica interna",
+  "3.7.3":"Infraestrutura elétrica externa","3.7.4":"Infraestrutura lógica externa","3.8.1":"Câmera bullet analógica",
+  "3.8.2":"Câmera dome analógica","3.8.3":"DVR gravador 16 canais","3.8.4":"Monitor de vídeo 18.5\"","3.8.5":"Câmera bullet IP",
+  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP","3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
+  "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
+  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
+};
+const FRAC_D = {'3.1.1':0.125,'3.1.2':0.25,'3.1.3':0.375,'3.1.4':0.25,'3.1.5':0.125,'3.1.6':0.125,'3.1.7':0.125,'3.1.8':0.25,'3.1.9':0.25,'3.1.10':0.125,'3.1.11':0.125,'3.1.12':0.125,'3.1.13':0.375,'3.2.1':0.125,'3.2.2':0.125,'3.2.3':0.125,'3.2.4':0.125,'3.2.5':0.125,'3.2.6':0.125,'3.3.1':0.125,'3.3.2':0.125,'3.4':0.188,'3.5.1':0.125,'3.5.2':0.125,'3.5.3':0.125,'3.5.4':0.125,'3.5.5':0.125,'3.5.6':0.125,'3.5.7':0.125,'3.5.8':0.125,'3.6.1':1.0,'3.6.2':1.0,'3.6.3':1.0,'3.6.4':0.0041667,'3.7.1':0.125,'3.7.2':0.125,'3.7.3':0.125,'3.7.4':0.125,'3.8.1':0.125,'3.8.2':0.125,'3.8.3':0.125,'3.8.4':0.125,'3.8.5':0.125,'3.8.6':0.125,'3.8.7':0.125,'3.9.1':0.125,'3.9.2':0.125,'3.9.3':0.125,'3.9.4':0.125,'3.9.5':0.25,'3.9.6':0.25,'3.9.7':0.5,'3.9.8':0.25,'3.10':0.75};
+
+let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, pecas:[{cod,desc,qtd}]}
+let simIdSeq = 1;
+let simPecasTemp = []; // peças sendo montadas na OS atual do formulário
+
+function renderSim(){
+  const el = document.getElementById("painelSim");
+  el.innerHTML = `
+  <div class="card">
+    <h3>Simulação de Medição — monte suas próprias OS e veja o valor calculado</h3>
+    <p class="muted">Essa aba é só uma calculadora local no seu navegador — não lê nem grava nada no sistema do TJMG. Serve pra vocês estimarem a medição por conta própria.</p>
+  </div>
+  <div class="card">
+    <h3>Adicionar OS simulada</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
+      <div><label class="muted">Comarca</label><br><input type="text" id="simComarca" placeholder="Ex: Barão de Cocais" style="width:100%"></div>
+      <div><label class="muted">Km percorridos (ida e volta)</label><br><input type="number" id="simKm" min="0" value="0" style="width:100%"></div>
+      <div><label class="muted">Tipo de sistema</label><br>
+        <select id="simTipoSistema" style="width:100%">
+          <option value="normal">Alarme / CFTV / Controle de Acesso</option>
+          <option value="portal">Portal detector de metais</option>
+          <option value="raio">Scanner de raio-X</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:6px"><label class="muted">Equipamento substituído</label></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+      <select id="simCodPeca" style="flex:3;min-width:220px">
+        <option value="">Selecione o item...</option>
+        ${Object.keys(ANEXO_V_DESC).map(c=>`<option value="${c}">[${c}] ${ANEXO_V_DESC[c]}</option>`).join("")}
+      </select>
+      <input type="number" id="simQtdPeca" min="1" value="1" style="width:80px">
+      <button onclick="simAddPeca()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">+ Adicionar peça</button>
+    </div>
+    <div id="simPecasLista" class="muted" style="margin-bottom:14px">Nenhuma peça adicionada ainda.</div>
+    <button onclick="simAddOS()" style="padding:10px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">✓ Adicionar esta OS à simulação</button>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h3 style="margin:0">OS simuladas (${simOS.length})</h3>
+      ${simOS.length ? '<button onclick="simExportar()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">⬇ Exportar Excel</button>' : ""}
+    </div>
+    <div id="simTabela" style="margin-top:12px"></div>
+    <div id="simTotais"></div>
+  </div>`;
+  simRenderPecasTemp();
+  simRenderTabela();
+}
+
+function simAddPeca(){
+  const cod = document.getElementById("simCodPeca").value;
+  const qtd = parseFloat(document.getElementById("simQtdPeca").value) || 1;
+  if(!cod) return;
+  simPecasTemp.push({cod, desc: ANEXO_V_DESC[cod], qtd});
+  document.getElementById("simCodPeca").value = "";
+  document.getElementById("simQtdPeca").value = "1";
+  simRenderPecasTemp();
+}
+function simRemoverPecaTemp(i){
+  simPecasTemp.splice(i,1);
+  simRenderPecasTemp();
+}
+function simRenderPecasTemp(){
+  const el = document.getElementById("simPecasLista");
+  if(!el) return;
+  if(!simPecasTemp.length){ el.innerHTML = "Nenhuma peça adicionada ainda."; return; }
+  el.innerHTML = simPecasTemp.map((p,i)=>`<div style="display:flex;justify-content:space-between;padding:5px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px">
+    <span>[${p.cod}] ${p.desc} × ${p.qtd}</span>
+    <span style="cursor:pointer;color:var(--red);font-weight:700" onclick="simRemoverPecaTemp(${i})">×</span>
+  </div>`).join("");
+}
+
+function simCalcularOS(o){
+  const mun = (o.comarca||"").trim();
+  const isColar = COLAR_181.has(mun);
+  const base = o.sistema === "raio" ? 1.25 : 1.0;
+  const fracaoPecas = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
+  const fracaoDeslocamento = isColar ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
+  const fracaoTotal = isColar ? 0 : (base + fracaoPecas + fracaoDeslocamento);
+  const valorDiaria = fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu;
+  const valorKm = o.km * ANEXO_IV.find(a=>a.id==="km").vu;
+  const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
+  const valorAtendimento = atendItem.vu;
+  const valorMateriais = o.pecas.reduce((a,p)=>a+((PRECO_ANEXO_V[p.cod]||0)*p.qtd),0);
+  const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
+  return {isColar, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
+}
+
+function simAddOS(){
+  const comarca = document.getElementById("simComarca").value.trim();
+  const km = parseFloat(document.getElementById("simKm").value) || 0;
+  const sistema = document.getElementById("simTipoSistema").value;
+  if(!comarca){ alert("Informe a comarca."); return; }
+  simOS.push({ id: simIdSeq++, comarca, km, sistema, pecas: simPecasTemp.slice() });
+  simPecasTemp = [];
+  document.getElementById("simComarca").value = "";
+  document.getElementById("simKm").value = "0";
+  renderSim();
+}
+function simRemoverOS(id){
+  simOS = simOS.filter(o=>o.id!==id);
+  renderSim();
+}
+
+function simRenderTabela(){
+  const elT = document.getElementById("simTabela");
+  const elTot = document.getElementById("simTotais");
+  if(!elT) return;
+  if(!simOS.length){
+    elT.innerHTML = '<div class="empty">Nenhuma OS simulada ainda. Preencha o formulário acima e clique em "Adicionar esta OS".</div>';
+    elTot.innerHTML = "";
+    return;
+  }
+  let totalGeral = 0;
+  let rows = "";
+  simOS.forEach(o=>{
+    const c = simCalcularOS(o);
+    totalGeral += c.total;
+    const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
+    rows += `<tr>
+      <td>${o.comarca}${c.isColar ? '<div class="muted">Colar Metropolitano — sem diária</div>' : ''}</td>
+      <td style="text-align:center">${o.km}</td>
+      <td>${pecasTxt}</td>
+      <td style="text-align:center">${c.fracaoTotal.toFixed(3)}</td>
+      <td style="text-align:right">${fmtR(c.valorDiaria)}</td>
+      <td style="text-align:right">${fmtR(c.valorKm)}</td>
+      <td style="text-align:right">${fmtR(c.valorAtendimento)}</td>
+      <td style="text-align:right">${fmtR(c.valorMateriais)}</td>
+      <td style="text-align:right;font-weight:700">${fmtR(c.total)}</td>
+      <td style="text-align:center;cursor:pointer;color:var(--red);font-weight:700" onclick="simRemoverOS(${o.id})">×</td>
+    </tr>`;
+  });
+  elT.innerHTML = `<div style="overflow-x:auto"><table>
+    <thead><tr><th>Comarca</th><th>Km</th><th>Peças</th><th>Fração diária</th><th>Vlr. diária</th><th>Vlr. km</th><th>Vlr. atendimento</th><th>Vlr. materiais</th><th>Total OS</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+  elTot.innerHTML = `<div class="kpis"><div class="kpi"><div class="val">${fmtR(totalGeral)}</div><div class="lbl">Total simulado (${simOS.length} OS)</div></div></div>`;
+}
+
+function simExportar(){
+  const linhas = [["Comarca","Km","Sistema","Peças substituídas","Fração diária","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","Total OS (R$)"]];
+  let totalGeral = 0;
+  simOS.forEach(o=>{
+    const c = simCalcularOS(o);
+    totalGeral += c.total;
+    const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
+    const sistemaTxt = o.sistema==="portal"?"Portal detector de metais":o.sistema==="raio"?"Scanner de raio-X":"Alarme/CFTV/Acesso";
+    linhas.push([o.comarca, o.km, sistemaTxt, pecasTxt, Number(c.fracaoTotal.toFixed(3)), Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))]);
+  });
+  linhas.push([]);
+  linhas.push(["", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
+  const ws = XLSX.utils.aoa_to_sheet(linhas);
+  ws["!cols"] = [{wch:22},{wch:8},{wch:22},{wch:38},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Simulação de Medição");
+  XLSX.writeFile(wb, "Simulacao_Medicao_181_2026.xlsx");
 }
 </script>
 </body>
