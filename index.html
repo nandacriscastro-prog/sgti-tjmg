@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785525038 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785526793 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2254,8 +2254,9 @@ function PageRota({ onOsCriada, os: todasOS }) {
       const m = /Rota:\s*(\d+)(?:\s*-\s*([^<\n]+))?/i.exec(o.observacoes || "");
       if (m) {
         const num = m[1];
-        if (!vistas[num]) vistas[num] = { num, desc: (m[2] || "").trim(), qtd: 0 };
+        if (!vistas[num]) vistas[num] = { num, desc: (m[2] || "").trim(), qtd: 0, itens: [] };
         vistas[num].qtd++;
+        vistas[num].itens.push(o);
       }
     });
     return Object.values(vistas).sort((a, b) => parseInt(b.num) - parseInt(a.num));
@@ -2268,6 +2269,44 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [rotaExistenteNum, setRotaExistenteNum] = useState("");
   const [rotaDesc, setRotaDesc] = useState("");
   const rotaExistenteObj = rotasExistentes.find(r => r.num === rotaExistenteNum);
+  const [editandoOSId, setEditandoOSId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const abrirEdicaoOS = o => {
+    const sistemasDetectados = SISTEMAS.filter(s => (o.servico || "").includes(s));
+    setEditandoOSId(o.id);
+    setEditForm({
+      comarca: o.comarca || "",
+      sistemas: sistemasDetectados,
+      tipo: o.tipo || "",
+      prioridade: o.prioridade || "",
+      observacoes: (o.observacoes || "").split("<br>").filter(l => !/^Rota:\s*\d+/i.test(l)).join("\n")
+    });
+  };
+  const salvarEdicaoOS = async (o) => {
+    setSalvandoEdicao(true);
+    try {
+      const rotaTag = (o.observacoes || "").split("<br>").find(l => /^Rota:\s*\d+/i.test(l)) || "";
+      const novasObs = (editForm.observacoes ? editForm.observacoes.split("\n").filter(Boolean).join("<br>") + "<br>" : "") + rotaTag;
+      await sbFetch(`/ordens_servico?id=eq.${o.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          comarca: editForm.comarca,
+          servico: "Manutenção: " + editForm.sistemas.join(", "),
+          tipo: editForm.tipo,
+          prioridade: editForm.prioridade,
+          observacoes: novasObs
+        })
+      });
+      setEditandoOSId(null);
+      if (onOsCriada) onOsCriada();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+  const toggleSistemaEdit = s => setEditForm(f => ({ ...f, sistemas: f.sistemas.includes(s) ? f.sistemas.filter(x => x !== s) : [...f.sistemas, s] }));
   const rotaNome = modoRota === "existente" && rotaExistenteObj
     ? rotaExistenteObj.num + (rotaExistenteObj.desc ? " - " + rotaExistenteObj.desc : "")
     : String(proximaRotaNum) + (rotaDesc.trim() ? " - " + rotaDesc.trim() : "");
@@ -2480,6 +2519,42 @@ function PageRota({ onOsCriada, os: todasOS }) {
           rotasExistentes.map(r => React.createElement("option", { key: r.num, value: r.num },
             "Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.qtd + " OS já criada(s))"))
         )
+      ),
+      modoRota === "existente" && rotaExistenteObj && React.createElement("div", { style: { marginBottom: 16, padding: 12, background: "var(--surface)", borderRadius: 8 } },
+        React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 8, color: "var(--text3)" } }, "OS já criadas nesta rota — clique em ✎ pra editar"),
+        rotaExistenteObj.itens.map(o => React.createElement("div", { key: o.id, style: { padding: "8px 0", borderBottom: "1px solid var(--border)" } },
+          editandoOSId === o.id
+            ? React.createElement("div", { style: { padding: 10, background: "var(--bg, #f4f6fb)", borderRadius: 8 } },
+                React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+                  React.createElement("div", { className: "fld" }, React.createElement("label", null, "Comarca"),
+                    React.createElement(ComarcaInput, { value: editForm.comarca, onChange: (k) => setEditForm(f => ({ ...f, comarca: k })) })),
+                  React.createElement("div", { className: "fld" }, React.createElement("label", null, "Tipo"),
+                    React.createElement("select", { value: editForm.tipo, onChange: e => setEditForm(f => ({ ...f, tipo: e.target.value })) },
+                      ["Presencial Programado", "Presencial Emergencial"].map(t => React.createElement("option", { key: t, value: t }, t)))),
+                  editForm.tipo.includes("Emergencial") && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Prioridade"),
+                    React.createElement("select", { value: editForm.prioridade, onChange: e => setEditForm(f => ({ ...f, prioridade: e.target.value })) },
+                      React.createElement("option", { value: "" }, "—"),
+                      ["P1 - Crítica", "P2 - Alta", "P3 - Média"].map(p => React.createElement("option", { key: p, value: p }, p))))
+                ),
+                React.createElement("div", { style: { marginBottom: 6, fontSize: 12, color: "var(--text3)" } }, "Sistemas"),
+                React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 } },
+                  SISTEMAS.map(s => React.createElement("label", { key: s, style: { display: "flex", alignItems: "center", gap: 5, fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" } },
+                    React.createElement("input", { type: "checkbox", checked: editForm.sistemas.includes(s), onChange: () => toggleSistemaEdit(s) }), s))
+                ),
+                React.createElement("textarea", { value: editForm.observacoes, onChange: e => setEditForm(f => ({ ...f, observacoes: e.target.value })), rows: 2, placeholder: "Observações", style: { width: "100%", marginBottom: 10 } }),
+                React.createElement("div", { style: { display: "flex", gap: 8 } },
+                  React.createElement("button", { className: "btn", onClick: () => setEditandoOSId(null), disabled: salvandoEdicao }, "Cancelar"),
+                  React.createElement("button", {
+                    onClick: () => salvarEdicaoOS(o), disabled: salvandoEdicao,
+                    style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+                  }, salvandoEdicao ? "Salvando..." : "💾 Salvar")
+                )
+              )
+            : React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
+                React.createElement("div", { style: { fontSize: 13 } }, React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca, " — ", o.servico),
+                React.createElement("button", { onClick: () => abrirEdicaoOS(o), className: "bsm", style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" } }, "✎ Editar")
+              )
+        ))
       ),
       React.createElement("div", { className: "fr", style: { marginBottom: 0 } },
         modoRota === "nova" && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº da rota (automático)"),
