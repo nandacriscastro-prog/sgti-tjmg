@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785424822 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785524690 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2638,6 +2638,10 @@ function PageNovaOS({
   const [servDesc, setServDesc] = useState(_prefill?.servDesc || "");
   const [sistemas, setSistemas] = useState([]);
   const [infraBackbone, setInfraBackbone] = useState(false);
+  const [tipoInstalacao, setTipoInstalacao] = useState(""); // "" | "somente" | "fornecimento"
+  const [arquivoAnexo, setArquivoAnexo] = useState(null);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [arquivoUrl, setArquivoUrl] = useState("");
   const [obs, setObs] = useState(_prefill?.obs || "");
   const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
@@ -2801,6 +2805,28 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
+      let urlAnexo = "";
+      if (arquivoAnexo) {
+        setEnviandoArquivo(true);
+        try {
+          const nomeArq = `${Date.now()}_${arquivoAnexo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+          const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+            method: "POST",
+            headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": arquivoAnexo.type || "application/octet-stream" },
+            body: arquivoAnexo
+          });
+          if (resp.ok) {
+            urlAnexo = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
+            setArquivoUrl(urlAnexo);
+          } else {
+            toast("Falha ao enviar o anexo — a OS será criada sem ele.", "error");
+          }
+        } catch (e) {
+          toast("Falha ao enviar o anexo — a OS será criada sem ele.", "error");
+        } finally {
+          setEnviandoArquivo(false);
+        }
+      }
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
       let tentativas = 0;
       let ultimoErro = null;
@@ -2809,6 +2835,12 @@ function PageNovaOS({
         tentativas++;
         const rows = await buscarProximoNum(contratoSel);
         novoNum = proximoNumeroComTentativa(rows?.[0], tentativas);
+        const obsExtras = [
+          pv.infra_backbone ? "Necessário fazer infraestrutura - Backbone" : "",
+          tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
+          tipoInstalacao === "fornecimento" ? "Instalação com fornecimento de equipamento pela Alvo" : "",
+          urlAnexo ? `Anexo: ${urlAnexo}` : ""
+        ].filter(Boolean).join(" | ");
         const corpo = {
           numero: novoNum,
           empresa: pv.empresa || empresa || "A definir",
@@ -2823,7 +2855,7 @@ function PageNovaOS({
           tipo: pv.tipo || "",
           prioridade: pv.prioridade || "",
           regiao: COLAR_CIDADES.has((pv.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: (pv.observacoes || "") + (pv.infra_backbone ? (pv.observacoes ? " | " : "") + "Necessário fazer infraestrutura - Backbone" : ""),
+          observacoes: (pv.observacoes || "") + (obsExtras ? (pv.observacoes ? " | " : "") + obsExtras : ""),
           os_origem: pv.os_origem || null,
           data_os: pv.data_os || new Date().toISOString().slice(0, 10),
           status: "Aberta",
@@ -3168,7 +3200,27 @@ function PageNovaOS({
     type: "checkbox",
     checked: infraBackbone,
     onChange: e => setInfraBackbone(e.target.checked)
-  }), "Necess\xE1rio fazer infraestrutura - Backbone")))), /*#__PURE__*/React.createElement("div", {
+  }), "Necess\xE1rio fazer infraestrutura - Backbone"), contratoSel === "181/2026" && React.createElement("div", { style: { marginTop: 14 } },
+    React.createElement("label", null, "Tipo de instalação (se aplicável)"),
+    React.createElement("div", { style: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 } },
+      React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } },
+        React.createElement("input", { type: "radio", name: "tipoInstalacao", checked: tipoInstalacao === "somente", onChange: () => setTipoInstalacao("somente") }),
+        "Somente instalação (sem fornecimento de equipamento pela Alvo)"),
+      React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } },
+        React.createElement("input", { type: "radio", name: "tipoInstalacao", checked: tipoInstalacao === "fornecimento", onChange: () => setTipoInstalacao("fornecimento") }),
+        "Instalação com fornecimento de equipamento pela Alvo"),
+      tipoInstalacao && React.createElement("span", { style: { fontSize: 12, color: "var(--accent)", cursor: "pointer" }, onClick: () => setTipoInstalacao("") }, "limpar")
+    )
+  ), React.createElement("div", { style: { marginTop: 14 } },
+    React.createElement("label", null, "Anexar arquivo (opcional)"),
+    React.createElement("input", {
+      type: "file",
+      onChange: e => { setArquivoAnexo(e.target.files[0] || null); setArquivoUrl(""); },
+      style: { display: "block", marginTop: 6 }
+    }),
+    arquivoAnexo && !arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.name + " — será enviado ao criar a OS"),
+    arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--green)", marginTop: 4 } }, "✓ Anexo enviado")
+  )))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
