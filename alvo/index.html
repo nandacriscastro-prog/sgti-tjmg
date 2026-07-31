@@ -534,26 +534,96 @@ function simRenderTabela(){
 }
 
 function simExportar(){
-  const linhas = [["Rota/Grupo","Comarca","Região","Km","Sistema","Peças substituídas (item ×qtd)","Fração base","Fração peças","Fração deslocamento","FRAÇÃO TOTAL","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","TOTAL OS (R$)"]];
-  let totalGeral = 0;
+  if(!simOS.length){ alert("Adicione ao menos uma OS simulada antes de exportar."); return; }
+
+  // Agregados para Anexo IV e Resumo
+  let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0;
+  const detalheRows = [];
+  const pecasRows = [];
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
-    totalGeral += c.total;
+    if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
+    totalKm += o.km;
+    totalDiarias += c.fracaoTotal;
+    brutoMateriais += c.valorMateriais;
+    brutoServicos += c.valorDiaria + c.valorKm + c.valorAtendimento;
     const pecasTxt = o.pecas.length ? o.pecas.map(p=>`[${p.cod}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
     const sistemaTxt = o.sistema==="portal"?"Portal detector de metais":o.sistema==="raio"?"Scanner de raio-X":"Alarme/CFTV/Acesso";
     const regiaoTxt = c.isColar ? "Colar Metropolitano" : "Interior";
-    linhas.push([
-      o.rota || "—", o.comarca, regiaoTxt, o.km, sistemaTxt, pecasTxt,
-      Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
+    detalheRows.push([
+      o.rota || "—", o.comarca, regiaoTxt, sistemaTxt, pecasTxt,
+      Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), o.km, Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
       Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))
     ]);
+    o.pecas.forEach(p=>{
+      const vUnit = PRECO_ANEXO_V[p.cod]||0;
+      pecasRows.push([o.rota||"—", o.comarca, `[${p.cod}] ${p.desc}`, p.qtd, Number(vUnit.toFixed(2)), Number((vUnit*p.qtd).toFixed(2))]);
+    });
   });
-  linhas.push([]);
-  linhas.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL SIMULADO", Number(totalGeral.toFixed(2))]);
-  const ws = XLSX.utils.aoa_to_sheet(linhas);
-  ws["!cols"] = [{wch:20},{wch:22},{wch:18},{wch:8},{wch:22},{wch:42},{wch:11},{wch:11},{wch:13},{wch:12},{wch:14},{wch:12},{wch:16},{wch:16},{wch:14}];
+  const brutoTotal = brutoServicos + brutoMateriais;
+
+  // ---- Aba 1: Resumo ----
+  const linhasResumo = [
+    ["SIMULAÇÃO DE MEDIÇÃO — CONTRATO 181/2026 (Portal Alvo)"],
+    [],
+    ["Quantidade de OS simuladas", simOS.length],
+    ["Km total percorrido", totalKm],
+    ["Soma das frações de diária", Number(totalDiarias.toFixed(3))],
+    [],
+    ["Dotação", "Valor (R$)"],
+    ["1 - Serviços (atendimento/diária/km)", Number(brutoServicos.toFixed(2))],
+    ["2 - Materiais/Equipamentos (peças substituídas)", Number(brutoMateriais.toFixed(2))],
+    ["Total bruto (soma das duas dotações)", Number(brutoTotal.toFixed(2))],
+  ];
+  const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
+  wsResumo["!cols"] = [{wch:45},{wch:18}];
+  wsResumo["!merges"] = [{s:{r:0,c:0},e:{r:0,c:1}}];
+
+  // ---- Aba 2: Anexo IV - Serviços ----
+  const qtds = {rem:0, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+  const linhasAnexo = [["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]];
+  ANEXO_IV.forEach(it=>{
+    if(it.id==="rem") return; // não simulado (atendimento remoto fica de fora da simulação)
+    const q = qtds[it.id]||0;
+    linhasAnexo.push([it.id, it.desc, it.unid, Number.isInteger(q)?q:Number(q.toFixed(2)), it.vu, Number((q*it.vu).toFixed(2))]);
+  });
+  linhasAnexo.push(["","","","","Subtotal serviços", Number(brutoServicos.toFixed(2))]);
+  const wsAnexo = XLSX.utils.aoa_to_sheet(linhasAnexo);
+  wsAnexo["!cols"] = [{wch:8},{wch:32},{wch:10},{wch:12},{wch:16},{wch:16}];
+
+  // ---- Aba 3: Detalhamento Completo ----
+  const linhasDet = [["Rota/Grupo","Comarca","Região","Sistema","Peças substituídas (item ×qtd)","Fração base","Fração peças","Km","Fração deslocamento","FRAÇÃO TOTAL","Valor diária (R$)","Valor km (R$)","Valor atendimento (R$)","Valor materiais (R$)","TOTAL OS (R$)"], ...detalheRows];
+  linhasDet.push(["","","","","","","","","","","","","","TOTAL GERAL", Number(brutoTotal.toFixed(2))]);
+  const wsDet = XLSX.utils.aoa_to_sheet(linhasDet);
+  wsDet["!cols"] = [{wch:18},{wch:22},{wch:16},{wch:20},{wch:40},{wch:10},{wch:10},{wch:8},{wch:12},{wch:11},{wch:13},{wch:11},{wch:15},{wch:15},{wch:13}];
+
+  // ---- Aba 4: Peças substituídas ----
+  const linhasPecas = [["Rota/Grupo","Comarca","Item","Qtd","Valor unit. (R$)","Valor total (R$)"], ...pecasRows];
+  if(!pecasRows.length) linhasPecas.push(["Nenhuma peça substituída em nenhuma OS simulada."]);
+  else linhasPecas.push(["","","","","Total materiais", Number(brutoMateriais.toFixed(2))]);
+  const wsPecas = XLSX.utils.aoa_to_sheet(linhasPecas);
+  wsPecas["!cols"] = [{wch:18},{wch:22},{wch:36},{wch:6},{wch:14},{wch:14}];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Simulação de Medição");
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+  XLSX.utils.book_append_sheet(wb, wsDet, "Detalhamento Completo");
+  XLSX.utils.book_append_sheet(wb, wsAnexo, "Anexo IV - Serviços");
+  XLSX.utils.book_append_sheet(wb, wsPecas, "Peças substituídas");
+
+  // ---- Aba 5: Total por Rota (só se houver rotas nomeadas) ----
+  const rotasUsadas = [...new Set(simOS.map(o=>o.rota).filter(Boolean))];
+  if(rotasUsadas.length){
+    const linhasRota = [["Rota/Grupo","Qtd de OS","Comarcas","Total (R$)"]];
+    rotasUsadas.forEach(rota=>{
+      const itens = simOS.filter(o=>o.rota===rota);
+      const totalRota = itens.reduce((a,o)=>a+simCalcularOS(o).total,0);
+      linhasRota.push([rota, itens.length, [...new Set(itens.map(o=>o.comarca))].join(", "), Number(totalRota.toFixed(2))]);
+    });
+    const wsRota = XLSX.utils.aoa_to_sheet(linhasRota);
+    wsRota["!cols"] = [{wch:22},{wch:10},{wch:40},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, wsRota, "Total por Rota");
+  }
+
   XLSX.writeFile(wb, "Simulacao_Medicao_181_2026.xlsx");
 }
 </script>
