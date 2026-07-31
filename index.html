@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785524690 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785525038 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2355,6 +2355,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const removeStop = i => setStops(stops.filter((_, idx) => idx !== i));
   const setStopObs = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, obs: val } : s));
   const setStopInfra = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, infraBackbone: val } : s));
+  const setStopTipoInstalacao = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoInstalacao: val } : s));
+  const setStopArquivo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, arquivo: val } : s));
   const setStopContato = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, contato: val } : s));
   const toggleOverride = i => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: s.tipoOverride === null ? tipo : null, prioOverride: "" } : s));
   const setStopTipo = (i, val) => setStops(stops.map((s, idx) => idx === i ? { ...s, tipoOverride: val, prioOverride: "" } : s));
@@ -2376,6 +2378,24 @@ function PageRota({ onOsCriada, os: todasOS }) {
         const servico = "Manutenção: " + stop.sistemas.join(", ");
         const stopTipo = stop.tipoOverride || tipo;
         const stopPrio = stopTipo.includes("Emergencial") ? (stop.prioOverride || prio) : "";
+        let urlAnexoStop = "";
+        if (stop.arquivo) {
+          try {
+            const nomeArq = `${Date.now()}_${stop.arquivo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+            const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+              method: "POST",
+              headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": stop.arquivo.type || "application/octet-stream" },
+              body: stop.arquivo
+            });
+            if (resp.ok) urlAnexoStop = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
+          } catch (e) {}
+        }
+        const obsExtrasStop = [
+          stop.infraBackbone ? "Necessário fazer infraestrutura - Backbone" : "",
+          stop.tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
+          stop.tipoInstalacao === "fornecimento" ? "Instalação com fornecimento de equipamento pela Alvo" : "",
+          urlAnexoStop ? `Anexo: ${urlAnexoStop}` : ""
+        ].filter(Boolean).join("<br>");
         const corpo = {
           numero,
           empresa: "Alvo Segurança Ltda",
@@ -2390,7 +2410,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
           tipo: stopTipo,
           prioridade: stopPrio,
           regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + (stop.infraBackbone ? "Necessário fazer infraestrutura - Backbone<br>" : "") + "Rota: " + rotaNome.trim(),
+          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + (obsExtrasStop ? obsExtrasStop + "<br>" : "") + "Rota: " + rotaNome.trim(),
           os_origem: null,
           data_os: dt,
           status: "Aberta",
@@ -2527,6 +2547,23 @@ function PageRota({ onOsCriada, os: todasOS }) {
       React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 10, cursor: "pointer" } },
         React.createElement("input", { type: "checkbox", checked: !!s.infraBackbone, onChange: e => setStopInfra(i, e.target.checked) }),
         "Necessário fazer infraestrutura - Backbone"
+      ),
+      React.createElement("div", { style: { marginBottom: 10 } },
+        React.createElement("label", null, "Tipo de instalação (se aplicável)"),
+        React.createElement("div", { style: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 } },
+          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } },
+            React.createElement("input", { type: "radio", name: "tipoInstalacao_" + i, checked: s.tipoInstalacao === "somente", onChange: () => setStopTipoInstalacao(i, "somente") }),
+            "Somente instalação (sem fornecimento de equipamento pela Alvo)"),
+          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } },
+            React.createElement("input", { type: "radio", name: "tipoInstalacao_" + i, checked: s.tipoInstalacao === "fornecimento", onChange: () => setStopTipoInstalacao(i, "fornecimento") }),
+            "Instalação com fornecimento de equipamento pela Alvo"),
+          s.tipoInstalacao && React.createElement("span", { style: { fontSize: 12, color: "var(--accent)", cursor: "pointer" }, onClick: () => setStopTipoInstalacao(i, "") }, "limpar")
+        )
+      ),
+      React.createElement("div", { style: { marginBottom: 10 } },
+        React.createElement("label", null, "Anexar arquivo nesta parada (opcional)"),
+        React.createElement("input", { type: "file", onChange: e => setStopArquivo(i, e.target.files[0] || null), style: { display: "block", marginTop: 6 } }),
+        s.arquivo && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, s.arquivo.name + " — será enviado ao criar a rota")
       ),
       React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
