@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785526793 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785527092 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2760,7 +2760,7 @@ function PageNovaOS({
   const [prazo, setPrazo] = useState("");
   const [prazoDate, setPrazoDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fiscalId, setFiscalId] = useState("3");
+  const [fiscalId, setFiscalId] = useState(String(getSession()?.fiscal?.id || "3"));
   const [osVinculada, setOsVinculada] = useState("");
   const [contato, setContato] = useState("");
   const [empresa, setEmpresa] = useState("Alvo Segurança Ltda");
