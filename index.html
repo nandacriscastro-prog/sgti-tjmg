@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785937424 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785943062 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4053,6 +4053,11 @@ function PageAvaliacao({
   const [selecionadasAval, setSelecionadasAval] = useState(new Set());
   const [loteLoading, setLoteLoading] = useState(false);
   const [loteMsg, setLoteMsg] = useState("");
+  const [filtroContratoAval, setFiltroContratoAval] = useState("todos");
+  const [filtroDt1Aval, setFiltroDt1Aval] = useState("");
+  const [filtroDt2Aval, setFiltroDt2Aval] = useState("");
+  const [ordemPorAval, setOrdemPorAval] = useState("data"); // "data" | "numero"
+  const [ordemDirAval, setOrdemDirAval] = useState("desc"); // "desc" | "asc"
   const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const hoje = new Date().toISOString().slice(0,10);
   const qtdVencidas = abertas.filter(o => {
@@ -4070,7 +4075,21 @@ function PageAvaliacao({
   const pend = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
   const taxa = sat + reab > 0 ? Math.round(sat / (sat + reab) * 100) : 100;
   const sortDesc = arr => [...arr].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
-  const dados = sortDesc(filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  const numOrdenavel = o => {
+    const n = o.numero || "";
+    const m = /^181-(\d+)$/.exec(n);
+    if (m) return parseInt(m[1]);
+    const asInt = parseInt(n);
+    return isNaN(asInt) ? -1 : asInt;
+  };
+  let dados = (filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  if (filtroContratoAval !== "todos") dados = dados.filter(o => (o.contrato || "") === filtroContratoAval);
+  if (filtroDt1Aval) dados = dados.filter(o => (o.data_os || "") >= filtroDt1Aval);
+  if (filtroDt2Aval) dados = dados.filter(o => (o.data_os || "") <= filtroDt2Aval);
+  dados = [...dados].sort((a, b) => {
+    const cmp = ordemPorAval === "numero" ? (numOrdenavel(b) - numOrdenavel(a)) : (b.data_os || "").localeCompare(a.data_os || "");
+    return ordemDirAval === "asc" ? -cmp : cmp;
+  });
   const fecharOS = async () => {
     if (!selFechar) return;
     setLoadingFechar(true);
@@ -4304,6 +4323,46 @@ function PageAvaliacao({
     className: `chip${filtro === f ? " active" : ""}`,
     onClick: () => setFiltro(f)
   }, l)))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: { marginBottom: 16 }
+  }, /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" } },
+    React.createElement("div", null,
+      React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "CONTRATO"),
+      React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 4 } },
+        [["todos", "Todos"], ["181/2026", "181/2026"], ["218/2023", "218/2023"], ["217/2023", "217/2023"], ["216/2023", "216/2023"]].map(([v, l]) =>
+          React.createElement("button", {
+            key: v, className: "btn btn-sm",
+            style: { fontWeight: filtroContratoAval === v ? 700 : 400, background: filtroContratoAval === v ? "var(--navy)" : "", color: filtroContratoAval === v ? "white" : "" },
+            onClick: () => setFiltroContratoAval(v)
+          }, l))
+      )
+    ),
+    React.createElement("div", null,
+      React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DATA DE"),
+      React.createElement("input", { type: "date", value: filtroDt1Aval, onChange: e => setFiltroDt1Aval(e.target.value), style: { display: "block", marginTop: 4 } })
+    ),
+    React.createElement("div", null,
+      React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "ATÉ"),
+      React.createElement("input", { type: "date", value: filtroDt2Aval, onChange: e => setFiltroDt2Aval(e.target.value), style: { display: "block", marginTop: 4 } })
+    ),
+    React.createElement("div", null,
+      React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "ORDENAR POR"),
+      React.createElement("select", { value: ordemPorAval, onChange: e => setOrdemPorAval(e.target.value), style: { display: "block", marginTop: 4 } },
+        React.createElement("option", { value: "data" }, "Data"),
+        React.createElement("option", { value: "numero" }, "Número da OS")
+      )
+    ),
+    React.createElement("button", {
+      className: "btn btn-sm",
+      onClick: () => setOrdemDirAval(ordemDirAval === "desc" ? "asc" : "desc"),
+      style: { height: 34 }
+    }, ordemDirAval === "desc" ? "⬇ Decrescente" : "⬆ Crescente"),
+    (filtroContratoAval !== "todos" || filtroDt1Aval || filtroDt2Aval) && React.createElement("button", {
+      className: "btn btn-sm",
+      onClick: () => { setFiltroContratoAval("todos"); setFiltroDt1Aval(""); setFiltroDt2Aval(""); },
+      style: { height: 34 }
+    }, "✕ Limpar filtros")
+  )), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: { marginBottom: 16 }
   }, /*#__PURE__*/React.createElement("div", { className: "fg", style: { marginBottom: filtroRotaAval ? 14 : 0 } },
