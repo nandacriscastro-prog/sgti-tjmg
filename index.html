@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785943062 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785944266 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2040,18 +2040,30 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
 
   const abrirResposta = o => {
     setRespondendoId(o.id);
-    setRespTecnico(""); setRespMedidas(""); setRespSituacao("solucionado"); setRespMsg("");
+    if (o.status === "Concluída") {
+      // Editando uma resposta já salva: tenta extrair os dados anteriores das observações
+      const obsTxt = o.observacoes || "";
+      const mTec = /Técnico Alvo:\s*([^|]+)/.exec(obsTxt);
+      const mMed = /Medidas adotadas:\s*([^|]+)/.exec(obsTxt);
+      setRespTecnico(mTec && mTec[1].trim() !== "—" ? mTec[1].trim() : "");
+      setRespMedidas(mMed && mMed[1].trim() !== "—" ? mMed[1].trim() : "");
+      setRespSituacao(o.avaliacao === "pendente" ? "pendente" : "solucionado");
+    } else {
+      setRespTecnico(""); setRespMedidas(""); setRespSituacao("solucionado");
+    }
+    setRespMsg("");
   };
   const salvarResposta = async (o) => {
     setRespLoading(true); setRespMsg("");
     try {
+      const obsBase = (o.observacoes || "").replace(/\s*\|\s*Técnico Alvo:[\s\S]*$/, "");
       await sbFetch(`/ordens_servico?id=eq.${o.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           status: "Concluída",
-          data_conclusao: new Date().toISOString().slice(0, 10),
+          data_conclusao: o.data_conclusao || new Date().toISOString().slice(0, 10),
           avaliacao: respSituacao,
-          observacoes: (o.observacoes || "") + ` | Técnico Alvo: ${respTecnico || "—"} | Medidas adotadas: ${respMedidas || "—"} | Situação: ${respSituacao === "solucionado" ? "Solucionado" : "Pendente/Não solucionado"}`
+          observacoes: obsBase + ` | Técnico Alvo: ${respTecnico || "—"} | Medidas adotadas: ${respMedidas || "—"} | Situação: ${respSituacao === "solucionado" ? "Solucionado" : "Pendente/Não solucionado"}`
         })
       });
       setRespondendoId(null);
@@ -2215,7 +2227,12 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
               onClick: () => abrirResposta(o),
               className: "bsm",
               style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-            }, "Marcar resposta da Alvo")
+            }, "Marcar resposta da Alvo"),
+            !aguardando && respondendoId !== o.id && React.createElement("button", {
+              onClick: () => abrirResposta(o),
+              className: "bsm",
+              style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+            }, "✎ Editar resposta")
           ),
           respondendoId === o.id && React.createElement("div", { style: { marginTop: 10, padding: 12, background: "var(--surface)", borderRadius: 8 } },
             React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
