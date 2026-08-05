@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785947051 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785957308 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -5385,6 +5385,7 @@ function PageMedicao({
   // ===== Fechar OS (fusão da antiga Medição manual) =====
   const [aba, setAba] = useState("pendentes");
   const [soAguardando, setSoAguardando] = useState(false);
+  const [agruparRotaMed, setAgruparRotaMed] = useState(false);
   const [selecionadas, setSelecionadas] = useState(new Set());
   const [painelAberto, setPainelAberto] = useState(false);
   const [linhas, setLinhas] = useState([]);
@@ -5853,8 +5854,15 @@ function PageMedicao({
     onPDF: () => exportarPDF('Histórico de Medições', 'Contrato 218/2023 — Anexo IV', colsMed, dadosMed, 'Medicoes')
   })),
     React.createElement("div", { className: "card", style: { marginBottom: 16 } },
-      React.createElement("div", { className: "card-title" }, "🗂️ Fechar OS (preencher e avaliar)"),
-      pendentes.length > 0 && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 } },
+        React.createElement("div", { className: "card-title", style: { margin: 0 } }, "🗂️ Fechar OS (preencher e avaliar)"),
+        pendentes.length > 0 && React.createElement("button", {
+          onClick: () => setAgruparRotaMed(!agruparRotaMed),
+          className: "btn btn-sm",
+          style: { fontWeight: agruparRotaMed ? 700 : 400, background: agruparRotaMed ? "var(--accent)" : "", color: agruparRotaMed ? "white" : "" }
+        }, agruparRotaMed ? "☑ Agrupado por rota" : "🛣️ Agrupar por rota")
+      ),
+      pendentes.length > 0 && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, marginTop: 10 } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
           React.createElement("input", { type: "checkbox", checked: selecionadas.size === pendentes.length && pendentes.length > 0, onChange: selecionarTodos }),
           "Selecionar todas"
@@ -5862,30 +5870,54 @@ function PageMedicao({
         selecionadas.size > 0 && React.createElement("button", { className: "btn btn-primary", onClick: abrirPainelLote }, "Preencher em lote (" + selecionadas.size + " selecionada(s))")
       ),
       pendentes.length === 0 && React.createElement("div", { style: { fontSize: 13, color: "var(--text3)" } }, "✅ Nenhuma OS pendente no momento"),
-      pendentes.map(o => {
-        const precisaAvaliar = o.status === "Concluída" && !o.avaliacao;
-        return React.createElement("div", {
-          key: o.numero,
-          style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }
-        },
-          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
-            React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
-            React.createElement("div", null,
-              React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-                React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
-                precisaAvaliar
-                  ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Falta avaliar")
-                  : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", background: "var(--surface)", padding: "3px 8px", borderRadius: 99 } }, "📝 Falta preencher")
-              ),
-              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
-            )
-          ),
-          React.createElement("button", {
-            onClick: () => abrirPainelIndividual(o),
-            style: { background: precisaAvaliar ? "var(--red, #c0392b)" : "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
-          }, precisaAvaliar ? "Avaliar agora" : "Preencher")
+      (() => {
+        const linhaOS = o => {
+          const precisaAvaliar = o.status === "Concluída" && !o.avaliacao;
+          return React.createElement("div", {
+            key: o.numero,
+            style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }
+          },
+            React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
+              React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
+              React.createElement("div", null,
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+                  React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca,
+                  precisaAvaliar
+                    ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Falta avaliar")
+                    : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", background: "var(--surface)", padding: "3px 8px", borderRadius: 99 } }, "📝 Falta preencher")
+                ),
+                React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
+              )
+            ),
+            React.createElement("button", {
+              onClick: () => abrirPainelIndividual(o),
+              style: { background: precisaAvaliar ? "var(--red, #c0392b)" : "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+            }, precisaAvaliar ? "Avaliar agora" : "Preencher")
+          );
+        };
+        if (!agruparRotaMed) return pendentes.map(linhaOS);
+        const grupos = {};
+        const semRota = [];
+        pendentes.forEach(o => {
+          const m = /Rota:\s*(\d+)(?:\s*-\s*([^<\n]+))?/i.exec(o.observacoes || "");
+          if (m) {
+            const num = m[1];
+            if (!grupos[num]) grupos[num] = { num, desc: (m[2] || "").trim(), itens: [] };
+            grupos[num].itens.push(o);
+          } else semRota.push(o);
+        });
+        const rotasOrdenadas = Object.values(grupos).sort((a, b) => parseInt(b.num) - parseInt(a.num));
+        return React.createElement("div", null,
+          rotasOrdenadas.map(r => React.createElement("div", { key: r.num, style: { marginBottom: 16 } },
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 4 } }, "🛣️ Rota " + r.num + (r.desc ? " - " + r.desc : "") + " (" + r.itens.length + " OS)"),
+            r.itens.map(linhaOS)
+          )),
+          semRota.length > 0 && React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 4, color: "var(--text3)" } }, "Sem rota (" + semRota.length + " OS)"),
+            semRota.map(linhaOS)
+          )
         );
-      })
+      })()
     ),
     medicaoResumo.detalhe.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
       React.createElement("div", { className: "card-title" }, "📋 OS consideradas neste cálculo (" + medicaoResumo.detalhe.length + ")"),
