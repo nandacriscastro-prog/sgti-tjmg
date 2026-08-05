@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785527092 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785937424 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1472,20 +1472,20 @@ function gerarHTMLAtendimentoRemoto(d) {
 </div>
 <table>
   <tr>
-    <td style="width:50%"><span class="lbl">Nº DA OS</span><span class="val red">${d.numero}</span></td>
-    <td style="width:50%"><span class="lbl">DATA</span><span class="val">${dataFmt}</span></td>
+    <td style="width:50%"><div class="lbl">Nº DA OS</div><div class="val red">${d.numero}</div></td>
+    <td style="width:50%"><div class="lbl">DATA</div><div class="val">${dataFmt}</div></td>
   </tr>
   <tr>
-    <td colspan="2"><span class="lbl">COMARCA / EDIFÍCIO</span><span class="val">${d.comarca || "—"}</span></td>
+    <td colspan="2"><div class="lbl">COMARCA / EDIFÍCIO</div><div class="val">${d.comarca || "—"}</div></td>
   </tr>
   <tr>
-    <td colspan="2"><span class="lbl">PRAZO DE ATENDIMENTO</span><span class="val red">2 horas</span></td>
+    <td colspan="2"><div class="lbl">PRAZO DE ATENDIMENTO</div><div class="val red">2 horas</div></td>
   </tr>
   <tr>
-    <td colspan="2"><span class="lbl">CONTATO ADM. PREDIAL</span><span class="val">${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}</span></td>
+    <td colspan="2"><div class="lbl">CONTATO ADM. PREDIAL</div><div class="val">${d.contatoNome || "—"}${d.contatoTel ? " · " + d.contatoTel : ""}${d.contatoEmail ? " · " + d.contatoEmail : ""}</div></td>
   </tr>
   <tr>
-    <td colspan="2"><span class="lbl">TÉCNICO RESPONSÁVEL (ALVO)</span>${d.tecnicoResp ? `<span class="val">${d.tecnicoResp}</span>` : `<span class="blank">&nbsp;</span>`}</td>
+    <td colspan="2"><div class="lbl">TÉCNICO RESPONSÁVEL (ALVO)</div>${d.tecnicoResp ? `<div class="val">${d.tecnicoResp}</div>` : `<span class="blank">&nbsp;</span>`}</td>
   </tr>
 </table>
 <table>
@@ -1518,7 +1518,7 @@ function gerarHTMLAtendimentoRemoto(d) {
     <td style="width:50%">${d.statusAtend === "solucionado" ? "☑" : "☐"} SOLUCIONADO</td>
     <td style="width:50%">${d.statusAtend === "pendente" ? "☑" : "☐"} PENDENTE / NÃO SOLUCIONADO</td>
   </tr>
-  <tr><td colspan="2"><span class="lbl">Medidas futuras / recomendações (informar se há necessidade de intervenção presencial, substituição de peças ou orientações adicionais)</span><br>${d.medidasFuturas ? d.medidasFuturas.replace(/\n/g, "<br>") : "&nbsp;<br><br>"}</td></tr>
+  <tr><td colspan="2"><div class="lbl">Medidas futuras / recomendações (informar se há necessidade de intervenção presencial, substituição de peças ou orientações adicionais)</div><br>${d.medidasFuturas ? d.medidasFuturas.replace(/\n/g, "<br>") : "&nbsp;<br><br>"}</td></tr>
 </table>
 <div class="footer">Gerado pelo SGTI — ${new Date().toLocaleString("pt-BR")}. Se PENDENTE / NÃO SOLUCIONADO, será aberta OS presencial para atendimento in loco.</div>
 <button class="no-print" onclick="window.print()" style="margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px">🖨️ Imprimir / PDF</button>
@@ -1534,30 +1534,30 @@ function blocoOS(os, numOS) {
 </div>
 <table>
   <tr>
-    <td style="width:50%"><span class="lbl">EMPRESA</span><span class="val">${os.empresa || "A DEFINIR"}</span></td>
-    <td style="width:25%"><span class="lbl">CONTRATO</span><span class="val">${os.contrato || "218/2023"}</span></td>
-    <td style="width:25%"><span class="lbl">Nº O.S.</span><span class="val red">${numOS || os.numero || "—"}</span></td>
+    <td style="width:50%"><div class="lbl">EMPRESA</div><div class="val">${os.empresa || "A DEFINIR"}</div></td>
+    <td style="width:25%"><div class="lbl">CONTRATO</div><div class="val">${os.contrato || "218/2023"}</div></td>
+    <td style="width:25%"><div class="lbl">Nº O.S.</div><div class="val red">${numOS || os.numero || "—"}</div></td>
   </tr>
   <tr>
-    <td><span class="lbl">COMARCA</span><span class="val">${os.comarca || "—"}</span></td>
-    <td colspan="2"><span class="lbl">DATA</span><span class="val">${dtFmt(os.data_os)}</span></td>
+    <td><div class="lbl">COMARCA</div><div class="val">${os.comarca || "—"}</div></td>
+    <td colspan="2"><div class="lbl">DATA</div><div class="val">${dtFmt(os.data_os)}</div></td>
   </tr>
   <tr>
-    <td><span class="lbl">EDIFÍCIO</span><span class="val">${os.forum || "—"}</span></td>
-    <td colspan="2"><span class="lbl">TELEFONE</span><span class="val">${os.telefone || "—"}</span></td>
+    <td><div class="lbl">EDIFÍCIO</div><div class="val">${os.forum || "—"}</div></td>
+    <td colspan="2"><div class="lbl">TELEFONE</div><div class="val">${os.telefone || "—"}</div></td>
   </tr>
-  <tr>
-    <td><span class="lbl">POLO</span><span class="val">${os.polo || "—"}</span></td>
+  ${(os.contrato || "") === "181/2026" ? "" : `<tr>
+    <td><div class="lbl">POLO</div><div class="val">${os.polo || "—"}</div></td>
     <td colspan="2"></td>
+  </tr>`}
+  <tr>
+    <td colspan="3"><div class="lbl">ENDEREÇO</div><div class="val">${os.endereco || "—"}</div></td>
   </tr>
   <tr>
-    <td colspan="3"><span class="lbl">ENDEREÇO</span><span class="val">${os.endereco || "—"}</span></td>
+    <td colspan="3"><div class="lbl">CONTATO</div><div class="val">${os.contato || "—"}</div></td>
   </tr>
   <tr>
-    <td colspan="3"><span class="lbl">CONTATO</span><span class="val">${os.contato || "—"}</span></td>
-  </tr>
-  <tr>
-    <td colspan="3"><span class="lbl">SERVIÇO</span><span class="val">${os.servico || "—"}</span></td>
+    <td colspan="3"><div class="lbl">SERVIÇO</div><div class="val">${os.servico || "—"}</div></td>
   </tr>
 </table>
 <table>
@@ -1580,10 +1580,10 @@ ${(os.contrato || "") === "181/2026" ? `<table><tr><td style="background:#fff3cd
   </div>
 </td></tr></table>` : ""}
 ${os.infra_backbone ? `<table><tr><td style="background:#fff3cd">
-  <span class="lbl">⚠️ INFRAESTRUTURA</span>
+  <div class="lbl">⚠️ INFRAESTRUTURA</div>
   <div style="font-size:11px"><b>Foi marcado que é necessário fazer infraestrutura — Backbone</b> para esta OS.</div>
 </td></tr></table>` : ""}
-${os.observacoes ? `<table><tr><td><span class="lbl">OBSERVAÇÕES</span>${os.observacoes}</td></tr></table>` : ""}
+${os.observacoes ? `<table><tr><td><div class="lbl">OBSERVAÇÕES</div>${os.observacoes}</td></tr></table>` : ""}
 <table class="ass-row">
   <tr>
     <td style="width:50%">Nome e assinatura do representante</td>
@@ -1682,25 +1682,25 @@ td,th{border:1px solid #888;padding:5px 8px;vertical-align:top}
 </div>
 <table>
   <tr>
-    <td style="width:50%"><span class="lbl">EMPRESA</span><span class="val">${os.empresa || "A DEFINIR"}</span></td>
-    <td><span class="lbl">CONTRATO</span><span class="val">${os.contrato || "218/2023"}</span></td>
-    <td><span class="lbl">Nº O.S.</span><span class="val red">${numOS || os.numero || "—"}</span></td>
+    <td style="width:50%"><div class="lbl">EMPRESA</div><div class="val">${os.empresa || "A DEFINIR"}</div></td>
+    <td><div class="lbl">CONTRATO</div><div class="val">${os.contrato || "218/2023"}</div></td>
+    <td><div class="lbl">Nº O.S.</div><div class="val red">${numOS || os.numero || "—"}</div></td>
   </tr>
   <tr>
-    <td><span class="lbl">COMARCA</span><span class="val red">${os.comarca || "—"}</span></td>
-    <td colspan="2"><span class="lbl">DATA</span><span class="val">${dtFmt(os.data_os)}</span></td>
+    <td><div class="lbl">COMARCA</div><div class="val red">${os.comarca || "—"}</div></td>
+    <td colspan="2"><div class="lbl">DATA</div><div class="val">${dtFmt(os.data_os)}</div></td>
   </tr>
   <tr>
-    <td><span class="lbl">EDIFÍCIO</span><span class="val">${os.forum || "—"}</span></td>
+    <td><div class="lbl">EDIFÍCIO</div><div class="val">${os.forum || "—"}</div></td>
     <td colspan="2"></td>
   </tr>
   <tr>
-    <td colspan="3"><span class="lbl">ENDEREÇO</span><span class="val">${os.endereco || "—"}</span></td>
+    <td colspan="3"><div class="lbl">ENDEREÇO</div><div class="val">${os.endereco || "—"}</div></td>
   </tr>
   <tr>
-    <td colspan="3"><span class="lbl">SERVIÇO</span><span class="val">${os.servico || "—"}</span></td>
+    <td colspan="3"><div class="lbl">SERVIÇO</div><div class="val">${os.servico || "—"}</div></td>
   </tr>
-  ${os.observacoes ? `<tr><td colspan="3"><span class="lbl">OBSERVAÇÕES</span>${os.observacoes}</td></tr>` : ""}
+  ${os.observacoes ? `<tr><td colspan="3"><div class="lbl">OBSERVAÇÕES</div>${os.observacoes}</td></tr>` : ""}
 </table>
 <div class="sec">TÉCNICOS AUTORIZADOS — MANUTENÇÃO</div>
 <table>
@@ -3398,7 +3398,7 @@ function PageNovaOS({
     }
   }, "\u270F\uFE0F Campos edit\xE1veis \u2014 revise antes de confirmar. O n\xFAmero \xE9 gerado ao gravar."), /*#__PURE__*/React.createElement("div", {
     className: "form-grid"
-  }, [["comarca", "Comarca", false], ["forum", "Fórum", false], ["polo", "Polo", false], ["endereco", "Endereço", false], ["tipo", "Tipo", false], ["prioridade", "Prioridade", false], ["data_os", "Data da OS", false], ["prazo", "Prazo SLA", false], ["contrato", "Contrato", true]].map(([k, lbl, ro]) => /*#__PURE__*/React.createElement("div", {
+  }, [["comarca", "Comarca", false], ["forum", "Fórum", false], ["polo", "Polo", false], ["endereco", "Endereço", false], ["tipo", "Tipo", false], ["prioridade", "Prioridade", false], ["data_os", "Data da OS", false], ["prazo", "Prazo SLA", false], ["contrato", "Contrato", true]].filter(([k]) => !(k === "polo" && pv.contrato === "181/2026")).map(([k, lbl, ro]) => /*#__PURE__*/React.createElement("div", {
     key: k,
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, lbl), /*#__PURE__*/React.createElement("input", {
@@ -3865,7 +3865,7 @@ function PageHistorico({
       fontSize: 13,
       marginBottom: 14
     }
-  }, [["Nº OS", sel.numero], ["Empresa", sel.empresa || "—"], ["Data", fmtDate(sel.data_os)], ["Comarca", sel.comarca || "—"], ["Fórum", sel.forum || "—"], ["Endereço", sel.endereco || "—"], ["Tipo", sel.tipo || "—"], ["Prioridade", sel.prioridade || "—"], ["Polo", sel.polo || "—"], ["Região", sel.regiao || "—"], ["Status", sel.status || "—"], ["Avaliação", sel.avaliacao || "Pendente"], ["Data conclusão", fmtDate(sel.data_conclusao) || "—"], ["Contato", sel.contato || "—"], ["E-mail enviado", sel.email_enviado ? "Sim" : "Não"], ["Criado por", sel.criado_por || "—"]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+  }, [["Nº OS", sel.numero], ["Empresa", sel.empresa || "—"], ["Data", fmtDate(sel.data_os)], ["Comarca", sel.comarca || "—"], ["Fórum", sel.forum || "—"], ["Endereço", sel.endereco || "—"], ["Tipo", sel.tipo || "—"], ["Prioridade", sel.prioridade || "—"], ["Polo", sel.polo || "—"], ["Região", sel.regiao || "—"], ["Status", sel.status || "—"], ["Avaliação", sel.avaliacao || "Pendente"], ["Data conclusão", fmtDate(sel.data_conclusao) || "—"], ["Contato", sel.contato || "—"], ["E-mail enviado", sel.email_enviado ? "Sim" : "Não"], ["Criado por", sel.criado_por || "—"]].filter(([k]) => !(k === "Polo" && sel.contrato === "181/2026")).map(([k, v]) => /*#__PURE__*/React.createElement("div", {
     key: k
   }, /*#__PURE__*/React.createElement("div", {
     style: {
