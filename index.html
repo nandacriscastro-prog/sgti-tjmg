@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1785957308 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786382047 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2027,6 +2027,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
   const [medidasAdotadas, setMedidasAdotadas] = useState("");
   const [statusAtend, setStatusAtend] = useState(""); // "solucionado" | "pendente" | ""
   const [medidasFuturas, setMedidasFuturas] = useState("");
+  const [arquivoAnexo, setArquivoAnexo] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [gerado, setGerado] = useState(null);
@@ -2083,6 +2084,21 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
     setSalvando(true); setMsg("");
     const numero = "OS-REM-2026-" + proximoNum;
     const jaResolvido = statusAtend !== "";
+    let urlAnexo = "";
+    if (arquivoAnexo) {
+      try {
+        const nomeArq = `${Date.now()}_${arquivoAnexo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+          method: "POST",
+          headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": arquivoAnexo.type || "application/octet-stream" },
+          body: arquivoAnexo
+        });
+        if (resp.ok) urlAnexo = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
+        else setMsg("Aviso: falha ao enviar o anexo — a solicitação será criada sem ele.");
+      } catch (e) {
+        setMsg("Aviso: falha ao enviar o anexo — a solicitação será criada sem ele.");
+      }
+    }
     const dados = {
       numero, comarca,
       contatoNome, contatoTel, contatoEmail,
@@ -2108,7 +2124,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           data_conclusao: jaResolvido ? dataAtend : null,
           criado_por: (getSession()?.fiscal?.email || "sistema-remoto"),
           criado_em: new Date().toISOString(),
-          observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "")
+          observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "") + (urlAnexo ? " | Anexo: " + urlAnexo : "")
         })
       });
       setGerado(dados);
@@ -2185,6 +2201,11 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
         React.createElement("label", null, "Medidas futuras / recomendações (opcional)"),
         React.createElement("textarea", { value: medidasFuturas, onChange: e => setMedidasFuturas(e.target.value), rows: 2 })
       ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
+        React.createElement("label", null, "Anexar arquivo (opcional)"),
+        React.createElement("input", { type: "file", onChange: e => setArquivoAnexo(e.target.files[0] || null), style: { display: "block", marginTop: 6 } }),
+        arquivoAnexo && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.name + " — será enviado ao gerar a solicitação")
+      ),
       msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
       React.createElement("button", { className: "btn btn-primary", onClick: gerarEEnviar, disabled: salvando }, salvando ? "Gerando..." : "Gerar solicitação")
     ),
@@ -2203,7 +2224,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           onClick: () => {
             setComarca(""); setDadosComarca({}); setContatoNome(""); setContatoTel(""); setContatoEmail("");
             setSistemas([]); setProblemas(""); setTecnicoResp(""); setMedidasAdotadas(""); setStatusAtend(""); setMedidasFuturas("");
-            setDataAtend(new Date().toISOString().slice(0, 10)); setGerado(null); setMsg("");
+            setDataAtend(new Date().toISOString().slice(0, 10)); setGerado(null); setMsg(""); setArquivoAnexo(null);
           },
           style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "+ Cadastrar outro")
