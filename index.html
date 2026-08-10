@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786382047 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786382413 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1963,6 +1963,22 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 
 // Abrir e-mail separado: OS para empresa
 // E-mail específico do Atendimento Remoto (campos diferentes de uma OS normal)
+// Envia uma lista de arquivos pro bucket os-anexos e retorna a lista de URLs públicas (pula falhas silenciosamente)
+async function uploadArquivos(arquivos) {
+  const urls = [];
+  for (const arq of (arquivos || [])) {
+    try {
+      const nomeArq = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${arq.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": arq.type || "application/octet-stream" },
+        body: arq
+      });
+      if (resp.ok) urls.push(`${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`);
+    } catch (e) {}
+  }
+  return urls;
+}
 function abrirEmailAtendimentoRemoto(d, htmlRemoto) {
   const fiscal = getSession()?.fiscal || FISCAIS[2];
   const assunto = encodeURIComponent(`${d.numero} — Solicitação de Atendimento Remoto — ${d.comarca || ""}`);
@@ -2027,7 +2043,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
   const [medidasAdotadas, setMedidasAdotadas] = useState("");
   const [statusAtend, setStatusAtend] = useState(""); // "solucionado" | "pendente" | ""
   const [medidasFuturas, setMedidasFuturas] = useState("");
-  const [arquivoAnexo, setArquivoAnexo] = useState(null);
+  const [arquivoAnexo, setArquivoAnexo] = useState([]);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [gerado, setGerado] = useState(null);
@@ -2084,20 +2100,9 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
     setSalvando(true); setMsg("");
     const numero = "OS-REM-2026-" + proximoNum;
     const jaResolvido = statusAtend !== "";
-    let urlAnexo = "";
-    if (arquivoAnexo) {
-      try {
-        const nomeArq = `${Date.now()}_${arquivoAnexo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
-          method: "POST",
-          headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": arquivoAnexo.type || "application/octet-stream" },
-          body: arquivoAnexo
-        });
-        if (resp.ok) urlAnexo = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
-        else setMsg("Aviso: falha ao enviar o anexo — a solicitação será criada sem ele.");
-      } catch (e) {
-        setMsg("Aviso: falha ao enviar o anexo — a solicitação será criada sem ele.");
-      }
+    const urlsAnexos = await uploadArquivos(arquivoAnexo);
+    if (arquivoAnexo.length && urlsAnexos.length < arquivoAnexo.length) {
+      setMsg("Aviso: nem todos os anexos foram enviados — a solicitação seguirá com os que deram certo.");
     }
     const dados = {
       numero, comarca,
@@ -2124,7 +2129,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           data_conclusao: jaResolvido ? dataAtend : null,
           criado_por: (getSession()?.fiscal?.email || "sistema-remoto"),
           criado_em: new Date().toISOString(),
-          observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "") + (urlAnexo ? " | Anexo: " + urlAnexo : "")
+          observacoes: "Problemas identificados: " + (problemas || "—") + (medidasAdotadas ? " | Medidas adotadas: " + medidasAdotadas : "") + (statusAtend ? " | Status: " + (statusAtend === "solucionado" ? "Solucionado" : "Pendente/Não solucionado") : "") + (urlsAnexos.length ? " | " + urlsAnexos.map((u, i) => `Anexo ${i + 1}: ${u}`).join(" | ") : "")
         })
       });
       setGerado(dados);
@@ -2203,8 +2208,8 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
       ),
       React.createElement("div", { className: "fg", style: { marginBottom: 16 } },
         React.createElement("label", null, "Anexar arquivo (opcional)"),
-        React.createElement("input", { type: "file", onChange: e => setArquivoAnexo(e.target.files[0] || null), style: { display: "block", marginTop: 6 } }),
-        arquivoAnexo && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.name + " — será enviado ao gerar a solicitação")
+        React.createElement("input", { type: "file", multiple: true, onChange: e => setArquivoAnexo(Array.from(e.target.files || [])), style: { display: "block", marginTop: 6 } }),
+        arquivoAnexo.length > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.length + " arquivo(s) selecionado(s): " + arquivoAnexo.map(a => a.name).join(", "))
       ),
       msg && React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
       React.createElement("button", { className: "btn btn-primary", onClick: gerarEEnviar, disabled: salvando }, salvando ? "Gerando..." : "Gerar solicitação")
@@ -2224,7 +2229,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           onClick: () => {
             setComarca(""); setDadosComarca({}); setContatoNome(""); setContatoTel(""); setContatoEmail("");
             setSistemas([]); setProblemas(""); setTecnicoResp(""); setMedidasAdotadas(""); setStatusAtend(""); setMedidasFuturas("");
-            setDataAtend(new Date().toISOString().slice(0, 10)); setGerado(null); setMsg(""); setArquivoAnexo(null);
+            setDataAtend(new Date().toISOString().slice(0, 10)); setGerado(null); setMsg(""); setArquivoAnexo([]);
           },
           style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "+ Cadastrar outro")
@@ -2455,23 +2460,12 @@ function PageRota({ onOsCriada, os: todasOS }) {
         const servico = "Manutenção: " + stop.sistemas.join(", ");
         const stopTipo = stop.tipoOverride || tipo;
         const stopPrio = stopTipo.includes("Emergencial") ? (stop.prioOverride || prio) : "";
-        let urlAnexoStop = "";
-        if (stop.arquivo) {
-          try {
-            const nomeArq = `${Date.now()}_${stop.arquivo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-            const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
-              method: "POST",
-              headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": stop.arquivo.type || "application/octet-stream" },
-              body: stop.arquivo
-            });
-            if (resp.ok) urlAnexoStop = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
-          } catch (e) {}
-        }
+        const urlsAnexoStop = await uploadArquivos(stop.arquivo);
         const obsExtrasStop = [
           stop.infraBackbone ? "Necessário fazer infraestrutura - Backbone" : "",
           stop.tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
           stop.tipoInstalacao === "fornecimento" ? "Instalação com fornecimento de equipamento pela Alvo" : "",
-          urlAnexoStop ? `Anexo: ${urlAnexoStop}` : ""
+          urlsAnexoStop.length ? urlsAnexoStop.map((u, i) => `Anexo ${i + 1}: ${u}`).join("<br>") : ""
         ].filter(Boolean).join("<br>");
         const corpo = {
           numero,
@@ -2675,8 +2669,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
       ),
       React.createElement("div", { style: { marginBottom: 10 } },
         React.createElement("label", null, "Anexar arquivo nesta parada (opcional)"),
-        React.createElement("input", { type: "file", onChange: e => setStopArquivo(i, e.target.files[0] || null), style: { display: "block", marginTop: 6 } }),
-        s.arquivo && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, s.arquivo.name + " — será enviado ao criar a rota")
+        React.createElement("input", { type: "file", multiple: true, onChange: e => setStopArquivo(i, Array.from(e.target.files || [])), style: { display: "block", marginTop: 6 } }),
+        s.arquivo && s.arquivo.length > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, s.arquivo.length + " arquivo(s) selecionado(s): " + s.arquivo.map(a => a.name).join(", "))
       ),
       React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" } },
         React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" } },
@@ -2789,7 +2783,7 @@ function PageNovaOS({
   const [sistemas, setSistemas] = useState([]);
   const [infraBackbone, setInfraBackbone] = useState(false);
   const [tipoInstalacao, setTipoInstalacao] = useState(""); // "" | "somente" | "fornecimento"
-  const [arquivoAnexo, setArquivoAnexo] = useState(null);
+  const [arquivoAnexo, setArquivoAnexo] = useState([]);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [arquivoUrl, setArquivoUrl] = useState("");
   const [obs, setObs] = useState(_prefill?.obs || "");
@@ -2912,6 +2906,7 @@ function PageNovaOS({
     setServ("");
     setSistemas([]);
     setInfraBackbone(false);
+    setArquivoAnexo([]); setArquivoUrl("");
     setServDesc("");
     setObs("");
     setPrazo("");
@@ -2955,27 +2950,13 @@ function PageNovaOS({
   const confirmarEGravar = async () => {
     setLoading(true);
     try {
-      let urlAnexo = "";
-      if (arquivoAnexo) {
+      let urlsAnexos = [];
+      if (arquivoAnexo.length) {
         setEnviandoArquivo(true);
-        try {
-          const nomeArq = `${Date.now()}_${arquivoAnexo.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-          const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
-            method: "POST",
-            headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": arquivoAnexo.type || "application/octet-stream" },
-            body: arquivoAnexo
-          });
-          if (resp.ok) {
-            urlAnexo = `${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`;
-            setArquivoUrl(urlAnexo);
-          } else {
-            toast("Falha ao enviar o anexo — a OS será criada sem ele.", "error");
-          }
-        } catch (e) {
-          toast("Falha ao enviar o anexo — a OS será criada sem ele.", "error");
-        } finally {
-          setEnviandoArquivo(false);
-        }
+        urlsAnexos = await uploadArquivos(arquivoAnexo);
+        if (urlsAnexos.length < arquivoAnexo.length) toast("Nem todos os anexos foram enviados — a OS seguirá com os que deram certo.", "error");
+        setArquivoUrl(urlsAnexos.join(", "));
+        setEnviandoArquivo(false);
       }
       const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
       let tentativas = 0;
@@ -2989,7 +2970,7 @@ function PageNovaOS({
           pv.infra_backbone ? "Necessário fazer infraestrutura - Backbone" : "",
           tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
           tipoInstalacao === "fornecimento" ? "Instalação com fornecimento de equipamento pela Alvo" : "",
-          urlAnexo ? `Anexo: ${urlAnexo}` : ""
+          urlsAnexos.length ? urlsAnexos.map((u, i) => `Anexo ${i + 1}: ${u}`).join(" | ") : ""
         ].filter(Boolean).join(" | ");
         const corpo = {
           numero: novoNum,
@@ -3362,14 +3343,15 @@ function PageNovaOS({
       tipoInstalacao && React.createElement("span", { style: { fontSize: 12, color: "var(--accent)", cursor: "pointer" }, onClick: () => setTipoInstalacao("") }, "limpar")
     )
   ), React.createElement("div", { style: { marginTop: 14 } },
-    React.createElement("label", null, "Anexar arquivo (opcional)"),
+    React.createElement("label", null, "Anexar arquivo(s) (opcional)"),
     React.createElement("input", {
       type: "file",
-      onChange: e => { setArquivoAnexo(e.target.files[0] || null); setArquivoUrl(""); },
+      multiple: true,
+      onChange: e => { setArquivoAnexo(Array.from(e.target.files || [])); setArquivoUrl(""); },
       style: { display: "block", marginTop: 6 }
     }),
-    arquivoAnexo && !arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.name + " — será enviado ao criar a OS"),
-    arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--green)", marginTop: 4 } }, "✓ Anexo enviado")
+    arquivoAnexo.length > 0 && !arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.length + " arquivo(s) selecionado(s): " + arquivoAnexo.map(a => a.name).join(", ")),
+    arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--green)", marginTop: 4 } }, "✓ Anexo(s) enviado(s)")
   )))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
