@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786387545 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786387654 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1086,7 +1086,7 @@ function ComarcaInput({
     const ai = a.toLowerCase().indexOf(ql),
       bi = b.toLowerCase().indexOf(ql);
     return ai - bi || a.localeCompare(b, "pt-BR");
-  }).slice(0, 14) : todas;
+  }).slice(0, 60) : todas;
 
   // Agrupar por inicial
   const grupos = {};
