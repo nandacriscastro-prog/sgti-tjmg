@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786475594 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786476429 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6773,10 +6773,10 @@ function PageEstoque() {
     loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
     dados.length === 0 ? React.createElement("div", { className: "empty" }, "Nenhum item encontrado.") :
     React.createElement("div", { style: { overflowX: "auto" } },
-      React.createElement("table", null,
+      React.createElement("table", { style: { width: "max-content", minWidth: "100%" } },
         React.createElement("thead", null, React.createElement("tr", null,
-          campos.map(([k, l]) => React.createElement("th", { key: k }, l)),
-          React.createElement("th", null, "Ações")
+          campos.map(([k, l]) => React.createElement("th", { key: k, style: { minWidth: 120 } }, l)),
+          React.createElement("th", { style: { minWidth: 140 } }, "Ações")
         )),
         React.createElement("tbody", null,
           dados.map(row => React.createElement(React.Fragment, { key: row.id },
@@ -6821,7 +6821,7 @@ function PageEstoque() {
                 )
               )
             ) : React.createElement("tr", null,
-              campos.map(([k]) => React.createElement("td", { key: k, style: { fontSize: 12, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, row[k] ?? "—")),
+              campos.map(([k]) => React.createElement("td", { key: k, style: { fontSize: 12, minWidth: 120, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, row[k] ?? "—")),
               React.createElement("td", { style: { whiteSpace: "nowrap" } },
                 React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm", style: { marginRight: 6 } }, "✎ Editar"),
                 aba === "cobens" && React.createElement("button", {
