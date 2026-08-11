@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786476883 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786477116 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6638,6 +6638,8 @@ function PageEstoque() {
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
+  const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
+  const [soEnviados, setSoEnviados] = useState(false);
   const [grupoAberto, setGrupoAberto] = useState(null);
   const [larguraTabela, setLarguraTabela] = useState(0);
   const topScrollRef = useRef(null);
@@ -6665,6 +6667,12 @@ function PageEstoque() {
       if (busca.trim()) {
         const b = encodeURIComponent(busca.trim());
         query += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
+      }
+      if (aba === "cobens" && filtroComarcaDestino.trim()) {
+        query += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
+      }
+      if (aba === "cobens" && soEnviados) {
+        query += `&status=eq.Enviado`;
       }
       const rows = await sbFetch(query);
       setDados(rows || []);
@@ -6852,13 +6860,23 @@ function PageEstoque() {
         }, "📋 Tabela")
       )
     ),
-    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } },
       React.createElement("input", {
         value: busca, onChange: e => setBusca(e.target.value),
         onKeyDown: e => { if (e.key === "Enter") buscar(); },
         placeholder: "Buscar por código, item, marca, modelo, unidade ou patrimônio...",
-        style: { flex: 1, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
+        style: { flex: 1, minWidth: 220, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
       }),
+      aba === "cobens" && React.createElement("input", {
+        value: filtroComarcaDestino, onChange: e => setFiltroComarcaDestino(e.target.value),
+        onKeyDown: e => { if (e.key === "Enter") buscar(); },
+        placeholder: "Filtrar por comarca de destino...",
+        style: { minWidth: 200, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
+      }),
+      aba === "cobens" && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", padding: "0 4px" } },
+        React.createElement("input", { type: "checkbox", checked: soEnviados, onChange: e => setSoEnviados(e.target.checked) }),
+        "Só enviados"
+      ),
       React.createElement("button", { className: "btn btn-primary", onClick: buscar }, "Buscar")
     ),
     dados.length > 0 && React.createElement("div", { className: "kpis", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 } },
