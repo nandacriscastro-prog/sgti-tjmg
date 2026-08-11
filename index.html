@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786477592 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786477916 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -101,6 +101,14 @@ const FISCAIS = [{
   id: 6,
   nome: "Gustavo Souza Ferreira",
   email: "gustavo.souza.ferreira@tjmg.jus.br",
+  matricula: "",
+  equipe: "CFTV/alarme/Portal",
+  setor: "COMEP",
+  assinatura: ""
+}, {
+  id: 7,
+  nome: "Felipe Martins Oliveira",
+  email: "felipe.martins.oliveira@tjmg.jus.br",
   matricula: "",
   equipe: "CFTV/alarme/Portal",
   setor: "COMEP",
@@ -8852,6 +8860,11 @@ const USUARIOS = [{
   senha: "12345678",
   nome: "André Luiz de Oliveira",
   fiscal: FISCAIS[3]
+}, {
+  user: "felipe.martins.oliveira@tjmg.jus.br",
+  senha: "12345678",
+  nome: "Felipe Martins Oliveira",
+  fiscal: FISCAIS[5]
 }];
 const SESSION_KEY = "sgti_session";
 function getSession() {
