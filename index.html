@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786389231 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786475594 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -804,7 +804,8 @@ function Icon({
     clip: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
     eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z",
     dl: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
-    print: "M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"
+    print: "M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z",
+    box: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"
   };
   return React.createElement("svg", {
     width: s,
@@ -852,6 +853,11 @@ const NAV = [{
   id: "remoto",
   label: "Atendimento remoto",
   icon: "phone",
+  sec: null
+}, {
+  id: "estoque",
+  label: "Estoque",
+  icon: "box",
   sec: null
 }, {
   id: "medicao",
@@ -6617,6 +6623,224 @@ function PageMedicao({
 }
 
 // ── PAGE: CHAMADOS GEASI ──────────────────────────────────────
+function PageEstoque() {
+  const [aba, setAba] = useState("cobens");
+  const [busca, setBusca] = useState("");
+  const [dados, setDados] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [temMais, setTemMais] = useState(false);
+  const LIMITE = 100;
+  const [editandoId, setEditandoId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [enviandoId, setEnviandoId] = useState(null);
+  const [enviarComarca, setEnviarComarca] = useState("");
+  const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
+  const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
+  const [msg, setMsg] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const tabela = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
+
+  const carregar = async (novoOffset) => {
+    setLoading(true);
+    const off = novoOffset !== undefined ? novoOffset : 0;
+    try {
+      let query = `/${tabela}?select=*&order=item_material.asc&limit=${LIMITE}&offset=${off}`;
+      if (busca.trim()) {
+        const b = encodeURIComponent(busca.trim());
+        query += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
+      }
+      const rows = await sbFetch(query);
+      setDados(rows || []);
+      setTemMais((rows || []).length === LIMITE);
+      setOffset(off);
+    } catch (e) {
+      setMsg("Erro ao carregar: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { carregar(0); }, [aba]);
+
+  const buscar = () => carregar(0);
+
+  const abrirEdicao = row => {
+    setEditandoId(row.id);
+    setEditForm({ ...row });
+  };
+  const salvarEdicao = async () => {
+    setSalvando(true);
+    try {
+      const { id, atualizado_em, ...campos } = editForm;
+      await sbFetch(`/${tabela}?id=eq.${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...campos, atualizado_em: new Date().toISOString() })
+      });
+      setEditandoId(null);
+      carregar(offset);
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const abrirEnvio = row => {
+    setEnviandoId(row.id);
+    setEnviarComarca("");
+    setEnviarDadosComarca({});
+    setEnviarPatrimonioCotesi("");
+  };
+  const confirmarEnvio = async (row) => {
+    if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
+    setSalvando(true);
+    try {
+      // 1. Atualiza o item no Cobens: unidade responsável vira a comarca, status Enviado
+      await sbFetch(`/estoque_cobens?id=eq.${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "Enviado",
+          unidade_responsavel: enviarComarca,
+          comarca_destino: enviarComarca,
+          data_envio: new Date().toISOString().slice(0, 10),
+          atualizado_em: new Date().toISOString()
+        })
+      });
+      // 2. Acha o item correspondente no Cotesi pelo código e subtrai 1 do estoque
+      const correspondentes = await sbFetch(`/estoque_cotesi?codigo_item=eq.${encodeURIComponent(row.codigo_item)}&qtde_bem=gt.0&order=id.asc&limit=1`);
+      if (correspondentes && correspondentes.length) {
+        const item = correspondentes[0];
+        await sbFetch(`/estoque_cotesi?id=eq.${item.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            qtde_bem: Math.max(0, (parseFloat(item.qtde_bem) || 0) - 1),
+            numero_patrimonio: enviarPatrimonioCotesi || item.numero_patrimonio,
+            atualizado_em: new Date().toISOString()
+          })
+        });
+      } else {
+        setMsg("Aviso: item enviado, mas não achei código correspondente (" + row.codigo_item + ") com saldo no estoque Cotesi pra abater.");
+      }
+      setEnviandoId(null);
+      carregar(offset);
+    } catch (e) {
+      alert("Erro ao enviar: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const camposCobens = [
+    ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
+    ["marca", "Marca"], ["modelo", "Modelo"], ["numero_patrimonio", "Nº Patrimônio"], ["numero_patrimonio_anterior", "Nº Patr. Anterior"],
+    ["valor_bem", "Valor Bem"], ["status", "Status"], ["comarca_destino", "Comarca Destino"]
+  ];
+  const camposCotesi = [
+    ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
+    ["marca", "Marca"], ["modelo", "Modelo"], ["qtde_bem", "Qtde"], ["numero_patrimonio", "Nº Patrimônio"]
+  ];
+  const campos = aba === "cobens" ? camposCobens : camposCotesi;
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Estoque de Equipamentos de Áudio e Vídeo"),
+        React.createElement("div", { className: "ph-sub" }, "Cobens (patrimônio individual) e Cotesi (saldo por item)")
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16, borderBottom: "1px solid var(--border)" } },
+      React.createElement("button", {
+        onClick: () => setAba("cobens"),
+        style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, borderBottom: aba === "cobens" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "cobens" ? "var(--accent)" : "var(--text3)" }
+      }, "📦 Estoque Cobens"),
+      React.createElement("button", {
+        onClick: () => setAba("cotesi"),
+        style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, marginLeft: 16, borderBottom: aba === "cotesi" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "cotesi" ? "var(--accent)" : "var(--text3)" }
+      }, "🗄️ Estoque Cotesi")
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+      React.createElement("input", {
+        value: busca, onChange: e => setBusca(e.target.value),
+        onKeyDown: e => { if (e.key === "Enter") buscar(); },
+        placeholder: "Buscar por código, item, marca, modelo, unidade ou patrimônio...",
+        style: { flex: 1, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
+      }),
+      React.createElement("button", { className: "btn btn-primary", onClick: buscar }, "Buscar")
+    ),
+    msg && React.createElement("div", { style: { marginBottom: 10, fontSize: 13, color: "var(--red, #c0392b)" } }, msg),
+    loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
+    dados.length === 0 ? React.createElement("div", { className: "empty" }, "Nenhum item encontrado.") :
+    React.createElement("div", { style: { overflowX: "auto" } },
+      React.createElement("table", null,
+        React.createElement("thead", null, React.createElement("tr", null,
+          campos.map(([k, l]) => React.createElement("th", { key: k }, l)),
+          React.createElement("th", null, "Ações")
+        )),
+        React.createElement("tbody", null,
+          dados.map(row => React.createElement(React.Fragment, { key: row.id },
+            editandoId === row.id ? React.createElement("tr", null,
+              React.createElement("td", { colSpan: campos.length + 1 },
+                React.createElement("div", { style: { padding: 10, background: "var(--surface)", borderRadius: 8 } },
+                  React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 10 } },
+                    campos.map(([k, l]) => React.createElement("div", { key: k },
+                      React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, l),
+                      React.createElement("input", {
+                        value: editForm[k] ?? "", onChange: e => setEditForm(f => ({ ...f, [k]: e.target.value })),
+                        style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
+                      })
+                    ))
+                  ),
+                  React.createElement("div", { style: { display: "flex", gap: 8 } },
+                    React.createElement("button", { className: "btn", onClick: () => setEditandoId(null), disabled: salvando }, "Cancelar"),
+                    React.createElement("button", {
+                      onClick: salvarEdicao, disabled: salvando,
+                      style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+                    }, salvando ? "Salvando..." : "💾 Salvar")
+                  )
+                )
+              )
+            ) : enviandoId === row.id ? React.createElement("tr", null,
+              React.createElement("td", { colSpan: campos.length + 1 },
+                React.createElement("div", { style: { padding: 10, background: "#eef6ff", borderRadius: 8 } },
+                  React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 8 } }, "📤 Enviar \"" + (row.item_material || "").substring(0, 60) + "\" (patrimônio " + (row.numero_patrimonio || "—") + ") para:"),
+                  React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+                    React.createElement("div", { className: "fld" }, React.createElement("label", null, "Comarca de destino"),
+                      React.createElement(ComarcaInput, { value: enviarComarca, onChange: (k, d) => { setEnviarComarca(k); setEnviarDadosComarca(d); } })),
+                    React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº patrimônio no Cotesi (opcional)"),
+                      React.createElement("input", { value: enviarPatrimonioCotesi, onChange: e => setEnviarPatrimonioCotesi(e.target.value), placeholder: "Pra rastrear qual unidade saiu" }))
+                  ),
+                  React.createElement("div", { style: { display: "flex", gap: 8 } },
+                    React.createElement("button", { className: "btn", onClick: () => setEnviandoId(null), disabled: salvando }, "Cancelar"),
+                    React.createElement("button", {
+                      onClick: () => confirmarEnvio(row), disabled: salvando,
+                      style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+                    }, salvando ? "Enviando..." : "✓ Confirmar envio")
+                  )
+                )
+              )
+            ) : React.createElement("tr", null,
+              campos.map(([k]) => React.createElement("td", { key: k, style: { fontSize: 12, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, row[k] ?? "—")),
+              React.createElement("td", { style: { whiteSpace: "nowrap" } },
+                React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm", style: { marginRight: 6 } }, "✎ Editar"),
+                aba === "cobens" && React.createElement("button", {
+                  onClick: () => abrirEnvio(row),
+                  style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                }, "📤 Enviar")
+              )
+            )
+          ))
+        )
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 14, alignItems: "center" } },
+      offset > 0 && React.createElement("button", { className: "btn btn-sm", onClick: () => carregar(Math.max(0, offset - LIMITE)) }, "← Anterior"),
+      React.createElement("span", { className: "muted", style: { fontSize: 12 } }, "Mostrando " + (offset + 1) + "–" + (offset + dados.length)),
+      temMais && React.createElement("button", { className: "btn btn-sm", onClick: () => carregar(offset + LIMITE) }, "Próxima →")
+    )
+  );
+}
 function PageChamados() {
   // ── TODOS OS HOOKS NO TOPO ──
   const [busca, setBusca] = useState("");
@@ -9476,6 +9700,8 @@ function AppInterno({
           os: os,
           reload: loadOS
         });
+      case "estoque":
+        return /*#__PURE__*/React.createElement(PageEstoque, null);
       case "chamados":
         return /*#__PURE__*/React.createElement(PageChamados, null);
       case "tecnicos":
