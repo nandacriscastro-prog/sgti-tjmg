@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786477116 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786477592 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6731,6 +6731,7 @@ function PageEstoque() {
         body: JSON.stringify({
           status: "Enviado",
           unidade_responsavel: enviarComarca,
+          unidade_responsavel_original: row.unidade_responsavel_original || row.unidade_responsavel,
           comarca_destino: enviarComarca,
           data_envio: new Date().toISOString().slice(0, 10),
           atualizado_em: new Date().toISOString()
@@ -6754,6 +6755,41 @@ function PageEstoque() {
       carregar(offset);
     } catch (e) {
       alert("Erro ao enviar: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const desfazerEnvio = async (row) => {
+    if (!confirm("Desfazer o envio dessa OS? A unidade original volta no Cobens e a quantidade retorna no Cotesi.")) return;
+    setSalvando(true);
+    try {
+      await sbFetch(`/estoque_cobens?id=eq.${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: null,
+          unidade_responsavel: row.unidade_responsavel_original || row.unidade_responsavel,
+          comarca_destino: null,
+          data_envio: null,
+          atualizado_em: new Date().toISOString()
+        })
+      });
+      const correspondentes = await sbFetch(`/estoque_cotesi?codigo_item=eq.${encodeURIComponent(row.codigo_item)}&order=id.asc&limit=1`);
+      if (correspondentes && correspondentes.length) {
+        const item = correspondentes[0];
+        await sbFetch(`/estoque_cotesi?id=eq.${item.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            qtde_bem: (parseFloat(item.qtde_bem) || 0) + 1,
+            atualizado_em: new Date().toISOString()
+          })
+        });
+      } else {
+        setMsg("Aviso: revertido no Cobens, mas não achei item correspondente (" + row.codigo_item + ") no Cotesi pra devolver a quantidade — confira manualmente.");
+      }
+      carregar(offset);
+    } catch (e) {
+      alert("Erro ao desfazer: " + e.message);
     } finally {
       setSalvando(false);
     }
@@ -6946,7 +6982,12 @@ function PageEstoque() {
                   aba === "cobens" && row.status !== "Enviado" && React.createElement("button", {
                     onClick: () => abrirEnvio(row),
                     style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
-                  }, "📤")
+                  }, "📤"),
+                  aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
+                    onClick: () => desfazerEnvio(row),
+                    title: "Desfazer envio",
+                    style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                  }, "↩️")
                 )
               )
             ))
@@ -6986,7 +7027,11 @@ function PageEstoque() {
                 aba === "cobens" && row.status !== "Enviado" && React.createElement("button", {
                   onClick: () => abrirEnvio(row),
                   style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
-                }, "📤 Enviar")
+                }, "📤 Enviar"),
+                aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
+                  onClick: () => desfazerEnvio(row),
+                  style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                }, "↩️ Desfazer envio")
               )
             )
           ))
