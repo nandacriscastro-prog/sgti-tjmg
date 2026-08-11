@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786476429 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786476608 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6637,6 +6637,11 @@ function PageEstoque() {
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
+  const [larguraTabela, setLarguraTabela] = useState(0);
+  const topScrollRef = useRef(null);
+  const tableWrapRef = useRef(null);
+  const sincronizarDoTopo = () => { if (tableWrapRef.current && topScrollRef.current) tableWrapRef.current.scrollLeft = topScrollRef.current.scrollLeft; };
+  const sincronizarDoFundo = () => { if (tableWrapRef.current && topScrollRef.current) topScrollRef.current.scrollLeft = tableWrapRef.current.scrollLeft; };
   const [msg, setMsg] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -6663,6 +6668,12 @@ function PageEstoque() {
   };
 
   useEffect(() => { carregar(0); }, [aba]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (tableWrapRef.current) setLarguraTabela(tableWrapRef.current.scrollWidth);
+    }, 50);
+    return () => clearTimeout(id);
+  }, [dados, editandoId, enviandoId]);
 
   const buscar = () => carregar(0);
 
@@ -6772,7 +6783,13 @@ function PageEstoque() {
     msg && React.createElement("div", { style: { marginBottom: 10, fontSize: 13, color: "var(--red, #c0392b)" } }, msg),
     loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
     dados.length === 0 ? React.createElement("div", { className: "empty" }, "Nenhum item encontrado.") :
-    React.createElement("div", { style: { overflowX: "auto" } },
+    React.createElement("div", null,
+      larguraTabela > 0 && React.createElement("div", {
+        ref: topScrollRef,
+        onScroll: sincronizarDoTopo,
+        style: { overflowX: "auto", overflowY: "hidden", height: 16, marginBottom: 2 }
+      }, React.createElement("div", { style: { width: larguraTabela, height: 1 } })),
+      React.createElement("div", { ref: tableWrapRef, onScroll: sincronizarDoFundo, style: { overflowX: "auto" } },
       React.createElement("table", { style: { width: "max-content", minWidth: "100%" } },
         React.createElement("thead", null, React.createElement("tr", null,
           campos.map(([k, l]) => React.createElement("th", { key: k, style: { minWidth: 120 } }, l)),
@@ -6833,6 +6850,7 @@ function PageEstoque() {
           ))
         )
       )
+    )
     ),
     React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 14, alignItems: "center" } },
       offset > 0 && React.createElement("button", { className: "btn btn-sm", onClick: () => carregar(Math.max(0, offset - LIMITE)) }, "← Anterior"),
