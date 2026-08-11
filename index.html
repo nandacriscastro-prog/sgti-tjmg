@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786478179 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786478451 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -871,6 +871,11 @@ const NAV = [{
   id: "medicao",
   label: "Medição",
   icon: "money",
+  sec: null
+}, {
+  id: "usuarios",
+  label: "Usuários",
+  icon: "users",
   sec: null
 }, {
   id: "chamados",
@@ -7054,6 +7059,123 @@ function PageEstoque() {
     )
   );
 }
+function PageUsuarios() {
+  const [lista, setLista] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ nome: "", email: "", senha: "", matricula: "" });
+  const [editandoId, setEditandoId] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const carregar = async () => {
+    setLoading(true);
+    try {
+      const rows = await sbFetch("/usuarios_sistema?select=*&order=nome.asc");
+      setLista(rows || []);
+    } catch (e) {
+      setMsg("Erro ao carregar: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { carregar(); }, []);
+
+  const limparForm = () => { setForm({ nome: "", email: "", senha: "", matricula: "" }); setEditandoId(null); };
+
+  const salvar = async () => {
+    if (!form.nome.trim() || !form.email.trim() || !form.senha.trim()) {
+      setMsg("Preencha nome, e-mail e senha.");
+      return;
+    }
+    setSalvando(true); setMsg("");
+    try {
+      const emailNorm = form.email.toLowerCase().trim();
+      if (editandoId) {
+        await sbFetch(`/usuarios_sistema?id=eq.${editandoId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ nome: form.nome.trim(), email: emailNorm, senha: form.senha.trim(), matricula: form.matricula.trim() })
+        });
+        setMsg("✓ Usuário atualizado! Atualize a página (F5) pra aplicar em todo o sistema.");
+      } else {
+        await sbFetch("/usuarios_sistema", {
+          method: "POST",
+          body: JSON.stringify({ nome: form.nome.trim(), email: emailNorm, senha: form.senha.trim(), matricula: form.matricula.trim() })
+        });
+        setMsg("✓ Usuário criado! Ele já pode fazer login (talvez precise atualizar a página primeiro, F5).");
+      }
+      limparForm();
+      carregar();
+    } catch (e) {
+      setMsg("Erro ao salvar: " + (e.message.includes("duplicate") || e.message.includes("23505") ? "já existe um usuário com esse e-mail." : e.message));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const editar = u => {
+    setEditandoId(u.id);
+    setForm({ nome: u.nome, email: u.email, senha: u.senha, matricula: u.matricula || "" });
+    setMsg("");
+  };
+
+  const excluir = async u => {
+    if (!confirm(`Excluir o login de "${u.nome}"? Ele não vai mais conseguir entrar no sistema.`)) return;
+    try {
+      await sbFetch(`/usuarios_sistema?id=eq.${u.id}`, { method: "DELETE" });
+      carregar();
+    } catch (e) {
+      alert("Erro ao excluir: " + e.message);
+    }
+  };
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Usuários do sistema"),
+        React.createElement("div", { className: "ph-sub" }, "Criar, editar ou remover logins — sem precisar mexer no código")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 640, marginBottom: 20 } },
+      React.createElement("div", { className: "card-title" }, editandoId ? "✎ Editando usuário" : "+ Novo usuário"),
+      React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nome completo"),
+          React.createElement("input", { value: form.nome, onChange: e => setForm(f => ({ ...f, nome: e.target.value })) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Matrícula (opcional)"),
+          React.createElement("input", { value: form.matricula, onChange: e => setForm(f => ({ ...f, matricula: e.target.value })) }))
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 14 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "E-mail (login)"),
+          React.createElement("input", { value: form.email, onChange: e => setForm(f => ({ ...f, email: e.target.value })), placeholder: "nome.sobrenome@tjmg.jus.br" })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Senha"),
+          React.createElement("input", { value: form.senha, onChange: e => setForm(f => ({ ...f, senha: e.target.value })), placeholder: "Ex: 12345678" }))
+      ),
+      msg && React.createElement("div", { style: { marginBottom: 10, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        editandoId && React.createElement("button", { className: "btn", onClick: limparForm, disabled: salvando }, "Cancelar"),
+        React.createElement("button", { className: "btn btn-primary", onClick: salvar, disabled: salvando }, salvando ? "Salvando..." : editandoId ? "💾 Salvar alterações" : "+ Criar usuário")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { maxWidth: 640 } },
+      React.createElement("div", { className: "card-title" }, "Usuários cadastrados por aqui (" + lista.length + ")"),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } }, "Os fiscais originais (Fernanda, André, Aguilar, Gilselena, Gustavo) não aparecem aqui — foram configurados direto no código."),
+      loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
+      lista.length === 0 ? React.createElement("div", { className: "empty" }, "Nenhum usuário criado por aqui ainda.") :
+      lista.map(u => React.createElement("div", { key: u.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" } },
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontWeight: 700, fontSize: 13 } }, u.nome),
+          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, u.email + (u.matricula ? " · " + u.matricula : ""))
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 6 } },
+          React.createElement("button", { onClick: () => editar(u), className: "bsm" }, "✎ Editar"),
+          React.createElement("button", {
+            onClick: () => excluir(u),
+            style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer" }
+          }, "🗑️ Excluir")
+        )
+      ))
+    )
+  );
+}
 function PageChamados() {
   // ── TODOS OS HOOKS NO TOPO ──
   const [busca, setBusca] = useState("");
@@ -8866,6 +8988,36 @@ const USUARIOS = [{
   nome: "Felipe Martins Oliveira",
   fiscal: FISCAIS[5]
 }];
+let _usuariosDinamicosCarregados = false;
+async function loadUsuariosDinamicos() {
+  if (_usuariosDinamicosCarregados) return;
+  try {
+    const rows = await sbFetch("/usuarios_sistema?select=*&order=id.asc");
+    (rows || []).forEach(r => {
+      const emailNorm = (r.email || "").toLowerCase().trim();
+      if (!emailNorm) return;
+      if (FISCAIS.some(f => f.email === emailNorm)) return; // já existe (evita duplicar)
+      const novoId = 1000 + r.id;
+      const novoFiscal = {
+        id: novoId,
+        nome: r.nome,
+        email: emailNorm,
+        matricula: r.matricula || "",
+        equipe: r.equipe || "CFTV/alarme/Portal",
+        setor: r.setor || "COMEP",
+        assinatura: ""
+      };
+      FISCAIS.push(novoFiscal);
+      USUARIOS.push({
+        user: emailNorm,
+        senha: r.senha,
+        nome: r.nome,
+        fiscal: novoFiscal
+      });
+    });
+    _usuariosDinamicosCarregados = true;
+  } catch (e) {}
+}
 const SESSION_KEY = "sgti_session";
 function getSession() {
   try {
@@ -8888,6 +9040,7 @@ function PageLogin({
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSenha, setShowSenha] = useState(false);
+  useEffect(() => { loadUsuariosDinamicos(); }, []);
   const entrar = () => {
     if (!user || !senha) {
       setErro("Preencha usuário e senha");
@@ -9920,6 +10073,8 @@ function AppInterno({
         });
       case "estoque":
         return /*#__PURE__*/React.createElement(PageEstoque, null);
+      case "usuarios":
+        return /*#__PURE__*/React.createElement(PageUsuarios, null);
       case "chamados":
         return /*#__PURE__*/React.createElement(PageChamados, null);
       case "tecnicos":
@@ -9978,7 +10133,7 @@ function AppInterno({
 function App() {
   const [sessao, setSessao] = useState(() => {
     const s = getSession();
-    if (s) loadStaticData();
+    if (s) { loadStaticData(); loadUsuariosDinamicos(); }
     return s;
   });
   const handleLogin = u => {
