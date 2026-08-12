@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786558476 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786561444 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4214,11 +4214,12 @@ function PageAvaliacao({
     });
     if (tipo === "insat") {
       const _mSel = /^181-(\d+)$/.exec(o.numero || "");
-      const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(o.numero) + 10000);
+      const novoNum = o.numero + "-R";
       const _mun = (o.comarca || "").split(" - ")[0];
       const _isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
       const diasCorrecao = _isColar ? 1 : 3;
       const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
+      const novaObs = (o.observacoes ? o.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).`;
       await sbFetch("/ordens_servico", {
         method: "POST",
         body: JSON.stringify({
@@ -4234,10 +4235,12 @@ function PageAvaliacao({
           data_os: new Date().toISOString().slice(0, 10),
           criado_por: (getSession()?.fiscal?.email || "avaliacao-lote"),
           criado_em: new Date().toISOString(),
-          observacoes: (o.observacoes ? o.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).`
+          observacoes: novaObs
         })
       });
+      return { ...o, numero: novoNum, tipo: "Correção", observacoes: novaObs, prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR") };
     }
+    return null;
   };
   const avaliarLote = async (tipo) => {
     if (!rotaAvalObj) return;
@@ -4246,14 +4249,21 @@ function PageAvaliacao({
     if (!itens.length) return;
     setLoteLoading(true); setLoteMsg("");
     let ok = 0;
+    const novasOS = [];
     try {
       for (const o of itens) {
-        await avaliarUmaOS(o, tipo);
+        const nova = await avaliarUmaOS(o, tipo);
+        if (nova) novasOS.push(nova);
         ok++;
       }
       setLoteMsg("✓ " + ok + " OS avaliada(s) com sucesso!");
       setSelecionadasAval(new Set());
       reload();
+      // Se só reabriu 1 OS, já abre o e-mail dela pronta pra mandar
+      if (novasOS.length === 1) {
+        const n = novasOS[0];
+        setTimeout(() => abrirEmailOS(n, n.numero, gerarHTMLOS(n, n.numero)), 400);
+      }
     } catch (e) {
       setLoteMsg("Erro (" + ok + " já avaliada(s) antes do erro): " + e.message);
     } finally {
@@ -4287,12 +4297,13 @@ function PageAvaliacao({
       if (aval === "insat") {
         // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
         const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
-        const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(sel.numero) + 10000);
+        const novoNum = sel.numero + "-R";
         const _mun = (sel.comarca || "").split(" - ")[0];
         const _isColar = (sel.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
         const diasCorrecao = _isColar ? 1 : 3;
         const agora = new Date();
         const prazoCorrecaoDate = addDiasUteis(agora, diasCorrecao);
+        const novaObs = (sel.observacoes ? sel.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs. avaliação: ${obs || "—"}`;
         await sbFetch("/ordens_servico", {
           method: "POST",
           body: JSON.stringify({
@@ -4307,10 +4318,13 @@ function PageAvaliacao({
             tipo: "Correção",
             prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR"),
             prazo_date: prazoCorrecaoDate.toISOString().slice(0, 10),
-            observacoes: (sel.observacoes ? sel.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs. avaliação: ${obs || "—"}`
+            observacoes: novaObs
           })
         });
         toast("OS reaberta — nova OS gerada com prazo de correção (" + diasCorrecao + " dia(s) útil(eis))", "ok");
+        // Já abre o e-mail com a OS de revisita pronta pra mandar
+        const novaOS = { ...sel, numero: novoNum, tipo: "Correção", observacoes: novaObs, prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR") };
+        setTimeout(() => abrirEmailOS(novaOS, novoNum, gerarHTMLOS(novaOS, novoNum)), 400);
       } else {
         toast("✓ Avaliado como satisfatório", "ok");
       }
@@ -4875,6 +4889,7 @@ function PageLancamentoManual({
     numero: o.numero,
     comarca: o.comarca,
     servico: o.servico || o.tipo || "",
+    tipoOS: o.tipo || "",
     prioridade: o.prioridade || "",
     contrato: o.contrato,
     observacoesOS: o.observacoes || "",
@@ -4914,11 +4929,12 @@ function PageLancamentoManual({
   const calcFracao = l => {
     const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
     if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
+    const isCorrecao = l.tipoOS === "Correção";
     const isRaio = /raio|scanner/i.test(l.servico || "");
-    const base = isRaio ? 1.25 : 1.0;
+    const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
     const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
-    const fracaoDeslocamento = kmNum * FRACAO_KM_ANEXO_VI;
+    const fracaoDeslocamento = isCorrecao ? 0 : (kmNum * FRACAO_KM_ANEXO_VI); // km também não é cobrado de novo na correção
     return base + fracaoPecas + fracaoDeslocamento;
   };
 
@@ -4957,7 +4973,7 @@ function PageLancamentoManual({
         });
         if (l.avaliacao === "insatisfatorio") {
           const _mSel = /^181-(\d+)$/.exec(l.numero || "");
-          const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(l.numero) + 10000);
+          const novoNum = l.numero + "-R";
           const _mun = (l.comarca || "").split(" - ")[0];
           const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
           const diasCorrecao = _isColar ? 1 : 3;
@@ -5492,6 +5508,7 @@ function PageMedicao({
     numero: o.numero,
     comarca: o.comarca,
     servico: o.servico || o.tipo || "",
+    tipoOS: o.tipo || "",
     prioridade: o.prioridade || "",
     contrato: o.contrato,
     observacoesOS: o.observacoes || "",
@@ -5531,17 +5548,19 @@ function PageMedicao({
   const calcFracao = l => {
     const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
     if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
+    const isCorrecao = l.tipoOS === "Correção";
     const isRaio = /raio|scanner/i.test(l.servico || "");
-    const base = isRaio ? 1.25 : 1.0;
+    const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
     const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
-    const fracaoDeslocamento = kmNum * FRACAO_KM_ANEXO_VI;
+    const fracaoDeslocamento = isCorrecao ? 0 : (kmNum * FRACAO_KM_ANEXO_VI); // km também não é cobrado de novo na correção
     return base + fracaoPecas + fracaoDeslocamento;
   };
 
   const salvarTudo = async () => {
     setSalvando(true); setMsg("");
     let ok = 0;
+      const novasOSCorrecao = [];
     try {
       for (const l of linhas) {
         const fracaoTotal = calcFracao(l);
@@ -5574,11 +5593,12 @@ function PageMedicao({
         });
         if (l.avaliacao === "insatisfatorio") {
           const _mSel = /^181-(\d+)$/.exec(l.numero || "");
-          const novoNum = _mSel ? "181-" + (parseInt(_mSel[1]) + 10000) : String(parseInt(l.numero) + 10000);
+          const novoNum = l.numero + "-R";
           const _mun = (l.comarca || "").split(" - ")[0];
           const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
           const diasCorrecao = _isColar ? 1 : 3;
           const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
+          const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`;
           await sbFetch("/ordens_servico", {
             method: "POST",
             body: JSON.stringify({
@@ -5594,8 +5614,13 @@ function PageMedicao({
               data_os: new Date().toISOString().slice(0, 10),
               criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
               criado_em: new Date().toISOString(),
-              observacoes: (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`
+              observacoes: novaObsCorrecao
             })
+          });
+          novasOSCorrecao.push({
+            numero: novoNum, empresa: "Alvo Segurança Ltda", contrato: l.contrato, comarca: l.comarca,
+            servico: l.servico, tipo: "Correção", prioridade: l.prioridade, observacoes: novaObsCorrecao,
+            prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR")
           });
         }
         ok++;
@@ -5604,6 +5629,11 @@ function PageMedicao({
       setPainelAberto(false); setLinhas([]); setSelecionadas(new Set());
       if (reload) reload();
       calcular();
+      // Se só reabriu 1 OS de correção nessa gravação, já abre o e-mail dela pronta pra mandar
+      if (novasOSCorrecao.length === 1) {
+        const n = novasOSCorrecao[0];
+        setTimeout(() => abrirEmailOS(n, n.numero, gerarHTMLOS(n, n.numero)), 400);
+      }
     } catch (e) {
       setMsg("Erro ao salvar (" + ok + " já salva(s) antes do erro): " + e.message);
     } finally {
@@ -5723,18 +5753,21 @@ function PageMedicao({
       const valorKmUnitCalc = ANEXO_IV.find(a => a.id === "km").vu;
       const diariaDetalhe = [];
       osMes.forEach(o => {
+        const isCorrecaoOS = o.tipo === "Correção";
         const s = (o.servico || o.tipo || "").toLowerCase();
-        if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
+        if (!isCorrecaoOS) {
+          if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
+        }
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
           if (!r.historico) {
             const kmOS = parseFloat(r.km || 0);
-            totalKm += kmOS;
+            if (!isCorrecaoOS) totalKm += kmOS; // km da revisita de correção não é cobrado de novo
             const _mun = (o.comarca || "").split(" - ")[0];
             const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
             const fracaoBaseEPecas = isColarOS ? 0 : parseFloat(r.diarias || 0);
-            // Deslocamento: fração de diária = km × 0,0032468 (direto, sem envolver o valor em R$ do km ou da diária)
-            const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM;
+            // Deslocamento: fração de diária = km × 0,0032468 (direto, sem envolver o valor em R$ do km ou da diária) — zero na correção, já foi pago na visita original
+            const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM;
             const valorDeslocamentoDiaria = fracaoDeslocamento * valorDiariaUnitCalc;
             totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
             diariaDetalhe.push({
