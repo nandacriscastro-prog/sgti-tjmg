@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786544472 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786545098 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6708,6 +6708,9 @@ function PageEstoque() {
       if (filtroModelos.length) {
         query += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
       }
+      if (filtroBaixoAtivo && estoqueBaixo.length) {
+        query += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
+      }
       const rows = await sbFetch(query);
       setDados(rows || []);
       setTemMais((rows || []).length === LIMITE);
@@ -6719,9 +6722,10 @@ function PageEstoque() {
     }
   };
 
-  useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregarOpcoes(); }, [aba]);
+  useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); setFiltroBaixoAtivo(false); carregarOpcoes(); }, [aba]);
 
   const [estoqueBaixo, setEstoqueBaixo] = useState([]);
+  const [filtroBaixoAtivo, setFiltroBaixoAtivo] = useState(false);
   const LIMITE_BAIXO = 5;
   const carregarOpcoes = async () => {
     try {
@@ -6890,6 +6894,7 @@ function PageEstoque() {
             if (filtroEquip.length) q += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
             if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
+            if (filtroBaixoAtivo && estoqueBaixo.length) q += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
           }
           const lote = await sbFetch(q);
           if (!lote || !lote.length) break;
@@ -7171,7 +7176,7 @@ function PageEstoque() {
     dados.length > 0 && React.createElement("div", { className: "kpis", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 } },
       React.createElement("div", {
         className: "kpi",
-        onClick: () => { setFiltroComarcaDestino(""); setFiltroStatus(""); setBusca(""); carregar(0); },
+        onClick: () => { setFiltroComarcaDestino(""); setFiltroStatus(""); setBusca(""); setFiltroBaixoAtivo(false); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregar(0); },
         style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
         title: "Limpar filtros e ver todos"
       },
@@ -7207,21 +7212,34 @@ function PageEstoque() {
       ),
       React.createElement("div", {
         className: "kpi",
-        onClick: () => { setFiltroEquip(estoqueBaixo.map(o => o.codigo)); setFiltroMarcas([]); setFiltroModelos([]); setPainelFiltroAberto(false); carregar(0); },
-        style: { background: estoqueBaixo.length ? "#fdecea" : "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: estoqueBaixo.length ? "pointer" : "default" },
-        title: "Ver só os equipamentos com estoque abaixo de " + LIMITE_BAIXO
+        onClick: () => {
+          if (!estoqueBaixo.length) return;
+          const novoAtivo = !filtroBaixoAtivo;
+          setFiltroBaixoAtivo(novoAtivo);
+          if (novoAtivo) { setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); setPainelFiltroAberto(false); }
+          carregar(0);
+        },
+        style: { background: filtroBaixoAtivo ? "var(--red, #c0392b)" : (estoqueBaixo.length ? "#fdecea" : "var(--surface)"), borderRadius: 8, padding: 12, textAlign: "center", cursor: estoqueBaixo.length ? "pointer" : "default" },
+        title: filtroBaixoAtivo ? "Clique de novo pra remover o filtro" : "Ver só os equipamentos com estoque abaixo de " + LIMITE_BAIXO
       },
-        React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)" } }, estoqueBaixo.length),
-        React.createElement("div", { style: { fontSize: 11, color: estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)" } }, "⚠️ Estoque baixo (<" + LIMITE_BAIXO + ")")
+        React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: filtroBaixoAtivo ? "#fff" : (estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)") } }, estoqueBaixo.length),
+        React.createElement("div", { style: { fontSize: 11, color: filtroBaixoAtivo ? "#fff" : (estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)") } }, filtroBaixoAtivo ? "☑ Filtrando estoque baixo" : "⚠️ Estoque baixo (<" + LIMITE_BAIXO + ")")
       )
     ),
-    estoqueBaixo.length > 0 && React.createElement("div", { style: { background: "#fdecea", border: "1px solid #f5c6cb", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12 } },
-      React.createElement("strong", null, "⚠️ " + estoqueBaixo.length + " tipo(s) de equipamento com menos de " + LIMITE_BAIXO + " em estoque: "),
-      estoqueBaixo.slice(0, 8).map(o => o.nome + " (" + o.qtd + ")").join(", ") + (estoqueBaixo.length > 8 ? "..." : "") + " — "
-      , React.createElement("span", {
-        onClick: () => { setFiltroEquip(estoqueBaixo.map(o => o.codigo)); carregar(0); },
-        style: { color: "var(--red, #c0392b)", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }
-      }, "ver todos")
+    estoqueBaixo.length > 0 && React.createElement("div", { style: { background: "#fdecea", border: "1px solid #f5c6cb", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 } },
+      React.createElement("div", null,
+        React.createElement("strong", null, "⚠️ " + estoqueBaixo.length + " tipo(s) de equipamento com menos de " + LIMITE_BAIXO + " em estoque: "),
+        estoqueBaixo.slice(0, 8).map(o => o.nome + " (" + o.qtd + ")").join(", ") + (estoqueBaixo.length > 8 ? "..." : "")
+      ),
+      filtroBaixoAtivo
+        ? React.createElement("button", {
+            onClick: () => { setFiltroBaixoAtivo(false); carregar(0); },
+            style: { background: "#fff", border: "1px solid var(--red, #c0392b)", color: "var(--red, #c0392b)", borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+          }, "✕ Limpar filtro")
+        : React.createElement("button", {
+            onClick: () => { setFiltroBaixoAtivo(true); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregar(0); },
+            style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }
+          }, "Ver todos")
     ),
     msg && React.createElement("div", { style: { marginBottom: 10, fontSize: 13, color: "var(--red, #c0392b)" } }, msg),
     loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
