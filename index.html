@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786531943 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786544100 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6656,6 +6656,12 @@ function PageEstoque() {
   const [enviarCanal, setEnviarCanal] = useState("");
   const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
   const [filtroStatus, setFiltroStatus] = useState(""); // "" | "enviado" | "disponivel"
+  const [filtroEquip, setFiltroEquip] = useState([]); // codigo_item selecionados
+  const [filtroMarcas, setFiltroMarcas] = useState([]);
+  const [filtroModelos, setFiltroModelos] = useState([]);
+  const [painelFiltroAberto, setPainelFiltroAberto] = useState(false);
+  const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
+  const [buscaFiltro, setBuscaFiltro] = useState("");
   const [grupoAberto, setGrupoAberto] = useState(null);
   const [larguraTabela, setLarguraTabela] = useState(0);
   const topScrollRef = useRef(null);
@@ -6693,6 +6699,15 @@ function PageEstoque() {
       if (aba === "cobens" && filtroStatus === "disponivel") {
         query += `&or=(status.is.null,status.neq.Enviado)`;
       }
+      if (filtroEquip.length) {
+        query += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
+      }
+      if (filtroMarcas.length) {
+        query += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
+      }
+      if (filtroModelos.length) {
+        query += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
+      }
       const rows = await sbFetch(query);
       setDados(rows || []);
       setTemMais((rows || []).length === LIMITE);
@@ -6704,7 +6719,27 @@ function PageEstoque() {
     }
   };
 
-  useEffect(() => { carregar(0); setGrupoAberto(null); }, [aba]);
+  useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregarOpcoes(); }, [aba]);
+
+  const carregarOpcoes = async () => {
+    try {
+      let todas = [], off3 = 0;
+      const tab = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
+      while (true) {
+        const lote = await sbFetch(`/${tab}?select=codigo_item,item_material,marca,modelo&limit=1000&offset=${off3}`);
+        if (!lote || !lote.length) break;
+        todas = todas.concat(lote);
+        off3 += lote.length;
+        if (lote.length < 1000) break;
+      }
+      const unicos = {};
+      todas.forEach(r => {
+        if (!r.codigo_item) return;
+        if (!unicos[r.codigo_item]) unicos[r.codigo_item] = { codigo: r.codigo_item, nome: nomeLimpo(r.item_material), marca: r.marca || "", modelo: r.modelo || "" };
+      });
+      setOpcoes(Object.values(unicos).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+    } catch (e) {}
+  };
   useEffect(() => {
     const id = setTimeout(() => {
       if (tableWrapRef.current) setLarguraTabela(tableWrapRef.current.scrollWidth);
@@ -6838,6 +6873,9 @@ function PageEstoque() {
             if (aba === "cobens" && filtroComarcaDestino.trim()) q += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
             if (aba === "cobens" && filtroStatus === "enviado") q += `&status=eq.Enviado`;
             if (aba === "cobens" && filtroStatus === "disponivel") q += `&or=(status.is.null,status.neq.Enviado)`;
+            if (filtroEquip.length) q += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
+            if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
+            if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
           }
           const lote = await sbFetch(q);
           if (!lote || !lote.length) break;
@@ -6862,7 +6900,23 @@ function PageEstoque() {
         wsCobens["!cols"] = headerCobens.map(() => ({ wch: 22 }));
         XLSX.utils.book_append_sheet(wb, wsCobens, "Estoque COBENS");
 
-        // Resumo (tipo a "Tabela dinâmica" do modelo original): quantidade por unidade responsável
+        // Tabela dinâmica por Equipamento/Marca/Modelo (reflete o filtro de equipamento aplicado)
+        const porEquip = {};
+        todasCobens.forEach(r => {
+          const chave = nomeLimpo(r.item_material) + "||" + (r.marca || "—") + "||" + (r.modelo || "—");
+          if (!porEquip[chave]) porEquip[chave] = { equip: nomeLimpo(r.item_material), marca: r.marca || "—", modelo: r.modelo || "—", qtd: 0, disponivel: 0, enviado: 0 };
+          porEquip[chave].qtd++;
+          if (r.status === "Enviado") porEquip[chave].enviado++; else porEquip[chave].disponivel++;
+        });
+        const linhasPivot = [["Equipamento", "Marca", "Modelo", "Quantidade Total", "Disponível", "Enviado"],
+          ...Object.values(porEquip).sort((a, b) => b.qtd - a.qtd).map(g => [g.equip, g.marca, g.modelo, g.qtd, g.disponivel, g.enviado])
+        ];
+        linhasPivot.push(["", "", "TOTAL", todasCobens.length, todasCobens.filter(r => r.status !== "Enviado").length, todasCobens.filter(r => r.status === "Enviado").length]);
+        const wsPivot = XLSX.utils.aoa_to_sheet(linhasPivot);
+        wsPivot["!cols"] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, wsPivot, "Tabela dinâmica");
+
+        // Resumo extra: quantidade por unidade responsável
         const porUnidade = {};
         todasCobens.forEach(r => {
           const u = r.unidade_responsavel || "—";
@@ -6872,7 +6926,7 @@ function PageEstoque() {
         linhasResumo.push(["TOTAL", todasCobens.length]);
         const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
         wsResumo["!cols"] = [{ wch: 30 }, { wch: 18 }];
-        XLSX.utils.book_append_sheet(wb, wsResumo, "Tabela dinâmica");
+        XLSX.utils.book_append_sheet(wb, wsResumo, "Por Unidade Responsável");
       } else {
         const todasCotesi = await buscarTudo("estoque_cotesi");
         const headerCotesi = ["Código Unidade", "Unidade Responsável", "Código Item Material - Numérico", "Item Material", "Marca", "Modelo", "Qtde Bem", "Número Patrimônio"];
@@ -6883,6 +6937,18 @@ function PageEstoque() {
         const wsCotesi = XLSX.utils.aoa_to_sheet(linhasCotesi);
         wsCotesi["!cols"] = headerCotesi.map(() => ({ wch: 22 }));
         XLSX.utils.book_append_sheet(wb, wsCotesi, "Estoque Cotesi");
+
+        const porEquipCotesi = {};
+        todasCotesi.forEach(r => {
+          const chave = nomeLimpo(r.item_material) + "||" + (r.marca || "—") + "||" + (r.modelo || "—");
+          if (!porEquipCotesi[chave]) porEquipCotesi[chave] = { equip: nomeLimpo(r.item_material), marca: r.marca || "—", modelo: r.modelo || "—", qtd: 0 };
+          porEquipCotesi[chave].qtd += (parseFloat(r.qtde_bem) || 0);
+        });
+        const linhasPivotCotesi = [["Equipamento", "Marca", "Modelo", "Quantidade"], ...Object.values(porEquipCotesi).sort((a, b) => b.qtd - a.qtd).map(g => [g.equip, g.marca, g.modelo, g.qtd])];
+        linhasPivotCotesi.push(["", "", "TOTAL", Object.values(porEquipCotesi).reduce((a, g) => a + g.qtd, 0)]);
+        const wsPivotCotesi = XLSX.utils.aoa_to_sheet(linhasPivotCotesi);
+        wsPivotCotesi["!cols"] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, wsPivotCotesi, "Tabela dinâmica");
       }
 
       const dataStr = new Date().toISOString().slice(0, 10).split("-").reverse().join("");
@@ -7009,10 +7075,61 @@ function PageEstoque() {
           }, "📋 Tabela")
         ),
         React.createElement("button", {
+          onClick: () => setPainelFiltroAberto(!painelFiltroAberto),
+          style: {
+            background: (filtroEquip.length || filtroMarcas.length || filtroModelos.length) ? "var(--accent)" : "var(--surface)",
+            color: (filtroEquip.length || filtroMarcas.length || filtroModelos.length) ? "#fff" : "var(--text)",
+            border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer"
+          }
+        }, "🔧 Filtrar equipamento" + ((filtroEquip.length + filtroMarcas.length + filtroModelos.length) > 0 ? " (" + (filtroEquip.length + filtroMarcas.length + filtroModelos.length) + ")" : "")),
+        React.createElement("button", {
           onClick: exportarExcel, disabled: exportando,
           style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, exportando ? "Exportando..." : "⬇ Exportar Excel")
       )
+    ),
+    painelFiltroAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700 } }, "Filtrar por equipamento / marca / modelo (pode marcar mais de um)"),
+        (filtroEquip.length || filtroMarcas.length || filtroModelos.length) > 0 && React.createElement("button", {
+          onClick: () => { setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregar(0); },
+          className: "btn btn-sm"
+        }, "✕ Limpar seleção")
+      ),
+      React.createElement("input", {
+        value: buscaFiltro, onChange: e => setBuscaFiltro(e.target.value),
+        placeholder: "Buscar equipamento na lista...",
+        style: { width: "100%", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 6, marginBottom: 10, fontSize: 12 }
+      }),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 4, maxHeight: 260, overflowY: "auto", marginBottom: 12, padding: 4, border: "1px solid var(--border)", borderRadius: 6 } },
+        opcoes.filter(o => !buscaFiltro.trim() || (o.nome + " " + o.marca + " " + o.modelo).toLowerCase().includes(buscaFiltro.toLowerCase())).map(o => React.createElement("label", {
+          key: o.codigo,
+          style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "4px 6px", cursor: "pointer", borderRadius: 4 }
+        },
+          React.createElement("input", {
+            type: "checkbox", checked: filtroEquip.includes(o.codigo),
+            onChange: () => setFiltroEquip(f => f.includes(o.codigo) ? f.filter(x => x !== o.codigo) : [...f, o.codigo])
+          }),
+          React.createElement("span", null, o.nome + (o.marca || o.modelo ? " (" + [o.marca, o.modelo].filter(Boolean).join(" ") + ")" : ""))
+        ))
+      ),
+      React.createElement("div", { className: "fr" },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Ou filtrar direto por marca"),
+          React.createElement("select", {
+            multiple: true, size: 5,
+            value: filtroMarcas,
+            onChange: e => setFiltroMarcas(Array.from(e.target.selectedOptions).map(o => o.value)),
+            style: { width: "100%" }
+          }, [...new Set(opcoes.map(o => o.marca).filter(Boolean))].sort().map(m => React.createElement("option", { key: m, value: m }, m)))),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Ou filtrar direto por modelo"),
+          React.createElement("select", {
+            multiple: true, size: 5,
+            value: filtroModelos,
+            onChange: e => setFiltroModelos(Array.from(e.target.selectedOptions).map(o => o.value)),
+            style: { width: "100%" }
+          }, [...new Set(opcoes.map(o => o.modelo).filter(Boolean))].sort().map(m => React.createElement("option", { key: m, value: m }, m))))
+      ),
+      React.createElement("button", { className: "btn btn-primary", onClick: () => carregar(0), style: { marginTop: 10 } }, "Aplicar filtro")
     ),
     React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } },
       React.createElement("input", {
