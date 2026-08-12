@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786544100 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786544472 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6721,23 +6721,37 @@ function PageEstoque() {
 
   useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregarOpcoes(); }, [aba]);
 
+  const [estoqueBaixo, setEstoqueBaixo] = useState([]);
+  const LIMITE_BAIXO = 5;
   const carregarOpcoes = async () => {
     try {
       let todas = [], off3 = 0;
       const tab = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
+      const campos3 = aba === "cobens" ? "codigo_item,item_material,marca,modelo,status" : "codigo_item,item_material,marca,modelo,qtde_bem";
       while (true) {
-        const lote = await sbFetch(`/${tab}?select=codigo_item,item_material,marca,modelo&limit=1000&offset=${off3}`);
+        const lote = await sbFetch(`/${tab}?select=${campos3}&limit=1000&offset=${off3}`);
         if (!lote || !lote.length) break;
         todas = todas.concat(lote);
         off3 += lote.length;
         if (lote.length < 1000) break;
       }
       const unicos = {};
+      const qtds = {};
       todas.forEach(r => {
         if (!r.codigo_item) return;
         if (!unicos[r.codigo_item]) unicos[r.codigo_item] = { codigo: r.codigo_item, nome: nomeLimpo(r.item_material), marca: r.marca || "", modelo: r.modelo || "" };
+        if (aba === "cobens") {
+          if (r.status !== "Enviado") qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + 1;
+        } else {
+          qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + (parseFloat(r.qtde_bem) || 0);
+        }
       });
       setOpcoes(Object.values(unicos).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+      const baixo = Object.values(unicos)
+        .map(o => ({ ...o, qtd: qtds[o.codigo] || 0 }))
+        .filter(o => o.qtd < LIMITE_BAIXO)
+        .sort((a, b) => a.qtd - b.qtd);
+      setEstoqueBaixo(baixo);
     } catch (e) {}
   };
   useEffect(() => {
@@ -7190,7 +7204,24 @@ function PageEstoque() {
       },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--navy)" } }, grupos.length),
         React.createElement("div", { style: { fontSize: 11, color: "var(--text3)" } }, "Tipos de item")
+      ),
+      React.createElement("div", {
+        className: "kpi",
+        onClick: () => { setFiltroEquip(estoqueBaixo.map(o => o.codigo)); setFiltroMarcas([]); setFiltroModelos([]); setPainelFiltroAberto(false); carregar(0); },
+        style: { background: estoqueBaixo.length ? "#fdecea" : "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: estoqueBaixo.length ? "pointer" : "default" },
+        title: "Ver só os equipamentos com estoque abaixo de " + LIMITE_BAIXO
+      },
+        React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)" } }, estoqueBaixo.length),
+        React.createElement("div", { style: { fontSize: 11, color: estoqueBaixo.length ? "var(--red, #c0392b)" : "var(--text3)" } }, "⚠️ Estoque baixo (<" + LIMITE_BAIXO + ")")
       )
+    ),
+    estoqueBaixo.length > 0 && React.createElement("div", { style: { background: "#fdecea", border: "1px solid #f5c6cb", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12 } },
+      React.createElement("strong", null, "⚠️ " + estoqueBaixo.length + " tipo(s) de equipamento com menos de " + LIMITE_BAIXO + " em estoque: "),
+      estoqueBaixo.slice(0, 8).map(o => o.nome + " (" + o.qtd + ")").join(", ") + (estoqueBaixo.length > 8 ? "..." : "") + " — "
+      , React.createElement("span", {
+        onClick: () => { setFiltroEquip(estoqueBaixo.map(o => o.codigo)); carregar(0); },
+        style: { color: "var(--red, #c0392b)", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }
+      }, "ver todos")
     ),
     msg && React.createElement("div", { style: { marginBottom: 10, fontSize: 13, color: "var(--red, #c0392b)" } }, msg),
     loading ? React.createElement("div", { className: "loading" }, "Carregando...") :
