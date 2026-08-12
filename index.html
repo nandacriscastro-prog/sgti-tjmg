@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786531664 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786531943 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6655,7 +6655,7 @@ function PageEstoque() {
   const [enviarSala, setEnviarSala] = useState("");
   const [enviarCanal, setEnviarCanal] = useState("");
   const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
-  const [soEnviados, setSoEnviados] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState(""); // "" | "enviado" | "disponivel"
   const [grupoAberto, setGrupoAberto] = useState(null);
   const [larguraTabela, setLarguraTabela] = useState(0);
   const topScrollRef = useRef(null);
@@ -6687,8 +6687,11 @@ function PageEstoque() {
       if (aba === "cobens" && filtroComarcaDestino.trim()) {
         query += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
       }
-      if (aba === "cobens" && soEnviados) {
+      if (aba === "cobens" && filtroStatus === "enviado") {
         query += `&status=eq.Enviado`;
+      }
+      if (aba === "cobens" && filtroStatus === "disponivel") {
+        query += `&or=(status.is.null,status.neq.Enviado)`;
       }
       const rows = await sbFetch(query);
       setDados(rows || []);
@@ -6818,6 +6821,79 @@ function PageEstoque() {
     }
   };
 
+  const [exportando, setExportando] = useState(false);
+  const exportarExcel = async () => {
+    setExportando(true);
+    try {
+      // Busca TODAS as linhas (não só a página atual), respeitando os filtros aplicados
+      const buscarTudo = async (tab) => {
+        let todas = [], off2 = 0;
+        while (true) {
+          let q = `/${tab}?select=*&order=item_material.asc&limit=1000&offset=${off2}`;
+          if (tab === tabela) {
+            if (busca.trim()) {
+              const b = encodeURIComponent(busca.trim());
+              q += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
+            }
+            if (aba === "cobens" && filtroComarcaDestino.trim()) q += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
+            if (aba === "cobens" && filtroStatus === "enviado") q += `&status=eq.Enviado`;
+            if (aba === "cobens" && filtroStatus === "disponivel") q += `&or=(status.is.null,status.neq.Enviado)`;
+          }
+          const lote = await sbFetch(q);
+          if (!lote || !lote.length) break;
+          todas = todas.concat(lote);
+          off2 += lote.length;
+          if (lote.length < 1000) break;
+        }
+        return todas;
+      };
+
+      const wb = XLSX.utils.book_new();
+
+      if (aba === "cobens") {
+        const todasCobens = await buscarTudo("estoque_cobens");
+        const headerCobens = ["Código Unidade", "Unidade Responsável", "Código Item Material - Numérico", "Item Material", "Marca", "Modelo", "Número Patrimônio", "Número Patrimônio Anterior", "Valor do Bem", "Data Tombamento", "Status", "Data Envio", "Sala de Destinação", "Canal da Demanda", "Comarca Destino"];
+        const linhasCobens = [headerCobens, ...todasCobens.map(r => [
+          r.codigo_unidade || "", r.unidade_responsavel || "", r.codigo_item || "", r.item_material || "", r.marca || "", r.modelo || "",
+          r.numero_patrimonio || "", r.numero_patrimonio_anterior || "", r.valor_bem || "", r.data_tombamento || "", r.status || "Disponível",
+          r.data_envio || "", r.sala_destinacao || "", r.canal_demanda || "", r.comarca_destino || ""
+        ])];
+        const wsCobens = XLSX.utils.aoa_to_sheet(linhasCobens);
+        wsCobens["!cols"] = headerCobens.map(() => ({ wch: 22 }));
+        XLSX.utils.book_append_sheet(wb, wsCobens, "Estoque COBENS");
+
+        // Resumo (tipo a "Tabela dinâmica" do modelo original): quantidade por unidade responsável
+        const porUnidade = {};
+        todasCobens.forEach(r => {
+          const u = r.unidade_responsavel || "—";
+          porUnidade[u] = (porUnidade[u] || 0) + 1;
+        });
+        const linhasResumo = [["Unidade Responsável", "Quantidade de Itens"], ...Object.entries(porUnidade).sort((a, b) => b[1] - a[1])];
+        linhasResumo.push(["TOTAL", todasCobens.length]);
+        const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
+        wsResumo["!cols"] = [{ wch: 30 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(wb, wsResumo, "Tabela dinâmica");
+      } else {
+        const todasCotesi = await buscarTudo("estoque_cotesi");
+        const headerCotesi = ["Código Unidade", "Unidade Responsável", "Código Item Material - Numérico", "Item Material", "Marca", "Modelo", "Qtde Bem", "Número Patrimônio"];
+        const linhasCotesi = [headerCotesi, ...todasCotesi.map(r => [
+          r.codigo_unidade || "", r.unidade_responsavel || "", r.codigo_item || "", r.item_material || "", r.marca || "", r.modelo || "",
+          r.qtde_bem ?? 0, r.numero_patrimonio || ""
+        ])];
+        const wsCotesi = XLSX.utils.aoa_to_sheet(linhasCotesi);
+        wsCotesi["!cols"] = headerCotesi.map(() => ({ wch: 22 }));
+        XLSX.utils.book_append_sheet(wb, wsCotesi, "Estoque Cotesi");
+      }
+
+      const dataStr = new Date().toISOString().slice(0, 10).split("-").reverse().join("");
+      XLSX.writeFile(wb, `Estoque_${aba === "cobens" ? "COBENS" : "Cotesi"}_${dataStr}.xlsx`);
+    } catch (e) {
+      alert("Erro ao exportar: " + e.message);
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const camposCobens = [
     ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
     ["marca", "Marca"], ["modelo", "Modelo"], ["numero_patrimonio", "Nº Patrimônio"], ["numero_patrimonio_anterior", "Nº Patr. Anterior"],
@@ -6921,15 +6997,21 @@ function PageEstoque() {
           style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, marginLeft: 16, borderBottom: aba === "cotesi" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "cotesi" ? "var(--accent)" : "var(--text3)" }
         }, "🗄️ Estoque Cotesi")
       ),
-      React.createElement("div", { style: { display: "flex", gap: 6, background: "var(--surface)", padding: 3, borderRadius: 8 } },
+      React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
+        React.createElement("div", { style: { display: "flex", gap: 6, background: "var(--surface)", padding: 3, borderRadius: 8 } },
+          React.createElement("button", {
+            onClick: () => setModoView("cartoes"),
+            style: { border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modoView === "cartoes" ? "var(--navy)" : "transparent", color: modoView === "cartoes" ? "#fff" : "var(--text3)" }
+          }, "🗂️ Cartões"),
+          React.createElement("button", {
+            onClick: () => setModoView("tabela"),
+            style: { border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modoView === "tabela" ? "var(--navy)" : "transparent", color: modoView === "tabela" ? "#fff" : "var(--text3)" }
+          }, "📋 Tabela")
+        ),
         React.createElement("button", {
-          onClick: () => setModoView("cartoes"),
-          style: { border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modoView === "cartoes" ? "var(--navy)" : "transparent", color: modoView === "cartoes" ? "#fff" : "var(--text3)" }
-        }, "🗂️ Cartões"),
-        React.createElement("button", {
-          onClick: () => setModoView("tabela"),
-          style: { border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modoView === "tabela" ? "var(--navy)" : "transparent", color: modoView === "tabela" ? "#fff" : "var(--text3)" }
-        }, "📋 Tabela")
+          onClick: exportarExcel, disabled: exportando,
+          style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, exportando ? "Exportando..." : "⬇ Exportar Excel")
       )
     ),
     React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } },
@@ -6945,26 +7027,50 @@ function PageEstoque() {
         placeholder: "Filtrar por comarca de destino...",
         style: { minWidth: 200, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
       }),
-      aba === "cobens" && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", padding: "0 4px" } },
-        React.createElement("input", { type: "checkbox", checked: soEnviados, onChange: e => setSoEnviados(e.target.checked) }),
-        "Só enviados"
+      aba === "cobens" && React.createElement("select", {
+        value: filtroStatus, onChange: e => setFiltroStatus(e.target.value),
+        style: { padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
+      },
+        React.createElement("option", { value: "" }, "Todos os status"),
+        React.createElement("option", { value: "disponivel" }, "Só disponíveis"),
+        React.createElement("option", { value: "enviado" }, "Só enviados")
       ),
       React.createElement("button", { className: "btn btn-primary", onClick: buscar }, "Buscar")
     ),
     dados.length > 0 && React.createElement("div", { className: "kpis", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 } },
-      React.createElement("div", { className: "kpi", style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center" } },
+      React.createElement("div", {
+        className: "kpi",
+        onClick: () => { setFiltroComarcaDestino(""); setFiltroStatus(""); setBusca(""); carregar(0); },
+        style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
+        title: "Limpar filtros e ver todos"
+      },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--navy)" } }, dados.length),
         React.createElement("div", { style: { fontSize: 11, color: "var(--text3)" } }, "Itens nesta página")
       ),
-      React.createElement("div", { className: "kpi", style: { background: "#e2f5ea", borderRadius: 8, padding: 12, textAlign: "center" } },
+      React.createElement("div", {
+        className: "kpi",
+        onClick: () => { if (aba === "cobens") { setFiltroStatus("disponivel"); carregar(0); } },
+        style: { background: "#e2f5ea", borderRadius: 8, padding: 12, textAlign: "center", cursor: aba === "cobens" ? "pointer" : "default" },
+        title: aba === "cobens" ? "Mostrar todos (inclusive disponíveis)" : ""
+      },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "#1b8a5a" } }, totalDisponivel),
         React.createElement("div", { style: { fontSize: 11, color: "#1b8a5a" } }, "Disponíveis")
       ),
-      aba === "cobens" && React.createElement("div", { className: "kpi", style: { background: "#e8f0fe", borderRadius: 8, padding: 12, textAlign: "center" } },
+      aba === "cobens" && React.createElement("div", {
+        className: "kpi",
+        onClick: () => { setFiltroStatus("enviado"); carregar(0); },
+        style: { background: "#e8f0fe", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
+        title: "Mostrar só os já enviados"
+      },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "#2563eb" } }, totalEnviado),
         React.createElement("div", { style: { fontSize: 11, color: "#2563eb" } }, "Já enviados")
       ),
-      React.createElement("div", { className: "kpi", style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center" } },
+      React.createElement("div", {
+        className: "kpi",
+        onClick: () => setModoView("cartoes"),
+        style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
+        title: "Ver agrupado por tipo de item"
+      },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--navy)" } }, grupos.length),
         React.createElement("div", { style: { fontSize: 11, color: "var(--text3)" } }, "Tipos de item")
       )
