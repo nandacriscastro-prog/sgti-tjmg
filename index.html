@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786561964 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786563106 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1570,6 +1570,10 @@ function blocoOS(os, numOS) {
   <div class="cab-title">Tribunal de Justiça do Estado de Minas Gerais</div>
   <div class="cab-sub">Diretoria Executiva de Engenharia e Gestão Predial — Gerência de Adaptações e Sistemas Prediais</div>
 </div>
+${os.tipo === "Correção" ? `<table><tr><td style="background:#f8d7da;border:2px solid #c0392b;text-align:center;padding:8px">
+  <div style="font-size:14px;font-weight:800;color:#7a1f1f;letter-spacing:.02em">⚠️ OS DE REABERTURA — ACIONAMENTO DA GARANTIA DE SERVIÇO</div>
+  <div style="font-size:11px;color:#7a1f1f;margin-top:2px">Referente à OS original nº ${os.os_origem || "—"}. Esta visita não gera nova cobrança de atendimento, deslocamento ou diária base — só peças eventualmente substituídas.</div>
+</td></tr></table>` : ""}
 <table>
   <tr>
     <td style="width:50%"><div class="lbl">EMPRESA</div><div class="val">${os.empresa || "A DEFINIR"}</div></td>
@@ -4219,7 +4223,7 @@ function PageAvaliacao({
       const _isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
       const diasCorrecao = _isColar ? 1 : 3;
       const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-      const novaObs = (o.observacoes ? o.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).`;
+      const novaObs = (o.observacoes ? o.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b>`;
       await sbFetch("/ordens_servico", {
         method: "POST",
         body: JSON.stringify({
@@ -4303,7 +4307,7 @@ function PageAvaliacao({
         const diasCorrecao = _isColar ? 1 : 3;
         const agora = new Date();
         const prazoCorrecaoDate = addDiasUteis(agora, diasCorrecao);
-        const novaObs = (sel.observacoes ? sel.observacoes + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs. avaliação: ${obs || "—"}`;
+        const novaObs = (sel.observacoes ? sel.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><b>Observação da avaliação:</b> ${obs || "—"}`;
         await sbFetch("/ordens_servico", {
           method: "POST",
           body: JSON.stringify({
@@ -5597,7 +5601,7 @@ function PageMedicao({
           const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
           const diasCorrecao = _isColar ? 1 : 3;
           const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-          const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`;
+          const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><b>Observação da avaliação:</b> ${l.avaliacaoObs || "—"}`;
           await sbFetch("/ordens_servico", {
             method: "POST",
             body: JSON.stringify({
