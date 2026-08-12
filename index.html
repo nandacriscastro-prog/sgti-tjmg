@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786478451 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786531664 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6651,6 +6651,9 @@ function PageEstoque() {
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
+  const [enviarData, setEnviarData] = useState(new Date().toISOString().slice(0, 10));
+  const [enviarSala, setEnviarSala] = useState("");
+  const [enviarCanal, setEnviarCanal] = useState("");
   const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
   const [soEnviados, setSoEnviados] = useState(false);
   const [grupoAberto, setGrupoAberto] = useState(null);
@@ -6734,6 +6737,9 @@ function PageEstoque() {
     setEnviarComarca("");
     setEnviarDadosComarca({});
     setEnviarPatrimonioCotesi("");
+    setEnviarData(new Date().toISOString().slice(0, 10));
+    setEnviarSala("");
+    setEnviarCanal("");
   };
   const confirmarEnvio = async (row) => {
     if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
@@ -6746,7 +6752,9 @@ function PageEstoque() {
           unidade_responsavel: enviarComarca,
           unidade_responsavel_original: row.unidade_responsavel_original || row.unidade_responsavel,
           comarca_destino: enviarComarca,
-          data_envio: new Date().toISOString().slice(0, 10),
+          data_envio: enviarData || new Date().toISOString().slice(0, 10),
+          sala_destinacao: enviarSala || null,
+          canal_demanda: enviarCanal || null,
           atualizado_em: new Date().toISOString()
         })
       });
@@ -6784,6 +6792,8 @@ function PageEstoque() {
           unidade_responsavel: row.unidade_responsavel_original || row.unidade_responsavel,
           comarca_destino: null,
           data_envio: null,
+          sala_destinacao: null,
+          canal_demanda: null,
           atualizado_em: new Date().toISOString()
         })
       });
@@ -6811,7 +6821,8 @@ function PageEstoque() {
   const camposCobens = [
     ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
     ["marca", "Marca"], ["modelo", "Modelo"], ["numero_patrimonio", "Nº Patrimônio"], ["numero_patrimonio_anterior", "Nº Patr. Anterior"],
-    ["valor_bem", "Valor Bem"], ["status", "Status"], ["comarca_destino", "Comarca Destino"]
+    ["valor_bem", "Valor Bem"], ["status", "Status"], ["comarca_destino", "Comarca Destino"], ["data_envio", "Data Envio"],
+    ["sala_destinacao", "Sala Destinação"], ["canal_demanda", "Canal Demanda"]
   ];
   const camposCotesi = [
     ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
@@ -6868,9 +6879,21 @@ function PageEstoque() {
     React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Comarca de destino"),
         React.createElement(ComarcaInput, { value: enviarComarca, onChange: (k, d) => { setEnviarComarca(k); setEnviarDadosComarca(d); } })),
-      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº patrimônio no Cotesi (opcional)"),
-        React.createElement("input", { value: enviarPatrimonioCotesi, onChange: e => setEnviarPatrimonioCotesi(e.target.value), placeholder: "Pra rastrear qual unidade saiu" }))
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data do envio"),
+        React.createElement("input", { type: "date", value: enviarData, onChange: e => setEnviarData(e.target.value) }))
     ),
+    React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Sala de destinação (se houver)"),
+        React.createElement("input", { value: enviarSala, onChange: e => setEnviarSala(e.target.value), placeholder: "Ex: Salão do Júri, Sala de audiência, qual vara?" })),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Demanda chegou por"),
+        React.createElement("select", { value: enviarCanal, onChange: e => setEnviarCanal(e.target.value) },
+          React.createElement("option", { value: "" }, "— Selecione —"),
+          React.createElement("option", { value: "SEI" }, "SEI"),
+          React.createElement("option", { value: "E-mail" }, "E-mail")
+        ))
+    ),
+    React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº patrimônio no Cotesi (opcional)"),
+      React.createElement("input", { value: enviarPatrimonioCotesi, onChange: e => setEnviarPatrimonioCotesi(e.target.value), placeholder: "Pra rastrear qual unidade saiu" })),
     React.createElement("div", { style: { display: "flex", gap: 8 } },
       React.createElement("button", { className: "btn", onClick: () => setEnviandoId(null), disabled: salvando }, "Cancelar"),
       React.createElement("button", {
