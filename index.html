@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786545098 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786558476 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6648,6 +6648,7 @@ function PageEstoque() {
   const [editandoId, setEditandoId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [enviandoId, setEnviandoId] = useState(null);
+  const [confirmandoDesfazerId, setConfirmandoDesfazerId] = useState(null);
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
@@ -6838,7 +6839,6 @@ function PageEstoque() {
   };
 
   const desfazerEnvio = async (row) => {
-    if (!confirm("Desfazer o envio dessa OS? A unidade original volta no Cobens e a quantidade retorna no Cotesi.")) return;
     setSalvando(true);
     try {
       await sbFetch(`/estoque_cobens?id=eq.${row.id}`, {
@@ -6866,6 +6866,7 @@ function PageEstoque() {
       } else {
         setMsg("Aviso: revertido no Cobens, mas não achei item correspondente (" + row.codigo_item + ") no Cotesi pra devolver a quantidade — confira manualmente.");
       }
+      setConfirmandoDesfazerId(null);
       carregar(offset);
     } catch (e) {
       alert("Erro ao desfazer: " + e.message);
@@ -7016,14 +7017,29 @@ function PageEstoque() {
   const totalDisponivel = dados.filter(r => aba === "cotesi" || r.status !== "Enviado").length;
   const totalEnviado = aba === "cobens" ? dados.filter(r => r.status === "Enviado").length : 0;
 
+  const renderConfirmDesfazer = row => React.createElement("div", { style: { padding: 12, background: "#fdecea", borderRadius: 8, marginTop: 8 } },
+    React.createElement("div", { style: { fontSize: 12, marginBottom: 10 } },
+      "⚠️ Tem certeza que quer desfazer o envio de \"" + nomeLimpo(row.item_material) + "\" (patrimônio " + (row.numero_patrimonio || "—") + ")? A unidade original volta no Cobens e a quantidade retorna no Cotesi."
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8 } },
+      React.createElement("button", { className: "btn", onClick: () => setConfirmandoDesfazerId(null), disabled: salvando }, "Não"),
+      React.createElement("button", {
+        onClick: () => desfazerEnvio(row), disabled: salvando,
+        style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+      }, salvando ? "Desfazendo..." : "Sim, desfazer")
+    )
+  );
+
   const renderFormEdicao = (colSpanN) => React.createElement("div", { style: { padding: 12, background: "var(--surface)", borderRadius: 8, marginTop: 8 } },
     React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 10 } },
       campos.map(([k, l]) => React.createElement("div", { key: k },
         React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, l),
-        React.createElement("input", {
-          value: editForm[k] ?? "", onChange: e => setEditForm(f => ({ ...f, [k]: e.target.value })),
-          style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
-        })
+        k === "unidade_responsavel"
+          ? React.createElement(ComarcaInput, { value: editForm[k] ?? "", onChange: (novaComarca) => setEditForm(f => ({ ...f, [k]: novaComarca })) })
+          : React.createElement("input", {
+              value: editForm[k] ?? "", onChange: e => setEditForm(f => ({ ...f, [k]: e.target.value })),
+              style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
+            })
       ))
     ),
     React.createElement("div", { style: { display: "flex", gap: 8 } },
@@ -7274,6 +7290,7 @@ function PageEstoque() {
             grupo.itens.map(row => React.createElement("div", { key: row.id, style: { padding: "10px 16px", borderBottom: "1px solid var(--border)" } },
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
+              confirmandoDesfazerId === row.id ? renderConfirmDesfazer(row) :
               React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
                 React.createElement("div", { style: { fontSize: 12 } },
                   React.createElement("div", null,
@@ -7292,7 +7309,7 @@ function PageEstoque() {
                     style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                   }, "📤"),
                   aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
-                    onClick: () => desfazerEnvio(row),
+                    onClick: () => setConfirmandoDesfazerId(row.id),
                     title: "Desfazer envio",
                     style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                   }, "↩️")
@@ -7324,6 +7341,7 @@ function PageEstoque() {
           dados.map(row => React.createElement(React.Fragment, { key: row.id },
             editandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEdicao())) :
             enviandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEnvio(row))) :
+            confirmandoDesfazerId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderConfirmDesfazer(row))) :
             React.createElement("tr", null,
               React.createElement("td", { style: { fontSize: 12, fontWeight: 600, maxWidth: 260 } }, nomeLimpo(row.item_material), React.createElement("div", { style: { fontSize: 10, color: "var(--text3)", fontWeight: 400 } }, "Cód. " + row.codigo_item)),
               React.createElement("td", { style: { fontSize: 12 } }, [row.marca, row.modelo].filter(Boolean).join(" / ") || "—"),
@@ -7337,7 +7355,7 @@ function PageEstoque() {
                   style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "📤 Enviar"),
                 aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
-                  onClick: () => desfazerEnvio(row),
+                  onClick: () => setConfirmandoDesfazerId(row.id),
                   style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "↩️ Desfazer envio")
               )
