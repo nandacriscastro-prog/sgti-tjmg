@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786652096 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786652388 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6797,6 +6797,11 @@ function PageEstoque() {
   const [filtroModelos, setFiltroModelos] = useState([]);
   const [painelFiltroAberto, setPainelFiltroAberto] = useState(false);
   const [painelNovoAberto, setPainelNovoAberto] = useState(false);
+  const [painelImportAberto, setPainelImportAberto] = useState(false);
+  const [arquivoImport, setArquivoImport] = useState(null);
+  const [previaImport, setPreviaImport] = useState([]);
+  const [importando, setImportando] = useState(false);
+  const [resultadoImport, setResultadoImport] = useState(null);
   const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
   const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
@@ -7031,6 +7036,82 @@ function PageEstoque() {
       alert("Erro ao desfazer: " + e.message);
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const colunasImportCobens = ["Código do Item", "Item Material (Especificação)", "Marca", "Modelo", "Nº Patrimônio", "Unidade Responsável (opcional)"];
+  const colunasImportCotesi = ["Código do Item", "Item Material (Especificação)", "Marca", "Modelo", "Quantidade"];
+
+  const baixarModeloImport = () => {
+    const colunas = aba === "cobens" ? colunasImportCobens : colunasImportCotesi;
+    const exemplo = aba === "cobens"
+      ? [["990002", "CÂMERA BULLET IP FULL HD", "Intelbras", "VIP 1230 B", "12345", ""]]
+      : [["990002", "CÂMERA BULLET IP FULL HD", "Intelbras", "VIP 1230 B", "10"]];
+    const ws = XLSX.utils.aoa_to_sheet([colunas, ...exemplo]);
+    ws["!cols"] = colunas.map(() => ({ wch: 26 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, aba === "cobens" ? "Estoque COBENS" : "Estoque Cotesi");
+    XLSX.writeFile(wb, `Modelo_Importacao_Estoque_${aba === "cobens" ? "COBENS" : "Cotesi"}.xlsx`);
+  };
+
+  const lerArquivoImport = (file) => {
+    setArquivoImport(file);
+    setResultadoImport(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        const dados = linhas.slice(1).filter(r => r.some(c => String(c).trim() !== "")).map(r => {
+          if (aba === "cobens") {
+            return {
+              codigo_item: String(r[0] || "").trim(),
+              item_material: String(r[1] || "").trim(),
+              marca: String(r[2] || "").trim() || null,
+              modelo: String(r[3] || "").trim() || null,
+              numero_patrimonio: String(r[4] || "").trim() || null,
+              unidade_responsavel: String(r[5] || "").trim() || null
+            };
+          }
+          return {
+            codigo_item: String(r[0] || "").trim(),
+            item_material: String(r[1] || "").trim(),
+            marca: String(r[2] || "").trim() || null,
+            modelo: String(r[3] || "").trim() || null,
+            qtde_bem: parseFloat(r[4]) || 0
+          };
+        }).filter(r => r.codigo_item && r.item_material);
+        setPreviaImport(dados);
+      } catch (err) {
+        alert("Não consegui ler esse arquivo — confere se é um .xlsx válido, baixado a partir do modelo.");
+        setArquivoImport(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmarImport = async () => {
+    if (!previaImport.length) return;
+    setImportando(true);
+    let ok = 0, falhas = 0;
+    try {
+      const lote = 200;
+      for (let i = 0; i < previaImport.length; i += lote) {
+        const bloco = previaImport.slice(i, i + lote);
+        try {
+          await sbFetch(`/${tabela}`, { method: "POST", body: JSON.stringify(bloco) });
+          ok += bloco.length;
+        } catch (e) {
+          falhas += bloco.length;
+        }
+      }
+      setResultadoImport({ ok, falhas, total: previaImport.length });
+      if (ok > 0) { carregar(0); carregarOpcoes(); }
+      setPreviaImport([]);
+      setArquivoImport(null);
+    } finally {
+      setImportando(false);
     }
   };
 
@@ -7325,6 +7406,10 @@ function PageEstoque() {
           style: { background: painelNovoAberto ? "var(--navy)" : "var(--surface)", color: painelNovoAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "+ Adicionar item"),
         React.createElement("button", {
+          onClick: () => { setPainelImportAberto(!painelImportAberto); setResultadoImport(null); },
+          style: { background: painelImportAberto ? "var(--navy)" : "var(--surface)", color: painelImportAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "📥 Importar Excel"),
+        React.createElement("button", {
           onClick: exportarExcel, disabled: exportando,
           style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, exportando ? "Exportando..." : "⬇ Exportar Excel")
@@ -7368,6 +7453,48 @@ function PageEstoque() {
           onClick: salvarNovoItem, disabled: salvandoNovo,
           style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, salvandoNovo ? "Salvando..." : "💾 Salvar item")
+      )
+    ),
+    painelImportAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 6 } }, "📥 Importar itens de uma planilha Excel — estoque " + (aba === "cobens" ? "Cobens" : "Cotesi")),
+      React.createElement("p", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } },
+        "1) Baixe o modelo, 2) preencha uma linha por item, 3) escolha o arquivo pra conferir antes de importar de verdade."
+      ),
+      React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" } },
+        React.createElement("button", { className: "btn btn-sm", onClick: baixarModeloImport }, "⬇ Baixar modelo de planilha"),
+        React.createElement("input", {
+          type: "file", accept: ".xlsx,.xls",
+          onChange: e => e.target.files[0] && lerArquivoImport(e.target.files[0]),
+          style: { fontSize: 12 }
+        })
+      ),
+      previaImport.length > 0 && React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 6 } }, "Prévia — " + previaImport.length + " item(ns) encontrado(s) no arquivo:"),
+        React.createElement("div", { style: { maxHeight: 220, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, marginBottom: 12 } },
+          React.createElement("table", { style: { fontSize: 12 } },
+            React.createElement("thead", null, React.createElement("tr", null,
+              React.createElement("th", null, "Código"), React.createElement("th", null, "Item"), React.createElement("th", null, "Marca/Modelo"),
+              aba === "cobens" ? React.createElement("th", null, "Patrimônio") : React.createElement("th", null, "Qtde")
+            )),
+            React.createElement("tbody", null, previaImport.slice(0, 50).map((r, i) => React.createElement("tr", { key: i },
+              React.createElement("td", null, r.codigo_item),
+              React.createElement("td", { style: { maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.item_material),
+              React.createElement("td", null, [r.marca, r.modelo].filter(Boolean).join(" / ") || "—"),
+              aba === "cobens" ? React.createElement("td", null, r.numero_patrimonio || "—") : React.createElement("td", null, r.qtde_bem)
+            )))
+          )
+        ),
+        previaImport.length > 50 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginBottom: 10 } }, "... e mais " + (previaImport.length - 50) + " item(ns) (mostrando só os 50 primeiros na prévia, mas todos serão importados)"),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { className: "btn", onClick: () => { setPreviaImport([]); setArquivoImport(null); }, disabled: importando }, "Cancelar"),
+          React.createElement("button", {
+            onClick: confirmarImport, disabled: importando,
+            style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, importando ? "Importando..." : "✓ Confirmar importação de " + previaImport.length + " item(ns)")
+        )
+      ),
+      resultadoImport && React.createElement("div", { style: { marginTop: 12, padding: "10px 14px", background: resultadoImport.falhas ? "#fdecea" : "#e2f5ea", borderRadius: 8, fontSize: 13 } },
+        "✓ " + resultadoImport.ok + " de " + resultadoImport.total + " item(ns) importado(s) com sucesso." + (resultadoImport.falhas ? " ⚠️ " + resultadoImport.falhas + " falharam (provavelmente código duplicado)." : "")
       )
     ),
     painelFiltroAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
