@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786624531 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786651808 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6796,6 +6796,9 @@ function PageEstoque() {
   const [filtroMarcas, setFiltroMarcas] = useState([]);
   const [filtroModelos, setFiltroModelos] = useState([]);
   const [painelFiltroAberto, setPainelFiltroAberto] = useState(false);
+  const [painelNovoAberto, setPainelNovoAberto] = useState(false);
+  const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1" });
+  const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
   const [buscaFiltro, setBuscaFiltro] = useState("");
   const [grupoAberto, setGrupoAberto] = useState(null);
@@ -7028,6 +7031,36 @@ function PageEstoque() {
       alert("Erro ao desfazer: " + e.message);
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const salvarNovoItem = async () => {
+    if (!novoItem.codigo_item.trim() || !novoItem.item_material.trim()) {
+      alert("Preencha ao menos o código e a especificação do item.");
+      return;
+    }
+    setSalvandoNovo(true);
+    try {
+      const corpo = {
+        codigo_item: novoItem.codigo_item.trim(),
+        item_material: novoItem.item_material.trim(),
+        marca: novoItem.marca.trim() || null,
+        modelo: novoItem.modelo.trim() || null
+      };
+      if (aba === "cobens") {
+        corpo.numero_patrimonio = novoItem.numero_patrimonio.trim() || null;
+      } else {
+        corpo.qtde_bem = parseFloat(novoItem.qtde_bem) || 0;
+      }
+      await sbFetch(`/${tabela}`, { method: "POST", body: JSON.stringify(corpo) });
+      setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1" });
+      setPainelNovoAberto(false);
+      carregar(0);
+      carregarOpcoes();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoNovo(false);
     }
   };
 
@@ -7280,9 +7313,50 @@ function PageEstoque() {
           }
         }, "🔧 Filtrar equipamento" + ((filtroEquip.length + filtroMarcas.length + filtroModelos.length) > 0 ? " (" + (filtroEquip.length + filtroMarcas.length + filtroModelos.length) + ")" : "")),
         React.createElement("button", {
+          onClick: () => setPainelNovoAberto(!painelNovoAberto),
+          style: { background: painelNovoAberto ? "var(--navy)" : "var(--surface)", color: painelNovoAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "+ Adicionar item"),
+        React.createElement("button", {
           onClick: exportarExcel, disabled: exportando,
           style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, exportando ? "Exportando..." : "⬇ Exportar Excel")
+      )
+    ),
+    painelNovoAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, "+ Adicionar item manualmente ao estoque " + (aba === "cobens" ? "Cobens" : "Cotesi")),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, marginBottom: 10 } },
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Código do item"),
+          React.createElement("input", { value: novoItem.codigo_item, onChange: e => setNovoItem(n => ({ ...n, codigo_item: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        React.createElement("div", { style: { gridColumn: "span 2" } },
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Especificação / Item Material"),
+          React.createElement("input", { value: novoItem.item_material, onChange: e => setNovoItem(n => ({ ...n, item_material: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Marca"),
+          React.createElement("input", { value: novoItem.marca, onChange: e => setNovoItem(n => ({ ...n, marca: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Modelo"),
+          React.createElement("input", { value: novoItem.modelo, onChange: e => setNovoItem(n => ({ ...n, modelo: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        aba === "cobens"
+          ? React.createElement("div", null,
+              React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio"),
+              React.createElement("input", { value: novoItem.numero_patrimonio, onChange: e => setNovoItem(n => ({ ...n, numero_patrimonio: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+            )
+          : React.createElement("div", null,
+              React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Quantidade"),
+              React.createElement("input", { type: "number", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+            )
+      ),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: () => setPainelNovoAberto(false), disabled: salvandoNovo }, "Cancelar"),
+        React.createElement("button", {
+          onClick: salvarNovoItem, disabled: salvandoNovo,
+          style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, salvandoNovo ? "Salvando..." : "💾 Salvar item")
       )
     ),
     painelFiltroAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
