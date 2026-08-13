@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786623369 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786623767 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4225,7 +4225,7 @@ function PageAvaliacao({
       const diasCorrecao = _isColar ? 1 : 3;
       const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
       const novaObs = (o.observacoes ? o.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b>`;
-      await sbFetch("/ordens_servico", {
+      const criadas = await sbFetch("/ordens_servico", {
         method: "POST",
         body: JSON.stringify({
           numero: novoNum,
@@ -4243,7 +4243,8 @@ function PageAvaliacao({
           observacoes: novaObs
         })
       });
-      return { ...o, numero: novoNum, tipo: "Correção", observacoes: novaObs, prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR") };
+      const novaRow = criadas?.[0] || {};
+      return { ...o, ...novaRow, numero: novoNum, tipo: "Correção", observacoes: novaObs, prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR") };
     }
     return null;
   };
@@ -4264,10 +4265,10 @@ function PageAvaliacao({
       setLoteMsg("✓ " + ok + " OS avaliada(s) com sucesso!");
       setSelecionadasAval(new Set());
       reload();
-      // Se só reabriu 1 OS, já abre o e-mail dela pronta pra mandar
+      // Se só reabriu 1 OS, mostra o painel de revisão da observação antes de gerar o e-mail
       if (novasOS.length === 1) {
         const n = novasOS[0];
-        setTimeout(() => abrirEmailOS(n, n.numero, gerarHTMLOS(n, n.numero)), 400);
+        setRevisitaRevisao({ ...n, obsEditavel: "" });
       }
     } catch (e) {
       setLoteMsg("Erro (" + ok + " já avaliada(s) antes do erro): " + e.message);
@@ -5482,6 +5483,29 @@ function PageMedicao({
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
+  const [revisitaRevisao, setRevisitaRevisao] = useState(null);
+  const [salvandoRevisita, setSalvandoRevisita] = useState(false);
+  const enviarRevisitaComObsEditada = async () => {
+    if (!revisitaRevisao) return;
+    setSalvandoRevisita(true);
+    try {
+      const partesFixas = (revisitaRevisao.observacoes || "").split("<br><b>Observação da avaliação:</b>")[0];
+      const obsFinal = partesFixas + "<br><b>Observação da avaliação:</b> " + (revisitaRevisao.obsEditavel || "—");
+      if (revisitaRevisao.id) {
+        await sbFetch(`/ordens_servico?id=eq.${revisitaRevisao.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ observacoes: obsFinal })
+        });
+      }
+      const osFinal = { ...revisitaRevisao, observacoes: obsFinal };
+      abrirEmailOS(osFinal, osFinal.numero, gerarHTMLOS(osFinal, osFinal.numero));
+      setRevisitaRevisao(null);
+    } catch (e) {
+      alert("Erro ao salvar observação: " + e.message);
+    } finally {
+      setSalvandoRevisita(false);
+    }
+  };
   const [qtds, setQtds] = useState({});
   const [slaVals, setSlaVals] = useState({});
   const [resultado, setResultado] = useState(null);
@@ -5647,7 +5671,7 @@ function PageMedicao({
           const diasCorrecao = _isColar ? 1 : 3;
           const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
           const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><b>Observação da avaliação:</b> ${l.avaliacaoObs || "—"}`;
-          await sbFetch("/ordens_servico", {
+          const criadas = await sbFetch("/ordens_servico", {
             method: "POST",
             body: JSON.stringify({
               numero: novoNum,
@@ -5666,6 +5690,7 @@ function PageMedicao({
             })
           });
           novasOSCorrecao.push({
+            ...(criadas?.[0] || {}),
             numero: novoNum, empresa: "Alvo Segurança Ltda", contrato: l.contrato, comarca: l.comarca,
             servico: l.servico, tipo: "Correção", prioridade: l.prioridade, observacoes: novaObsCorrecao,
             prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR")
@@ -5677,10 +5702,9 @@ function PageMedicao({
       setPainelAberto(false); setLinhas([]); setSelecionadas(new Set());
       if (reload) reload();
       calcular();
-      // Se só reabriu 1 OS de correção nessa gravação, já abre o e-mail dela pronta pra mandar
+      // Se só reabriu 1 OS de correção nessa gravação, mostra o painel de revisão da observação antes de gerar o e-mail
       if (novasOSCorrecao.length === 1) {
-        const n = novasOSCorrecao[0];
-        setTimeout(() => abrirEmailOS(n, n.numero, gerarHTMLOS(n, n.numero)), 400);
+        setRevisitaRevisao({ ...novasOSCorrecao[0], obsEditavel: "" });
       }
     } catch (e) {
       setMsg("Erro ao salvar (" + ok + " já salva(s) antes do erro): " + e.message);
@@ -5965,7 +5989,7 @@ function PageMedicao({
       )
     );
   }
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-title"
@@ -6713,7 +6737,28 @@ function PageMedicao({
       fontWeight: 700,
       color: `var(--${c})`
     }
-  }, d)))))))));
+  }, d))))))))), revisitaRevisao && React.createElement(Modal, {
+    title: "Revisar antes de enviar — OS " + revisitaRevisao.numero,
+    width: 560,
+    onClose: () => setRevisitaRevisao(null)
+  },
+    React.createElement("p", { style: { fontSize: 13, color: "var(--text3)", marginBottom: 12 } },
+      "A OS de reabertura já foi criada. Confira/ajuste a observação da avaliação antes de gerar o e-mail:"
+    ),
+    React.createElement("textarea", {
+      value: revisitaRevisao.obsEditavel,
+      onChange: e => setRevisitaRevisao(r => ({ ...r, obsEditavel: e.target.value })),
+      rows: 4,
+      style: { width: "100%", marginBottom: 14 }
+    }),
+    React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } },
+      React.createElement("button", { className: "btn", onClick: () => setRevisitaRevisao(null), disabled: salvandoRevisita }, "Fechar sem gerar e-mail"),
+      React.createElement("button", {
+        onClick: enviarRevisitaComObsEditada, disabled: salvandoRevisita,
+        style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }
+      }, salvandoRevisita ? "Salvando..." : "📧 Salvar e gerar e-mail")
+    )
+  ));
 }
 
 // ── PAGE: CHAMADOS GEASI ──────────────────────────────────────
@@ -6737,6 +6782,9 @@ function PageEstoque() {
   const [enviarSala, setEnviarSala] = useState("");
   const [enviarCanal, setEnviarCanal] = useState("");
   const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
+  const [filtroDataUnica, setFiltroDataUnica] = useState("");
+  const [filtroDataDe, setFiltroDataDe] = useState("");
+  const [filtroDataAte, setFiltroDataAte] = useState("");
   const [filtroStatus, setFiltroStatus] = useState(""); // "" | "enviado" | "disponivel"
   const [filtroEquip, setFiltroEquip] = useState([]); // codigo_item selecionados
   const [filtroMarcas, setFiltroMarcas] = useState([]);
@@ -6792,6 +6840,12 @@ function PageEstoque() {
       }
       if (filtroBaixoAtivo && estoqueBaixo.length) {
         query += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
+      }
+      if (aba === "cobens" && filtroDataUnica) {
+        query += `&data_envio=eq.${filtroDataUnica}`;
+      } else if (aba === "cobens" && (filtroDataDe || filtroDataAte)) {
+        if (filtroDataDe) query += `&data_envio=gte.${filtroDataDe}`;
+        if (filtroDataAte) query += `&data_envio=lte.${filtroDataAte}`;
       }
       const rows = await sbFetch(query);
       setDados(rows || []);
@@ -6977,6 +7031,11 @@ function PageEstoque() {
             if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroBaixoAtivo && estoqueBaixo.length) q += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
+            if (aba === "cobens" && filtroDataUnica) q += `&data_envio=eq.${filtroDataUnica}`;
+            else if (aba === "cobens" && (filtroDataDe || filtroDataAte)) {
+              if (filtroDataDe) q += `&data_envio=gte.${filtroDataDe}`;
+              if (filtroDataAte) q += `&data_envio=lte.${filtroDataAte}`;
+            }
           }
           const lote = await sbFetch(q);
           if (!lote || !lote.length) break;
@@ -7270,10 +7329,42 @@ function PageEstoque() {
       ),
       React.createElement("button", { className: "btn btn-primary", onClick: buscar }, "Buscar")
     ),
+    aba === "cobens" && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "flex-end" } },
+      React.createElement("div", null,
+        React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DATA DE ENVIO (única)"),
+        React.createElement("input", {
+          type: "date", value: filtroDataUnica,
+          onChange: e => { setFiltroDataUnica(e.target.value); if (e.target.value) { setFiltroDataDe(""); setFiltroDataAte(""); } },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+        })
+      ),
+      React.createElement("span", { style: { fontSize: 12, color: "var(--text3)", paddingBottom: 9 } }, "ou período:"),
+      React.createElement("div", null,
+        React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DE"),
+        React.createElement("input", {
+          type: "date", value: filtroDataDe,
+          onChange: e => { setFiltroDataDe(e.target.value); if (e.target.value) setFiltroDataUnica(""); },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+        })
+      ),
+      React.createElement("div", null,
+        React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "ATÉ"),
+        React.createElement("input", {
+          type: "date", value: filtroDataAte,
+          onChange: e => { setFiltroDataAte(e.target.value); if (e.target.value) setFiltroDataUnica(""); },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+        })
+      ),
+      React.createElement("button", { className: "btn btn-sm", onClick: buscar }, "Aplicar"),
+      (filtroDataUnica || filtroDataDe || filtroDataAte) && React.createElement("button", {
+        className: "btn btn-sm",
+        onClick: () => { setFiltroDataUnica(""); setFiltroDataDe(""); setFiltroDataAte(""); carregar(0); }
+      }, "✕ Limpar datas")
+    ),
     dados.length > 0 && React.createElement("div", { className: "kpis", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 } },
       React.createElement("div", {
         className: "kpi",
-        onClick: () => { setFiltroComarcaDestino(""); setFiltroStatus(""); setBusca(""); setFiltroBaixoAtivo(false); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); carregar(0); },
+        onClick: () => { setFiltroComarcaDestino(""); setFiltroStatus(""); setBusca(""); setFiltroBaixoAtivo(false); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); setFiltroDataUnica(""); setFiltroDataDe(""); setFiltroDataAte(""); carregar(0); },
         style: { background: "var(--surface)", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
         title: "Limpar filtros e ver todos"
       },
