@@ -195,9 +195,11 @@ async function carregarMedicao(){
   const resEl = document.getElementById("resultadoMed");
   resEl.innerHTML = '<div class="card"><div class="loading">Calculando...</div></div>';
   try{
-    const dtIni = `${medAno}-${String(medMes+1).padStart(2,"0")}-01`;
-    const ultimo = new Date(medAno, medMes+1, 0);
-    const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-${String(ultimo.getDate()).padStart(2,"0")}`;
+    // Período de medição do contrato 181/2026: dia 20 do mês anterior até dia 19 do mês selecionado
+    const medMesAnt = medMes === 0 ? 11 : medMes - 1;
+    const medAnoAnt = medMes === 0 ? medAno - 1 : medAno;
+    const dtIni = `${medAnoAnt}-${String(medMesAnt+1).padStart(2,"0")}-20`;
+    const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-19`;
     const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
 
     let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0;

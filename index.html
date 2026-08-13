@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786624327 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786624531 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4881,9 +4881,11 @@ function PageLancamentoManual({
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+  // Período de medição do contrato 181/2026: dia 20 do mês anterior até dia 19 do mês selecionado
+  const mesAntFechar = mes === 0 ? 11 : mes - 1;
+  const anoAntFechar = mes === 0 ? ano - 1 : ano;
+  const dtIni = `${anoAntFechar}-${String(mesAntFechar + 1).padStart(2, "0")}-20`;
+  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
@@ -5523,9 +5525,11 @@ function PageMedicao({
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+  // Período de medição do contrato 181/2026: dia 20 do mês anterior até dia 19 do mês selecionado
+  const mesAntFechar = mes === 0 ? 11 : mes - 1;
+  const anoAntFechar = mes === 0 ? ano - 1 : ano;
+  const dtIni = `${anoAntFechar}-${String(mesAntFechar + 1).padStart(2, "0")}-20`;
+  const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
@@ -5794,9 +5798,11 @@ function PageMedicao({
   // ===== fim Fechar OS =====
 
   const calcular = async () => {
-    const dtIni = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
-    const ultimo = new Date(ano, mes + 1, 0);
-    const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimo.getDate()).padStart(2, "0")}`;
+    // Período de medição do contrato 181/2026: dia 20 do mês anterior até dia 19 do mês selecionado
+    const mesAnt = mes === 0 ? 11 : mes - 1;
+    const anoAnt = mes === 0 ? ano - 1 : ano;
+    const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
+    const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
     try {
       const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes&limit=500`)) || [];
       let qtdAlarme = 0,
@@ -5902,7 +5908,7 @@ function PageMedicao({
       setResultado({
         mes,
         ano,
-        label: MESES_FULL[mes] + " / " + ano,
+        label: MESES_FULL[mes] + " / " + ano + " (20/" + String(mesAnt + 1).padStart(2, "0") + " a 19/" + String(mes + 1).padStart(2, "0") + ")",
         osMes,
         qtdAlarme,
         qtdPortal,
