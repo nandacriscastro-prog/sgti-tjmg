@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786651808 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786652096 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6797,7 +6797,7 @@ function PageEstoque() {
   const [filtroModelos, setFiltroModelos] = useState([]);
   const [painelFiltroAberto, setPainelFiltroAberto] = useState(false);
   const [painelNovoAberto, setPainelNovoAberto] = useState(false);
-  const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1" });
+  const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
   const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
   const [buscaFiltro, setBuscaFiltro] = useState("");
@@ -7041,19 +7041,27 @@ function PageEstoque() {
     }
     setSalvandoNovo(true);
     try {
-      const corpo = {
+      const base = {
         codigo_item: novoItem.codigo_item.trim(),
         item_material: novoItem.item_material.trim(),
         marca: novoItem.marca.trim() || null,
         modelo: novoItem.modelo.trim() || null
       };
-      if (aba === "cobens") {
-        corpo.numero_patrimonio = novoItem.numero_patrimonio.trim() || null;
-      } else {
-        corpo.qtde_bem = parseFloat(novoItem.qtde_bem) || 0;
+      const promessas = [];
+      if (novoItem.criarEmAmbos || aba === "cobens") {
+        promessas.push(sbFetch(`/estoque_cobens`, {
+          method: "POST",
+          body: JSON.stringify({ ...base, numero_patrimonio: novoItem.numero_patrimonio.trim() || null })
+        }));
       }
-      await sbFetch(`/${tabela}`, { method: "POST", body: JSON.stringify(corpo) });
-      setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1" });
+      if (novoItem.criarEmAmbos || aba === "cotesi") {
+        promessas.push(sbFetch(`/estoque_cotesi`, {
+          method: "POST",
+          body: JSON.stringify({ ...base, qtde_bem: parseFloat(novoItem.qtde_bem) || 0 })
+        }));
+      }
+      await Promise.all(promessas);
+      setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
       setPainelNovoAberto(false);
       carregar(0);
       carregarOpcoes();
@@ -7341,15 +7349,18 @@ function PageEstoque() {
           React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Modelo"),
           React.createElement("input", { value: novoItem.modelo, onChange: e => setNovoItem(n => ({ ...n, modelo: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
         ),
-        aba === "cobens"
-          ? React.createElement("div", null,
-              React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio"),
-              React.createElement("input", { value: novoItem.numero_patrimonio, onChange: e => setNovoItem(n => ({ ...n, numero_patrimonio: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
-            )
-          : React.createElement("div", null,
-              React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Quantidade"),
-              React.createElement("input", { type: "number", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
-            )
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio (Cobens)"),
+          React.createElement("input", { value: novoItem.numero_patrimonio, onChange: e => setNovoItem(n => ({ ...n, numero_patrimonio: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Quantidade (Cotesi)"),
+          React.createElement("input", { type: "number", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        )
+      ),
+      React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
+        React.createElement("input", { type: "checkbox", checked: novoItem.criarEmAmbos, onChange: e => setNovoItem(n => ({ ...n, criarEmAmbos: e.target.checked })) }),
+        novoItem.criarEmAmbos ? "Vai criar nos dois estoques (Cobens e Cotesi) de uma vez" : "Vai criar só no estoque " + (aba === "cobens" ? "Cobens" : "Cotesi") + " (aba atual)"
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn", onClick: () => setPainelNovoAberto(false), disabled: salvandoNovo }, "Cancelar"),
