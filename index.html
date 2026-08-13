@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786623767 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786624327 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6804,6 +6804,18 @@ function PageEstoque() {
   const tabela = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
 
   // Deixa o nome do item legível: pega só a parte antes do primeiro " - " ou ";"
+  // Máscara livre de data: aceita digitar/apagar sem precisar clicar em quadradinho, formata DD/MM/AAAA sozinho
+  const mascaraData = v => {
+    const nums = v.replace(/\D/g, "").slice(0, 8);
+    if (nums.length <= 2) return nums;
+    if (nums.length <= 4) return nums.slice(0, 2) + "/" + nums.slice(2);
+    return nums.slice(0, 2) + "/" + nums.slice(2, 4) + "/" + nums.slice(4);
+  };
+  const dataBrParaISO = v => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v || "");
+    if (!m) return "";
+    return `${m[3]}-${m[2]}-${m[1]}`;
+  };
   const nomeLimpo = txt => {
     if (!txt) return "—";
     const corte = Math.min(...[txt.indexOf(" - "), txt.indexOf(";")].filter(i => i > 0).concat([txt.length]));
@@ -6841,11 +6853,14 @@ function PageEstoque() {
       if (filtroBaixoAtivo && estoqueBaixo.length) {
         query += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
       }
-      if (aba === "cobens" && filtroDataUnica) {
-        query += `&data_envio=eq.${filtroDataUnica}`;
-      } else if (aba === "cobens" && (filtroDataDe || filtroDataAte)) {
-        if (filtroDataDe) query += `&data_envio=gte.${filtroDataDe}`;
-        if (filtroDataAte) query += `&data_envio=lte.${filtroDataAte}`;
+      const dataUnicaISO = dataBrParaISO(filtroDataUnica);
+      const dataDeISO = dataBrParaISO(filtroDataDe);
+      const dataAteISO = dataBrParaISO(filtroDataAte);
+      if (aba === "cobens" && dataUnicaISO) {
+        query += `&data_envio=eq.${dataUnicaISO}`;
+      } else if (aba === "cobens" && (dataDeISO || dataAteISO)) {
+        if (dataDeISO) query += `&data_envio=gte.${dataDeISO}`;
+        if (dataAteISO) query += `&data_envio=lte.${dataAteISO}`;
       }
       const rows = await sbFetch(query);
       setDados(rows || []);
@@ -7031,10 +7046,11 @@ function PageEstoque() {
             if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroBaixoAtivo && estoqueBaixo.length) q += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
-            if (aba === "cobens" && filtroDataUnica) q += `&data_envio=eq.${filtroDataUnica}`;
-            else if (aba === "cobens" && (filtroDataDe || filtroDataAte)) {
-              if (filtroDataDe) q += `&data_envio=gte.${filtroDataDe}`;
-              if (filtroDataAte) q += `&data_envio=lte.${filtroDataAte}`;
+            const dExpUnica = dataBrParaISO(filtroDataUnica), dExpDe = dataBrParaISO(filtroDataDe), dExpAte = dataBrParaISO(filtroDataAte);
+            if (aba === "cobens" && dExpUnica) q += `&data_envio=eq.${dExpUnica}`;
+            else if (aba === "cobens" && (dExpDe || dExpAte)) {
+              if (dExpDe) q += `&data_envio=gte.${dExpDe}`;
+              if (dExpAte) q += `&data_envio=lte.${dExpAte}`;
             }
           }
           const lote = await sbFetch(q);
@@ -7333,26 +7349,29 @@ function PageEstoque() {
       React.createElement("div", null,
         React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DATA DE ENVIO (única)"),
         React.createElement("input", {
-          type: "date", value: filtroDataUnica,
-          onChange: e => { setFiltroDataUnica(e.target.value); if (e.target.value) { setFiltroDataDe(""); setFiltroDataAte(""); } },
-          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+          type: "text", value: filtroDataUnica, placeholder: "DD/MM/AAAA", maxLength: 10,
+          onChange: e => { const v = mascaraData(e.target.value); setFiltroDataUnica(v); if (v) { setFiltroDataDe(""); setFiltroDataAte(""); } },
+          onKeyDown: e => { if (e.key === "Enter") buscar(); },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4, width: 110 }
         })
       ),
       React.createElement("span", { style: { fontSize: 12, color: "var(--text3)", paddingBottom: 9 } }, "ou período:"),
       React.createElement("div", null,
         React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DE"),
         React.createElement("input", {
-          type: "date", value: filtroDataDe,
-          onChange: e => { setFiltroDataDe(e.target.value); if (e.target.value) setFiltroDataUnica(""); },
-          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+          type: "text", value: filtroDataDe, placeholder: "DD/MM/AAAA", maxLength: 10,
+          onChange: e => { const v = mascaraData(e.target.value); setFiltroDataDe(v); if (v) setFiltroDataUnica(""); },
+          onKeyDown: e => { if (e.key === "Enter") buscar(); },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4, width: 110 }
         })
       ),
       React.createElement("div", null,
         React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "ATÉ"),
         React.createElement("input", {
-          type: "date", value: filtroDataAte,
-          onChange: e => { setFiltroDataAte(e.target.value); if (e.target.value) setFiltroDataUnica(""); },
-          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4 }
+          type: "text", value: filtroDataAte, placeholder: "DD/MM/AAAA", maxLength: 10,
+          onChange: e => { const v = mascaraData(e.target.value); setFiltroDataAte(v); if (v) setFiltroDataUnica(""); },
+          onKeyDown: e => { if (e.key === "Enter") buscar(); },
+          style: { display: "block", padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, marginTop: 4, width: 110 }
         })
       ),
       React.createElement("button", { className: "btn btn-sm", onClick: buscar }, "Aplicar"),
