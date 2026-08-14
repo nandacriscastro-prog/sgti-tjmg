@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702651 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702896 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -814,7 +814,8 @@ function Icon({
     eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z",
     dl: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
     print: "M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z",
-    box: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"
+    box: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8",
+    search: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35"
   };
   return React.createElement("svg", {
     width: s,
@@ -999,9 +1000,17 @@ function Topbar({
   online,
   onRefresh,
   user,
-  onSair
+  onSair,
+  setPage
 }) {
   const par = page.startsWith("tel-") ? "Telefonia" : page === "home" ? "SGTI" : "GEASI";
+  const [buscaTopo, setBuscaTopo] = useState("");
+  const irParaBusca = () => {
+    if (!buscaTopo.trim()) return;
+    window._buscaGlobal = buscaTopo.trim();
+    setPage("historico");
+    setBuscaTopo("");
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "topbar"
   }, /*#__PURE__*/React.createElement("button", {
@@ -1018,7 +1027,24 @@ function Topbar({
     className: "sep"
   }, "\u203A"), /*#__PURE__*/React.createElement("span", {
     className: "cur"
-  }, PAGE_LABELS[page] || page)), /*#__PURE__*/React.createElement("div", {
+  }, PAGE_LABELS[page] || page)),
+  setPage && /*#__PURE__*/React.createElement("div", {
+    style: { flex: 1, maxWidth: 340, margin: "0 16px", position: "relative" }
+  },
+    /*#__PURE__*/React.createElement("input", {
+      value: buscaTopo,
+      onChange: e => setBuscaTopo(e.target.value),
+      onKeyDown: e => { if (e.key === "Enter") irParaBusca(); },
+      placeholder: "Buscar OS por número ou comarca...",
+      style: {
+        width: "100%", padding: "7px 12px 7px 30px", borderRadius: 8,
+        border: "1px solid var(--border)", background: "var(--surface)", fontSize: 13
+      }
+    }),
+    /*#__PURE__*/React.createElement("span", {
+      style: { position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", opacity: .5 }
+    }, /*#__PURE__*/React.createElement(Icon, { n: "search", s: 14 }))
+  ), /*#__PURE__*/React.createElement("div", {
     className: "tb-right"
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sm",
@@ -3473,7 +3499,7 @@ function PageHistorico({
   os,
   loading
 }) {
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(() => { const v = window._buscaGlobal || ""; window._buscaGlobal = ""; return v; });
   const [fSt, setFSt] = useState("");
   const [fTipo, setFTipo] = useState("");
   const [fDt1, setFDt1] = useState("");
@@ -10809,7 +10835,8 @@ function AppInterno({
     online: online,
     onRefresh: loadOS,
     user: sessao,
-    onSair: onSair
+    onSair: onSair,
+    setPage: setPage
   }), /*#__PURE__*/React.createElement("div", {
     className: "content"
   }, renderPage()))));
