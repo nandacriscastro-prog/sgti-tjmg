@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786706313 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786726621 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6888,7 +6888,9 @@ function PageEstoque() {
   const [msg, setMsg] = useState("");
   const [salvando, setSalvando] = useState(false);
 
-  const tabela = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
+  const ehIndividual = aba !== "cotesi";
+  const tabela = aba === "cotesi" ? "estoque_cotesi" : aba === "comarcas" ? "estoque_comarcas" : "estoque_cobens";
+  const nomeAba = aba === "cotesi" ? "Cotesi" : aba === "comarcas" ? "Comarcas" : "Cobens";
 
   // Deixa o nome do item legível: pega só a parte antes do primeiro " - " ou ";"
   // Máscara livre de data: aceita digitar/apagar sem precisar clicar em quadradinho, formata DD/MM/AAAA sozinho
@@ -6919,13 +6921,13 @@ function PageEstoque() {
         const b = encodeURIComponent(busca.trim());
         query += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
       }
-      if (aba === "cobens" && filtroComarcaDestino.trim()) {
+      if (ehIndividual && filtroComarcaDestino.trim()) {
         query += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
       }
-      if (aba === "cobens" && filtroStatus === "enviado") {
+      if (ehIndividual && filtroStatus === "enviado") {
         query += `&status=eq.Enviado`;
       }
-      if (aba === "cobens" && filtroStatus === "disponivel") {
+      if (ehIndividual && filtroStatus === "disponivel") {
         query += `&or=(status.is.null,status.neq.Enviado)`;
       }
       if (filtroEquip.length) {
@@ -6943,9 +6945,9 @@ function PageEstoque() {
       const dataUnicaISO = dataBrParaISO(filtroDataUnica);
       const dataDeISO = dataBrParaISO(filtroDataDe);
       const dataAteISO = dataBrParaISO(filtroDataAte);
-      if (aba === "cobens" && dataUnicaISO) {
+      if (ehIndividual && dataUnicaISO) {
         query += `&data_envio=eq.${dataUnicaISO}`;
-      } else if (aba === "cobens" && (dataDeISO || dataAteISO)) {
+      } else if (ehIndividual && (dataDeISO || dataAteISO)) {
         if (dataDeISO) query += `&data_envio=gte.${dataDeISO}`;
         if (dataAteISO) query += `&data_envio=lte.${dataAteISO}`;
       }
@@ -6968,8 +6970,8 @@ function PageEstoque() {
   const carregarOpcoes = async () => {
     try {
       let todas = [], off3 = 0;
-      const tab = aba === "cobens" ? "estoque_cobens" : "estoque_cotesi";
-      const campos3 = aba === "cobens" ? "codigo_item,item_material,marca,modelo,status" : "codigo_item,item_material,marca,modelo,qtde_bem";
+      const tab = tabela;
+      const campos3 = ehIndividual ? "codigo_item,item_material,marca,modelo,status" : "codigo_item,item_material,marca,modelo,qtde_bem";
       while (true) {
         const lote = await sbFetch(`/${tab}?select=${campos3}&limit=1000&offset=${off3}`);
         if (!lote || !lote.length) break;
@@ -6982,7 +6984,7 @@ function PageEstoque() {
       todas.forEach(r => {
         if (!r.codigo_item) return;
         if (!unicos[r.codigo_item]) unicos[r.codigo_item] = { codigo: r.codigo_item, nome: nomeLimpo(r.item_material), marca: r.marca || "", modelo: r.modelo || "" };
-        if (aba === "cobens") {
+        if (ehIndividual) {
           if (r.status !== "Enviado") qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + 1;
         } else {
           qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + (parseFloat(r.qtde_bem) || 0);
@@ -7039,7 +7041,7 @@ function PageEstoque() {
     if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
     setSalvando(true);
     try {
-      await sbFetch(`/estoque_cobens?id=eq.${row.id}`, {
+      await sbFetch(`/${tabela}?id=eq.${row.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           status: "Enviado",
@@ -7078,7 +7080,7 @@ function PageEstoque() {
   const desfazerEnvio = async (row) => {
     setSalvando(true);
     try {
-      await sbFetch(`/estoque_cobens?id=eq.${row.id}`, {
+      await sbFetch(`/${tabela}?id=eq.${row.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           status: null,
@@ -7116,15 +7118,15 @@ function PageEstoque() {
   const colunasImportCotesi = ["Código do Item", "Item Material (Especificação)", "Marca", "Modelo", "Quantidade"];
 
   const baixarModeloImport = () => {
-    const colunas = aba === "cobens" ? colunasImportCobens : colunasImportCotesi;
-    const exemplo = aba === "cobens"
+    const colunas = ehIndividual ? colunasImportCobens : colunasImportCotesi;
+    const exemplo = ehIndividual
       ? [["990002", "CÂMERA BULLET IP FULL HD", "Intelbras", "VIP 1230 B", "12345", ""]]
       : [["990002", "CÂMERA BULLET IP FULL HD", "Intelbras", "VIP 1230 B", "10"]];
     const ws = XLSX.utils.aoa_to_sheet([colunas, ...exemplo]);
     ws["!cols"] = colunas.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, aba === "cobens" ? "Estoque COBENS" : "Estoque Cotesi");
-    XLSX.writeFile(wb, `Modelo_Importacao_Estoque_${aba === "cobens" ? "COBENS" : "Cotesi"}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Estoque " + nomeAba);
+    XLSX.writeFile(wb, `Modelo_Importacao_Estoque_${nomeAba}.xlsx`);
   };
 
   const lerArquivoImport = (file) => {
@@ -7137,7 +7139,7 @@ function PageEstoque() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
         const dados = linhas.slice(1).filter(r => r.some(c => String(c).trim() !== "")).map(r => {
-          if (aba === "cobens") {
+          if (ehIndividual) {
             return {
               codigo_item: String(r[0] || "").trim(),
               item_material: String(r[1] || "").trim(),
@@ -7202,17 +7204,24 @@ function PageEstoque() {
         modelo: novoItem.modelo.trim() || null
       };
       const promessas = [];
-      if (novoItem.criarEmAmbos || aba === "cobens") {
-        promessas.push(sbFetch(`/estoque_cobens`, {
+      if (aba === "comarcas") {
+        promessas.push(sbFetch(`/estoque_comarcas`, {
           method: "POST",
           body: JSON.stringify({ ...base, numero_patrimonio: novoItem.numero_patrimonio.trim() || null })
         }));
-      }
-      if (novoItem.criarEmAmbos || aba === "cotesi") {
-        promessas.push(sbFetch(`/estoque_cotesi`, {
-          method: "POST",
-          body: JSON.stringify({ ...base, qtde_bem: parseFloat(novoItem.qtde_bem) || 0 })
-        }));
+      } else {
+        if (novoItem.criarEmAmbos || ehIndividual) {
+          promessas.push(sbFetch(`/estoque_cobens`, {
+            method: "POST",
+            body: JSON.stringify({ ...base, numero_patrimonio: novoItem.numero_patrimonio.trim() || null })
+          }));
+        }
+        if (novoItem.criarEmAmbos || aba === "cotesi") {
+          promessas.push(sbFetch(`/estoque_cotesi`, {
+            method: "POST",
+            body: JSON.stringify({ ...base, qtde_bem: parseFloat(novoItem.qtde_bem) || 0 })
+          }));
+        }
       }
       await Promise.all(promessas);
       setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
@@ -7240,16 +7249,16 @@ function PageEstoque() {
               const b = encodeURIComponent(busca.trim());
               q += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
             }
-            if (aba === "cobens" && filtroComarcaDestino.trim()) q += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
-            if (aba === "cobens" && filtroStatus === "enviado") q += `&status=eq.Enviado`;
-            if (aba === "cobens" && filtroStatus === "disponivel") q += `&or=(status.is.null,status.neq.Enviado)`;
+            if (ehIndividual && filtroComarcaDestino.trim()) q += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
+            if (ehIndividual && filtroStatus === "enviado") q += `&status=eq.Enviado`;
+            if (ehIndividual && filtroStatus === "disponivel") q += `&or=(status.is.null,status.neq.Enviado)`;
             if (filtroEquip.length) q += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
             if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroBaixoAtivo && estoqueBaixo.length) q += `&codigo_item=in.(${estoqueBaixo.map(o => encodeURIComponent(o.codigo)).join(",")})`;
             const dExpUnica = dataBrParaISO(filtroDataUnica), dExpDe = dataBrParaISO(filtroDataDe), dExpAte = dataBrParaISO(filtroDataAte);
-            if (aba === "cobens" && dExpUnica) q += `&data_envio=eq.${dExpUnica}`;
-            else if (aba === "cobens" && (dExpDe || dExpAte)) {
+            if (ehIndividual && dExpUnica) q += `&data_envio=eq.${dExpUnica}`;
+            else if (ehIndividual && (dExpDe || dExpAte)) {
               if (dExpDe) q += `&data_envio=gte.${dExpDe}`;
               if (dExpAte) q += `&data_envio=lte.${dExpAte}`;
             }
@@ -7265,8 +7274,8 @@ function PageEstoque() {
 
       const wb = XLSX.utils.book_new();
 
-      if (aba === "cobens") {
-        const todasCobens = await buscarTudo("estoque_cobens");
+      if (ehIndividual) {
+        const todasCobens = await buscarTudo(tabela);
         const headerCobens = ["Código Unidade", "Unidade Responsável", "Código Item Material - Numérico", "Item Material", "Marca", "Modelo", "Número Patrimônio", "Número Patrimônio Anterior", "Valor do Bem", "Data Tombamento", "Status", "Data Envio", "Sala de Destinação", "Canal da Demanda", "Comarca Destino"];
         const linhasCobens = [headerCobens, ...todasCobens.map(r => [
           r.codigo_unidade || "", r.unidade_responsavel || "", r.codigo_item || "", r.item_material || "", r.marca || "", r.modelo || "",
@@ -7275,7 +7284,7 @@ function PageEstoque() {
         ])];
         const wsCobens = XLSX.utils.aoa_to_sheet(linhasCobens);
         wsCobens["!cols"] = headerCobens.map(() => ({ wch: 22 }));
-        XLSX.utils.book_append_sheet(wb, wsCobens, "Estoque COBENS");
+        XLSX.utils.book_append_sheet(wb, wsCobens, "Estoque " + nomeAba);
 
         // Tabela dinâmica por Equipamento/Marca/Modelo (reflete o filtro de equipamento aplicado)
         const porEquip = {};
@@ -7305,7 +7314,7 @@ function PageEstoque() {
         wsResumo["!cols"] = [{ wch: 30 }, { wch: 18 }];
         XLSX.utils.book_append_sheet(wb, wsResumo, "Por Unidade Responsável");
       } else {
-        const todasCotesi = await buscarTudo("estoque_cotesi");
+        const todasCotesi = await buscarTudo(tabela);
         const headerCotesi = ["Código Unidade", "Unidade Responsável", "Código Item Material - Numérico", "Item Material", "Marca", "Modelo", "Qtde Bem", "Número Patrimônio"];
         const linhasCotesi = [headerCotesi, ...todasCotesi.map(r => [
           r.codigo_unidade || "", r.unidade_responsavel || "", r.codigo_item || "", r.item_material || "", r.marca || "", r.modelo || "",
@@ -7329,7 +7338,7 @@ function PageEstoque() {
       }
 
       const dataStr = new Date().toISOString().slice(0, 10).split("-").reverse().join("");
-      XLSX.writeFile(wb, `Estoque_${aba === "cobens" ? "COBENS" : "Cotesi"}_${dataStr}.xlsx`);
+      XLSX.writeFile(wb, `Estoque_${nomeAba}_${dataStr}.xlsx`);
     } catch (e) {
       alert("Erro ao exportar: " + e.message);
     } finally {
@@ -7347,10 +7356,10 @@ function PageEstoque() {
     ["unidade_responsavel", "Unidade Responsável"], ["codigo_item", "Código Item"], ["item_material", "Item Material"],
     ["marca", "Marca"], ["modelo", "Modelo"], ["qtde_bem", "Qtde"], ["numero_patrimonio", "Nº Patrimônio"]
   ];
-  const campos = aba === "cobens" ? camposCobens : camposCotesi;
+  const campos = ehIndividual ? camposCobens : camposCotesi;
 
   const badgeStatus = row => {
-    const enviado = aba === "cobens" && row.status === "Enviado";
+    const enviado = ehIndividual && row.status === "Enviado";
     return React.createElement("span", {
       style: {
         fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99,
@@ -7372,7 +7381,7 @@ function PageEstoque() {
   })();
 
   const totalDisponivel = dados.filter(r => aba === "cotesi" || r.status !== "Enviado").length;
-  const totalEnviado = aba === "cobens" ? dados.filter(r => r.status === "Enviado").length : 0;
+  const totalEnviado = ehIndividual ? dados.filter(r => r.status === "Enviado").length : 0;
 
   const renderConfirmDesfazer = row => React.createElement("div", { style: { padding: 12, background: "#fdecea", borderRadius: 8, marginTop: 8 } },
     React.createElement("div", { style: { fontSize: 12, marginBottom: 10 } },
@@ -7441,7 +7450,7 @@ function PageEstoque() {
     React.createElement("div", { className: "ph-row" },
       React.createElement("div", null,
         React.createElement("div", { className: "ph-title" }, "Estoque de Equipamentos de Áudio e Vídeo"),
-        React.createElement("div", { className: "ph-sub" }, "Cobens (patrimônio individual) e Cotesi (saldo por item)")
+        React.createElement("div", { className: "ph-sub" }, "Cobens, Comarcas (patrimônio individual) e Cotesi (saldo por item)")
       )
     ),
     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16, borderBottom: "1px solid var(--border)", paddingBottom: 10 } },
@@ -7450,6 +7459,10 @@ function PageEstoque() {
           onClick: () => setAba("cobens"),
           style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, borderBottom: aba === "cobens" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "cobens" ? "var(--accent)" : "var(--text3)" }
         }, "📦 Estoque Cobens"),
+        React.createElement("button", {
+          onClick: () => setAba("comarcas"),
+          style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, marginLeft: 16, borderBottom: aba === "comarcas" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "comarcas" ? "var(--accent)" : "var(--text3)" }
+        }, "🏛️ Estoque Comarcas"),
         React.createElement("button", {
           onClick: () => setAba("cotesi"),
           style: { background: "none", border: "none", padding: "8px 4px", cursor: "pointer", fontWeight: 700, fontSize: 13, marginLeft: 16, borderBottom: aba === "cotesi" ? "2px solid var(--accent)" : "2px solid transparent", color: aba === "cotesi" ? "var(--accent)" : "var(--text3)" }
@@ -7489,7 +7502,7 @@ function PageEstoque() {
       )
     ),
     painelNovoAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
-      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, "+ Adicionar item manualmente ao estoque " + (aba === "cobens" ? "Cobens" : "Cotesi")),
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, "+ Adicionar item manualmente ao estoque " + nomeAba),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8, marginBottom: 10 } },
         React.createElement("div", null,
           React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Código do item"),
@@ -7512,13 +7525,13 @@ function PageEstoque() {
           React.createElement("input", { value: novoItem.numero_patrimonio, onChange: e => setNovoItem(n => ({ ...n, numero_patrimonio: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
         ),
         React.createElement("div", null,
-          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Quantidade (Cotesi)"),
-          React.createElement("input", { type: "number", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, aba === "comarcas" ? "Quantidade (não usado nesta aba)" : "Quantidade (Cotesi)"),
+          React.createElement("input", { type: "number", disabled: aba === "comarcas", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
         )
       ),
-      React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
+      aba !== "comarcas" && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
         React.createElement("input", { type: "checkbox", checked: novoItem.criarEmAmbos, onChange: e => setNovoItem(n => ({ ...n, criarEmAmbos: e.target.checked })) }),
-        novoItem.criarEmAmbos ? "Vai criar nos dois estoques (Cobens e Cotesi) de uma vez" : "Vai criar só no estoque " + (aba === "cobens" ? "Cobens" : "Cotesi") + " (aba atual)"
+        novoItem.criarEmAmbos ? "Vai criar nos dois estoques (Cobens e Cotesi) de uma vez" : "Vai criar só no estoque " + nomeAba + " (aba atual)"
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn", onClick: () => setPainelNovoAberto(false), disabled: salvandoNovo }, "Cancelar"),
@@ -7529,7 +7542,7 @@ function PageEstoque() {
       )
     ),
     painelImportAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
-      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 6 } }, "📥 Importar itens de uma planilha Excel — estoque " + (aba === "cobens" ? "Cobens" : "Cotesi")),
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 6 } }, "📥 Importar itens de uma planilha Excel — estoque " + nomeAba),
       React.createElement("p", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } },
         "1) Baixe o modelo, 2) preencha uma linha por item, 3) escolha o arquivo pra conferir antes de importar de verdade."
       ),
@@ -7547,13 +7560,13 @@ function PageEstoque() {
           React.createElement("table", { style: { fontSize: 12 } },
             React.createElement("thead", null, React.createElement("tr", null,
               React.createElement("th", null, "Código"), React.createElement("th", null, "Item"), React.createElement("th", null, "Marca/Modelo"),
-              aba === "cobens" ? React.createElement("th", null, "Patrimônio") : React.createElement("th", null, "Qtde")
+              ehIndividual ? React.createElement("th", null, "Patrimônio") : React.createElement("th", null, "Qtde")
             )),
             React.createElement("tbody", null, previaImport.slice(0, 50).map((r, i) => React.createElement("tr", { key: i },
               React.createElement("td", null, r.codigo_item),
               React.createElement("td", { style: { maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.item_material),
               React.createElement("td", null, [r.marca, r.modelo].filter(Boolean).join(" / ") || "—"),
-              aba === "cobens" ? React.createElement("td", null, r.numero_patrimonio || "—") : React.createElement("td", null, r.qtde_bem)
+              ehIndividual ? React.createElement("td", null, r.numero_patrimonio || "—") : React.createElement("td", null, r.qtde_bem)
             )))
           )
         ),
@@ -7620,13 +7633,13 @@ function PageEstoque() {
         placeholder: "Buscar por código, item, marca, modelo, unidade ou patrimônio...",
         style: { flex: 1, minWidth: 220, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
       }),
-      aba === "cobens" && React.createElement("input", {
+      ehIndividual && React.createElement("input", {
         value: filtroComarcaDestino, onChange: e => setFiltroComarcaDestino(e.target.value),
         onKeyDown: e => { if (e.key === "Enter") buscar(); },
         placeholder: "Filtrar por comarca de destino...",
         style: { minWidth: 200, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
       }),
-      aba === "cobens" && React.createElement("select", {
+      ehIndividual && React.createElement("select", {
         value: filtroStatus, onChange: e => setFiltroStatus(e.target.value),
         style: { padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8 }
       },
@@ -7636,7 +7649,7 @@ function PageEstoque() {
       ),
       React.createElement("button", { className: "btn btn-primary", onClick: buscar }, "Buscar")
     ),
-    aba === "cobens" && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "flex-end" } },
+    ehIndividual && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "flex-end" } },
       React.createElement("div", null,
         React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "DATA DE ENVIO (única)"),
         React.createElement("input", {
@@ -7683,14 +7696,14 @@ function PageEstoque() {
       ),
       React.createElement("div", {
         className: "kpi",
-        onClick: () => { if (aba === "cobens") { setFiltroStatus("disponivel"); carregar(0); } },
-        style: { background: "#e2f5ea", borderRadius: 8, padding: 12, textAlign: "center", cursor: aba === "cobens" ? "pointer" : "default" },
-        title: aba === "cobens" ? "Mostrar todos (inclusive disponíveis)" : ""
+        onClick: () => { if (ehIndividual) { setFiltroStatus("disponivel"); carregar(0); } },
+        style: { background: "#e2f5ea", borderRadius: 8, padding: 12, textAlign: "center", cursor: ehIndividual ? "pointer" : "default" },
+        title: ehIndividual ? "Mostrar todos (inclusive disponíveis)" : ""
       },
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "#1b8a5a" } }, totalDisponivel),
         React.createElement("div", { style: { fontSize: 11, color: "#1b8a5a" } }, "Disponíveis")
       ),
-      aba === "cobens" && React.createElement("div", {
+      ehIndividual && React.createElement("div", {
         className: "kpi",
         onClick: () => { setFiltroStatus("enviado"); carregar(0); },
         style: { background: "#e8f0fe", borderRadius: 8, padding: 12, textAlign: "center", cursor: "pointer" },
@@ -7746,7 +7759,7 @@ function PageEstoque() {
     modoView === "cartoes" ? React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 } },
       grupos.map(grupo => {
         const disp = grupo.itens.filter(r => aba === "cotesi" || r.status !== "Enviado").length;
-        const env = aba === "cobens" ? grupo.itens.filter(r => r.status === "Enviado").length : 0;
+        const env = ehIndividual ? grupo.itens.filter(r => r.status === "Enviado").length : 0;
         const chaveGrupo = grupo.nomeCompleto + "||" + grupo.codigo;
         const aberto = grupoAberto === chaveGrupo;
         return React.createElement("div", { key: chaveGrupo, className: "card", style: { padding: 0, overflow: "hidden" } },
@@ -7780,17 +7793,17 @@ function PageEstoque() {
                     row.modelo || ""
                   ),
                   React.createElement("div", { style: { color: "var(--text3)" } },
-                    aba === "cobens" ? ("Patrimônio " + (row.numero_patrimonio || "—") + " · " + (row.unidade_responsavel || "—")) : ("Qtde: " + (row.qtde_bem ?? 0) + " · " + (row.unidade_responsavel || "—"))
+                    ehIndividual ? ("Patrimônio " + (row.numero_patrimonio || "—") + " · " + (row.unidade_responsavel || "—")) : ("Qtde: " + (row.qtde_bem ?? 0) + " · " + (row.unidade_responsavel || "—"))
                   )
                 ),
                 React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
-                  aba === "cobens" && badgeStatus(row),
+                  ehIndividual && badgeStatus(row),
                   React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm" }, "✎"),
-                  aba === "cobens" && row.status !== "Enviado" && React.createElement("button", {
+                  ehIndividual && row.status !== "Enviado" && React.createElement("button", {
                     onClick: () => abrirEnvio(row),
                     style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                   }, "📤"),
-                  aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
+                  ehIndividual && row.status === "Enviado" && React.createElement("button", {
                     onClick: () => setConfirmandoDesfazerId(row.id),
                     title: "Desfazer envio",
                     style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
@@ -7814,9 +7827,9 @@ function PageEstoque() {
         React.createElement("thead", null, React.createElement("tr", null,
           React.createElement("th", { style: { minWidth: 220 } }, "Item"),
           React.createElement("th", { style: { minWidth: 140 } }, "Marca / Modelo"),
-          React.createElement("th", { style: { minWidth: 140 } }, aba === "cobens" ? "Patrimônio" : "Qtde"),
+          React.createElement("th", { style: { minWidth: 140 } }, ehIndividual ? "Patrimônio" : "Qtde"),
           React.createElement("th", { style: { minWidth: 160 } }, "Unidade Responsável"),
-          aba === "cobens" && React.createElement("th", { style: { minWidth: 110 } }, "Status"),
+          ehIndividual && React.createElement("th", { style: { minWidth: 110 } }, "Status"),
           React.createElement("th", { style: { minWidth: 140 } }, "Ações")
         )),
         React.createElement("tbody", null,
@@ -7827,16 +7840,16 @@ function PageEstoque() {
             React.createElement("tr", null,
               React.createElement("td", { style: { fontSize: 12, fontWeight: 600, maxWidth: 260 } }, nomeLimpo(row.item_material), React.createElement("div", { style: { fontSize: 10, color: "var(--text3)", fontWeight: 400 } }, "Cód. " + row.codigo_item)),
               React.createElement("td", { style: { fontSize: 12 } }, [row.marca, row.modelo].filter(Boolean).join(" / ") || "—"),
-              React.createElement("td", { style: { fontSize: 12 } }, aba === "cobens" ? (row.numero_patrimonio || "—") : (row.qtde_bem ?? 0)),
+              React.createElement("td", { style: { fontSize: 12 } }, ehIndividual ? (row.numero_patrimonio || "—") : (row.qtde_bem ?? 0)),
               React.createElement("td", { style: { fontSize: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, row.unidade_responsavel || "—"),
-              aba === "cobens" && React.createElement("td", null, badgeStatus(row)),
+              ehIndividual && React.createElement("td", null, badgeStatus(row)),
               React.createElement("td", { style: { whiteSpace: "nowrap" } },
                 React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm", style: { marginRight: 6 } }, "✎ Editar"),
-                aba === "cobens" && row.status !== "Enviado" && React.createElement("button", {
+                ehIndividual && row.status !== "Enviado" && React.createElement("button", {
                   onClick: () => abrirEnvio(row),
                   style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "📤 Enviar"),
-                aba === "cobens" && row.status === "Enviado" && React.createElement("button", {
+                ehIndividual && row.status === "Enviado" && React.createElement("button", {
                   onClick: () => setConfirmandoDesfazerId(row.id),
                   style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "↩️ Desfazer envio")
