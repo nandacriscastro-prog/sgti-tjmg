@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786726621 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786727048 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6854,6 +6854,7 @@ function PageEstoque() {
   const [editForm, setEditForm] = useState({});
   const [enviandoId, setEnviandoId] = useState(null);
   const [confirmandoDesfazerId, setConfirmandoDesfazerId] = useState(null);
+  const [confirmandoRecolherId, setConfirmandoRecolherId] = useState(null);
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
@@ -6889,6 +6890,7 @@ function PageEstoque() {
   const [salvando, setSalvando] = useState(false);
 
   const ehIndividual = aba !== "cotesi";
+  const statusIndisponivel = aba === "comarcas" ? "Recolhido" : "Enviado";
   const tabela = aba === "cotesi" ? "estoque_cotesi" : aba === "comarcas" ? "estoque_comarcas" : "estoque_cobens";
   const nomeAba = aba === "cotesi" ? "Cotesi" : aba === "comarcas" ? "Comarcas" : "Cobens";
 
@@ -6925,10 +6927,10 @@ function PageEstoque() {
         query += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
       }
       if (ehIndividual && filtroStatus === "enviado") {
-        query += `&status=eq.Enviado`;
+        query += aba === "comarcas" ? `&status=eq.Recolhido` : `&status=eq.Enviado`;
       }
       if (ehIndividual && filtroStatus === "disponivel") {
-        query += `&or=(status.is.null,status.neq.Enviado)`;
+        query += aba === "comarcas" ? `&or=(status.is.null,status.neq.Recolhido)` : `&or=(status.is.null,status.neq.Enviado)`;
       }
       if (filtroEquip.length) {
         query += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
@@ -6985,7 +6987,7 @@ function PageEstoque() {
         if (!r.codigo_item) return;
         if (!unicos[r.codigo_item]) unicos[r.codigo_item] = { codigo: r.codigo_item, nome: nomeLimpo(r.item_material), marca: r.marca || "", modelo: r.modelo || "" };
         if (ehIndividual) {
-          if (r.status !== "Enviado") qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + 1;
+          if (r.status !== statusIndisponivel) qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + 1;
         } else {
           qtds[r.codigo_item] = (qtds[r.codigo_item] || 0) + (parseFloat(r.qtde_bem) || 0);
         }
@@ -7106,6 +7108,43 @@ function PageEstoque() {
         setMsg("Aviso: revertido no Cobens, mas não achei item correspondente (" + row.codigo_item + ") no Cotesi pra devolver a quantidade — confira manualmente.");
       }
       setConfirmandoDesfazerId(null);
+      carregar(offset);
+    } catch (e) {
+      alert("Erro ao desfazer: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+  const recolherItem = async (row) => {
+    setSalvando(true);
+    try {
+      await sbFetch(`/${tabela}?id=eq.${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "Recolhido",
+          data_envio: new Date().toISOString().slice(0, 10),
+          atualizado_em: new Date().toISOString()
+        })
+      });
+      setConfirmandoRecolherId(null);
+      carregar(offset);
+    } catch (e) {
+      alert("Erro ao recolher: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+  const desfazerRecolhimento = async (row) => {
+    setSalvando(true);
+    try {
+      await sbFetch(`/${tabela}?id=eq.${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: null,
+          data_envio: null,
+          atualizado_em: new Date().toISOString()
+        })
+      });
       carregar(offset);
     } catch (e) {
       alert("Erro ao desfazer: " + e.message);
@@ -7250,8 +7289,8 @@ function PageEstoque() {
               q += `&or=(codigo_item.ilike.*${b}*,item_material.ilike.*${b}*,marca.ilike.*${b}*,modelo.ilike.*${b}*,unidade_responsavel.ilike.*${b}*,numero_patrimonio.ilike.*${b}*)`;
             }
             if (ehIndividual && filtroComarcaDestino.trim()) q += `&comarca_destino=ilike.*${encodeURIComponent(filtroComarcaDestino.trim())}*`;
-            if (ehIndividual && filtroStatus === "enviado") q += `&status=eq.Enviado`;
-            if (ehIndividual && filtroStatus === "disponivel") q += `&or=(status.is.null,status.neq.Enviado)`;
+            if (ehIndividual && filtroStatus === "enviado") q += aba === "comarcas" ? `&status=eq.Recolhido` : `&status=eq.Enviado`;
+            if (ehIndividual && filtroStatus === "disponivel") q += aba === "comarcas" ? `&or=(status.is.null,status.neq.Recolhido)` : `&or=(status.is.null,status.neq.Enviado)`;
             if (filtroEquip.length) q += `&codigo_item=in.(${filtroEquip.map(c => encodeURIComponent(c)).join(",")})`;
             if (filtroMarcas.length) q += `&marca=in.(${filtroMarcas.map(m => encodeURIComponent(m)).join(",")})`;
             if (filtroModelos.length) q += `&modelo=in.(${filtroModelos.map(m => encodeURIComponent(m)).join(",")})`;
@@ -7294,10 +7333,10 @@ function PageEstoque() {
           porEquip[chave].qtd++;
           if (r.status === "Enviado") porEquip[chave].enviado++; else porEquip[chave].disponivel++;
         });
-        const linhasPivot = [["Equipamento", "Marca", "Modelo", "Quantidade Total", "Disponível", "Enviado"],
+        const linhasPivot = [["Equipamento", "Marca", "Modelo", "Quantidade Total", "Disponível", statusIndisponivel],
           ...Object.values(porEquip).sort((a, b) => b.qtd - a.qtd).map(g => [g.equip, g.marca, g.modelo, g.qtd, g.disponivel, g.enviado])
         ];
-        linhasPivot.push(["", "", "TOTAL", todasCobens.length, todasCobens.filter(r => r.status !== "Enviado").length, todasCobens.filter(r => r.status === "Enviado").length]);
+        linhasPivot.push(["", "", "TOTAL", todasCobens.length, todasCobens.filter(r => r.status !== statusIndisponivel).length, todasCobens.filter(r => r.status === statusIndisponivel).length]);
         const wsPivot = XLSX.utils.aoa_to_sheet(linhasPivot);
         wsPivot["!cols"] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsPivot, "Tabela dinâmica");
@@ -7359,14 +7398,15 @@ function PageEstoque() {
   const campos = ehIndividual ? camposCobens : camposCotesi;
 
   const badgeStatus = row => {
-    const enviado = ehIndividual && row.status === "Enviado";
+    const recolhido = aba === "comarcas" && row.status === "Recolhido";
+    const enviado = aba !== "comarcas" && ehIndividual && row.status === "Enviado";
     return React.createElement("span", {
       style: {
         fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99,
-        background: enviado ? "#e8f0fe" : "#e2f5ea",
-        color: enviado ? "#2563eb" : "#1b8a5a"
+        background: recolhido ? "#fdecea" : enviado ? "#e8f0fe" : "#e2f5ea",
+        color: recolhido ? "var(--red, #c0392b)" : enviado ? "#2563eb" : "#1b8a5a"
       }
-    }, enviado ? "📤 Enviado" : "✅ Disponível");
+    }, recolhido ? "📥 Recolhido" : enviado ? "📤 Enviado" : "✅ Disponível");
   };
 
   // Agrupa os dados carregados por item_material (pra visão em cartões)
@@ -7380,8 +7420,8 @@ function PageEstoque() {
     return Object.values(g).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   })();
 
-  const totalDisponivel = dados.filter(r => aba === "cotesi" || r.status !== "Enviado").length;
-  const totalEnviado = ehIndividual ? dados.filter(r => r.status === "Enviado").length : 0;
+  const totalDisponivel = dados.filter(r => aba === "cotesi" || r.status !== statusIndisponivel).length;
+  const totalEnviado = aba === "comarcas" ? dados.filter(r => r.status === "Recolhido").length : ehIndividual ? dados.filter(r => r.status === "Enviado").length : 0;
 
   const renderConfirmDesfazer = row => React.createElement("div", { style: { padding: 12, background: "#fdecea", borderRadius: 8, marginTop: 8 } },
     React.createElement("div", { style: { fontSize: 12, marginBottom: 10 } },
@@ -7393,6 +7433,19 @@ function PageEstoque() {
         onClick: () => desfazerEnvio(row), disabled: salvando,
         style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
       }, salvando ? "Desfazendo..." : "Sim, desfazer")
+    )
+  );
+
+  const renderConfirmRecolher = row => React.createElement("div", { style: { padding: 12, background: "#fdecea", borderRadius: 8, marginTop: 8 } },
+    React.createElement("div", { style: { fontSize: 12, marginBottom: 10 } },
+      "📥 Confirma o recolhimento de \"" + nomeLimpo(row.item_material) + "\" (patrimônio " + (row.numero_patrimonio || "—") + ") da comarca " + (row.unidade_responsavel || "—") + "?"
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8 } },
+      React.createElement("button", { className: "btn", onClick: () => setConfirmandoRecolherId(null), disabled: salvando }, "Não"),
+      React.createElement("button", {
+        onClick: () => recolherItem(row), disabled: salvando,
+        style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+      }, salvando ? "Recolhendo..." : "Sim, recolher")
     )
   );
 
@@ -7758,7 +7811,7 @@ function PageEstoque() {
 
     modoView === "cartoes" ? React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 } },
       grupos.map(grupo => {
-        const disp = grupo.itens.filter(r => aba === "cotesi" || r.status !== "Enviado").length;
+        const disp = grupo.itens.filter(r => aba === "cotesi" || r.status !== statusIndisponivel).length;
         const env = ehIndividual ? grupo.itens.filter(r => r.status === "Enviado").length : 0;
         const chaveGrupo = grupo.nomeCompleto + "||" + grupo.codigo;
         const aberto = grupoAberto === chaveGrupo;
@@ -7786,6 +7839,7 @@ function PageEstoque() {
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
               confirmandoDesfazerId === row.id ? renderConfirmDesfazer(row) :
+              confirmandoRecolherId === row.id ? renderConfirmRecolher(row) :
               React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
                 React.createElement("div", { style: { fontSize: 12 } },
                   React.createElement("div", null,
@@ -7799,11 +7853,21 @@ function PageEstoque() {
                 React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
                   ehIndividual && badgeStatus(row),
                   React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm" }, "✎"),
-                  ehIndividual && row.status !== "Enviado" && React.createElement("button", {
+                  aba === "comarcas" && row.status !== "Recolhido" && React.createElement("button", {
+                    onClick: () => setConfirmandoRecolherId(row.id),
+                    title: "Recolher item",
+                    style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                  }, "📥"),
+                  aba === "comarcas" && row.status === "Recolhido" && React.createElement("button", {
+                    onClick: () => desfazerRecolhimento(row),
+                    title: "Desfazer recolhimento",
+                    style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                  }, "↩️"),
+                  aba !== "comarcas" && ehIndividual && row.status !== "Enviado" && React.createElement("button", {
                     onClick: () => abrirEnvio(row),
                     style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                   }, "📤"),
-                  ehIndividual && row.status === "Enviado" && React.createElement("button", {
+                  aba !== "comarcas" && ehIndividual && row.status === "Enviado" && React.createElement("button", {
                     onClick: () => setConfirmandoDesfazerId(row.id),
                     title: "Desfazer envio",
                     style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
@@ -7837,6 +7901,7 @@ function PageEstoque() {
             editandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEdicao())) :
             enviandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEnvio(row))) :
             confirmandoDesfazerId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderConfirmDesfazer(row))) :
+            confirmandoRecolherId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderConfirmRecolher(row))) :
             React.createElement("tr", null,
               React.createElement("td", { style: { fontSize: 12, fontWeight: 600, maxWidth: 260 } }, nomeLimpo(row.item_material), React.createElement("div", { style: { fontSize: 10, color: "var(--text3)", fontWeight: 400 } }, "Cód. " + row.codigo_item)),
               React.createElement("td", { style: { fontSize: 12 } }, [row.marca, row.modelo].filter(Boolean).join(" / ") || "—"),
@@ -7845,13 +7910,21 @@ function PageEstoque() {
               ehIndividual && React.createElement("td", null, badgeStatus(row)),
               React.createElement("td", { style: { whiteSpace: "nowrap" } },
                 React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm", style: { marginRight: 6 } }, "✎ Editar"),
-                ehIndividual && row.status !== "Enviado" && React.createElement("button", {
+                aba === "comarcas" && row.status !== "Recolhido" && React.createElement("button", {
+                  onClick: () => setConfirmandoRecolherId(row.id),
+                  style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                }, "📥 Recolher"),
+                aba === "comarcas" && row.status === "Recolhido" && React.createElement("button", {
+                  onClick: () => desfazerRecolhimento(row),
+                  style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                }, "↩️ Desfazer recolhimento"),
+                aba !== "comarcas" && ehIndividual && row.status !== "Enviado" && React.createElement("button", {
                   onClick: () => abrirEnvio(row),
                   style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "📤 Enviar"),
-                ehIndividual && row.status === "Enviado" && React.createElement("button", {
+                aba !== "comarcas" && ehIndividual && row.status === "Enviado" && React.createElement("button", {
                   onClick: () => setConfirmandoDesfazerId(row.id),
-                  style: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                  style: { background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 10px", fontSize: 12, cursor: "pointer" }
                 }, "↩️ Desfazer envio")
               )
             )
