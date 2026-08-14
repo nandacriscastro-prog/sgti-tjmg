@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786727728 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786727935 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -7455,7 +7455,19 @@ function PageEstoque() {
       campos.map(([k, l]) => React.createElement("div", { key: k },
         React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, l),
         k === "unidade_responsavel"
-          ? React.createElement(ComarcaInput, { value: editForm[k] ?? "", onChange: (novaComarca) => setEditForm(f => ({ ...f, [k]: novaComarca })) })
+          ? React.createElement("div", null,
+              React.createElement(ComarcaInput, { value: editForm[k] ?? "", onChange: (novaComarca) => setEditForm(f => ({ ...f, [k]: novaComarca })) }),
+              React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" } },
+                React.createElement("span", {
+                  onClick: () => setEditForm(f => ({ ...f, [k]: "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS" })),
+                  style: { fontSize: 10, color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }
+                }, "Estoque de usados"),
+                React.createElement("span", {
+                  onClick: () => setEditForm(f => ({ ...f, [k]: "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS" })),
+                  style: { fontSize: 10, color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }
+                }, "Estoque de novos")
+              )
+            )
           : React.createElement("input", {
               value: editForm[k] ?? "", onChange: e => setEditForm(f => ({ ...f, [k]: e.target.value })),
               style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
