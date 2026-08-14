@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702896 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786703559 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -71,7 +71,7 @@ const FISCAIS = [{
   email: "",
   matricula: "85365",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }, {
   id: 2,
@@ -79,7 +79,7 @@ const FISCAIS = [{
   email: "aguilar.souza@tjmg.jus.br",
   matricula: "P0012862",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }, {
   id: 3,
@@ -87,7 +87,7 @@ const FISCAIS = [{
   email: "fernanda.leao@tjmg.jus.br",
   matricula: "P0168250",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }, {
   id: 5,
@@ -95,7 +95,7 @@ const FISCAIS = [{
   email: "andre.luiz.oliveira@tjmg.jus.br",
   matricula: "P0169809",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }, {
   id: 6,
@@ -103,7 +103,7 @@ const FISCAIS = [{
   email: "gustavo.souza.ferreira@tjmg.jus.br",
   matricula: "",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }, {
   id: 7,
@@ -111,7 +111,7 @@ const FISCAIS = [{
   email: "felipe.martins.oliveira@tjmg.jus.br",
   matricula: "P0117647",
   equipe: "CFTV/alarme/Portal",
-  setor: "COMEP",
+  setor: "COTESI",
   assinatura: ""
 }];
 const TECNICOS_DEFAULT = [{
@@ -120,21 +120,21 @@ const TECNICOS_DEFAULT = [{
   email: "",
   matricula: "85365",
   funcao: "Fiscal",
-  setor: "COMEP"
+  setor: "COTESI"
 }, {
   id: 2,
   nome: "Aguilar Ozanan de Souza",
   email: "aguilar.souza@tjmg.jus.br",
   matricula: "P0012862",
   funcao: "Fiscal",
-  setor: "COMEP"
+  setor: "COTESI"
 }, {
   id: 3,
   nome: "Fernanda Cristine Leão Castro",
   email: "fernanda.leao@tjmg.jus.br",
   matricula: "P0168250",
   funcao: "Fiscal",
-  setor: "COMEP"
+  setor: "COTESI"
 }];
 const TECNICOS_VER = "v2-alvo";
 const TECNICOS_EMPRESA_DEFAULT = [{
@@ -1220,12 +1220,89 @@ function ComarcaInput({
 }
 
 // ── PAGE: DASHBOARD ──────────────────────────────────────────
+function GraficoPeriodos({ dados }) {
+  const [hover, setHover] = useState(null);
+  const W = 760, H = 260, padL = 36, padB = 40, padT = 16, padR = 12;
+  const areaW = W - padL - padR, areaH = H - padT - padB;
+  const maxVal = Math.max(1, ...dados.map(d => Math.max(d.abertas, d.atendidas, d.revisitas)));
+  const grupoW = areaW / dados.length;
+  const barW = Math.min(20, grupoW / 5);
+  const series = [
+    { chave: "abertas", cor: "var(--blue)", label: "Abertas" },
+    { chave: "atendidas", cor: "var(--green)", label: "Atendidas" },
+    { chave: "revisitas", cor: "var(--accent)", label: "Revisitas" }
+  ];
+  const yTicks = 4;
+  return React.createElement("div", { style: { overflowX: "auto" } },
+    React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", maxWidth: 820, height: "auto", display: "block" } },
+      Array.from({ length: yTicks + 1 }).map((_, i) => {
+        const v = Math.round(maxVal * i / yTicks);
+        const y = padT + areaH - (areaH * i / yTicks);
+        return React.createElement("g", { key: i },
+          React.createElement("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: "var(--border)", strokeWidth: 1 }),
+          React.createElement("text", { x: padL - 8, y: y + 4, fontSize: 10, fill: "var(--text3)", textAnchor: "end" }, v)
+        );
+      }),
+      dados.map((d, i) => {
+        const gx = padL + i * grupoW;
+        return React.createElement("g", { key: i },
+          series.map((s, si) => {
+            const val = d[s.chave];
+            const h = (val / maxVal) * areaH;
+            const x = gx + grupoW / 2 - (barW * 1.5) + si * (barW + 4);
+            const y = padT + areaH - h;
+            const chave = i + "_" + s.chave;
+            return React.createElement("rect", {
+              key: s.chave, x, y, width: barW, height: h, fill: s.cor, rx: 2,
+              opacity: hover && hover !== chave ? 0.35 : 1,
+              onMouseEnter: () => setHover(chave), onMouseLeave: () => setHover(null),
+              style: { cursor: "pointer" }
+            });
+          }),
+          React.createElement("text", { x: gx + grupoW / 2, y: H - padB + 16, fontSize: 11, fill: "var(--text2)", textAnchor: "middle" }, d.label)
+        );
+      })
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 16, justifyContent: "center", marginTop: 8, flexWrap: "wrap" } },
+      series.map(s => React.createElement("div", { key: s.chave, style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text2)" } },
+        React.createElement("span", { style: { width: 10, height: 10, borderRadius: 2, background: s.cor, display: "inline-block" } }),
+        s.label
+      ))
+    ),
+    hover && (() => {
+      const [idx, chave] = [Number(hover.split("_")[0]), hover.split("_")[1]];
+      const s = series.find(x => x.chave === chave);
+      return React.createElement("div", { style: { textAlign: "center", fontSize: 12, color: "var(--text2)", marginTop: 4 } },
+        React.createElement("strong", null, dados[idx].label + " — " + s.label + ": " + dados[idx][chave])
+      );
+    })()
+  );
+}
 function PageDashboard({
   os,
   setPage
 }) {
-  const os181 = os.filter(o => (o.contrato || "") === "181/2026");
+  const os181 = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto");
   const hoje = new Date().toISOString().slice(0, 10);
+  // Últimos 6 períodos de medição (dia 20 do mês anterior a dia 19 do mês)
+  const periodos = (() => {
+    const agora = new Date();
+    const lista = [];
+    for (let i = 5; i >= 0; i--) {
+      const refMes = agora.getMonth() - i;
+      const refAno = agora.getFullYear() + Math.floor(refMes / 12);
+      const mesNorm = ((refMes % 12) + 12) % 12;
+      const mesAnt = mesNorm === 0 ? 11 : mesNorm - 1;
+      const anoAnt = mesNorm === 0 ? refAno - 1 : refAno;
+      const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
+      const dtFim = `${refAno}-${String(mesNorm + 1).padStart(2, "0")}-19`;
+      const abertas = os181.filter(o => o.tipo !== "Correção" && (o.data_os || "") >= dtIni && (o.data_os || "") <= dtFim).length;
+      const atendidas = os181.filter(o => o.status === "Concluída" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim).length;
+      const revisitas = os181.filter(o => o.tipo === "Correção" && (o.data_os || "") >= dtIni && (o.data_os || "") <= dtFim).length;
+      lista.push({ label: MESES_FULL[mesNorm].slice(0, 3) + "/" + String(refAno).slice(2), abertas, atendidas, revisitas });
+    }
+    return lista;
+  })();
   const kpisPara = lista => {
     const abertas = lista.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
     const conc = lista.filter(o => o.status === "Concluída").length;
@@ -1335,7 +1412,12 @@ function PageDashboard({
       textTransform: "uppercase",
       letterSpacing: ".08em"
     }
-  }, "Segurança Eletrônica \u2014 Contrato 181/2026"), renderKpiGrid(k181), /*#__PURE__*/React.createElement("div", {
+  }, "Segurança Eletrônica \u2014 Contrato 181/2026"), renderKpiGrid(k181),
+  /*#__PURE__*/React.createElement("div", { className: "card", style: { marginBottom: 24 } },
+    /*#__PURE__*/React.createElement("div", { className: "card-title" }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "OS por período de medição — últimos 6 ciclos (dia 20 a dia 19)"),
+    /*#__PURE__*/React.createElement(GraficoPeriodos, { dados: periodos })
+  ),
+  /*#__PURE__*/React.createElement("div", {
     className: "grid2"
   }, /*#__PURE__*/React.createElement("div", {
     className: "card"
