@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786652388 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702316 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -670,7 +670,8 @@ body{font-family:var(--font);background:var(--surface);color:var(--text)}
 .sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0}
 .sb-scroll::-webkit-scrollbar{width:3px}
 .sb-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
-.sb-sec{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.28);padding:12px 18px 4px;white-space:nowrap}
+.sb-sec{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);padding:16px 18px 6px;white-space:nowrap;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
+.sb-sec:first-child{border-top:none;margin-top:0;padding-top:8px}
 .col .sb-sec{opacity:0;height:0;padding:0}
 .nav-item{display:flex;align-items:center;gap:10px;padding:8px 14px;margin:1px 8px;border-radius:6px;cursor:pointer;color:rgba(255,255,255,.55);font-size:13px;font-weight:500;transition:var(--tr);white-space:nowrap;position:relative;user-select:none}
 .nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
@@ -835,27 +836,11 @@ const NAV = [{
   id: "home",
   label: "Dashboard",
   icon: "home",
-  sec: "GEASI — Segurança Eletrônica"
+  sec: "Operação"
 }, {
   id: "nova",
   label: "Nova OS",
   icon: "plus",
-  sec: null
-}, {
-  id: "historico",
-  label: "Histórico",
-  icon: "list",
-  sec: null
-}, {
-  id: "avaliacao",
-  label: "Avaliação",
-  icon: "check",
-  sec: null,
-  hasBadge: true
-}, {
-  id: "campo",
-  label: "Campo",
-  icon: "mobile",
   sec: null
 }, {
   id: "remoto",
@@ -863,29 +848,45 @@ const NAV = [{
   icon: "phone",
   sec: null
 }, {
-  id: "estoque",
-  label: "Estoque",
-  icon: "box",
+  id: "campo",
+  label: "Campo",
+  icon: "mobile",
   sec: null
+}, {
+  id: "historico",
+  label: "Histórico",
+  icon: "list",
+  sec: "Gestão"
+}, {
+  id: "avaliacao",
+  label: "Avaliação",
+  icon: "check",
+  sec: null,
+  hasBadge: true
 }, {
   id: "medicao",
   label: "Medição",
   icon: "money",
   sec: null
 }, {
+  id: "estoque",
+  label: "Estoque",
+  icon: "box",
+  sec: null
+}, {
   id: "usuarios",
   label: "Usuários",
+  icon: "users",
+  sec: "Administração"
+}, {
+  id: "tecnicos",
+  label: "Técnicos",
   icon: "users",
   sec: null
 }, {
   id: "chamados",
   label: "Chamados",
   icon: "phone",
-  sec: null
-}, {
-  id: "tecnicos",
-  label: "Técnicos",
-  icon: "users",
   sec: null
 }, {
   id: "tel-home",
@@ -939,8 +940,12 @@ function Sidebar({
   col,
   page,
   setPage,
-  pendentes
+  pendentes,
+  sessao
 }) {
+  const nomeUsuario = sessao?.fiscal?.nome || sessao?.nome || "Usuário";
+  const iniciais = nomeUsuario.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase() || "U";
+  const cargoUsuario = sessao?.fiscal?.setor ? sessao.fiscal.setor + " — Fiscal do Contrato" : "Fiscal do Contrato";
   return /*#__PURE__*/React.createElement("aside", {
     className: `sidebar${col ? " col" : ""}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -977,13 +982,13 @@ function Sidebar({
     className: "sb-user"
   }, /*#__PURE__*/React.createElement("div", {
     className: "u-avatar"
-  }, "FL"), /*#__PURE__*/React.createElement("div", {
+  }, iniciais), /*#__PURE__*/React.createElement("div", {
     className: "u-info"
   }, /*#__PURE__*/React.createElement("div", {
     className: "u-name"
-  }, "fernanda.leao"), /*#__PURE__*/React.createElement("div", {
+  }, nomeUsuario), /*#__PURE__*/React.createElement("div", {
     className: "u-role"
-  }, "Fiscal do Contrato")))));
+  }, cargoUsuario)))));
 }
 
 // ── TOPBAR ────────────────────────────────────────────────────
@@ -10833,7 +10838,8 @@ function AppInterno({
     col: col,
     page: page,
     setPage: setPage,
-    pendentes: pendentes
+    pendentes: pendentes,
+    sessao: sessao
   }), /*#__PURE__*/React.createElement("div", {
     className: "main"
   }, /*#__PURE__*/React.createElement(Topbar, {
