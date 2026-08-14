@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702316 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786702651 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -648,11 +648,11 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --navy:#0f1f3d;--navy2:#162848;--navy3:#1e3560;
-  --accent:#c8102e;--accent2:#e8293f;
-  --surface:#f5f7fa;--surface2:#edf0f5;--border:#dde3ee;
+  --navy:#0d1b36;--navy2:#152744;--navy3:#1c3357;
+  --accent:#b91c3c;--accent2:#d6304f;--accent-bg:#fdeef1;
+  --surface:#f6f8fb;--surface2:#eef1f6;--border:#dde3ee;
   --text:#1a2540;--text2:#5a6a85;--text3:#8a9ab5;
-  --white:#ffffff;--green:#12a05c;--amber:#d97706;--purple:#7c3aed;--blue:#3b82f6;
+  --white:#ffffff;--green:#0f9d58;--amber:#d97706;--purple:#7c3aed;--blue:#2563eb;
   --sidebar-w:248px;--header-h:56px;
   --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
   --radius:8px;--shadow:0 4px 16px rgba(0,0,0,.10);--shadow-sm:0 1px 3px rgba(0,0,0,.08);
@@ -1199,7 +1199,6 @@ function PageDashboard({
   setPage
 }) {
   const os181 = os.filter(o => (o.contrato || "") === "181/2026");
-  const osLegacy = os.filter(o => ["216/2023", "217/2023", "218/2023"].includes(o.contrato || ""));
   const hoje = new Date().toISOString().slice(0, 10);
   const kpisPara = lista => {
     const abertas = lista.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
@@ -1227,7 +1226,8 @@ function PageDashboard({
     };
   };
   const k181 = kpisPara(os181);
-  const kLegacy = kpisPara(osLegacy);
+  const remotoPendente = os.filter(o => o.tipo === "Atendimento Remoto" && o.status !== "Concluída").length;
+  const correcaoAbertas = os181.filter(o => o.tipo === "Correção" && ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   const medido = hist.reduce((a, m) => a + m.liq, 0);
   const valorRef = CONTRATO_VALOR_181 || CONTRATO_VALOR_IV;
@@ -1271,6 +1271,11 @@ function PageDashboard({
   }, kk.val), /*#__PURE__*/React.createElement("div", {
     className: "kpi-lbl"
   }, kk.label))));
+  const atencaoItens = [
+    correcaoAbertas > 0 && { label: "OS de reabertura em aberto", val: correcaoAbertas, page: "medicao", icone: "🔧" },
+    remotoPendente > 0 && { label: "Atendimento remoto aguardando resposta", val: remotoPendente, page: "remoto", icone: "📞" },
+    k181.vencidas.length > 0 && { label: "OS vencidas precisam de atenção", val: k181.vencidas.length, page: "avaliacao", icone: "⚠️" }
+  ].filter(Boolean);
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -1281,7 +1286,21 @@ function PageDashboard({
     weekday: "long",
     day: "numeric",
     month: "long"
-  })))), /*#__PURE__*/React.createElement("div", {
+  })))),
+  atencaoItens.length > 0 && /*#__PURE__*/React.createElement("div", { style: { background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 10, padding: "14px 16px", marginBottom: 20 } },
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#7a5c00", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".04em" } }, "🔔 Precisa da sua atenção"),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 20, flexWrap: "wrap" } },
+      atencaoItens.map(a => /*#__PURE__*/React.createElement("div", {
+        key: a.label, onClick: () => setPage(a.page),
+        style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, a.icone),
+        /*#__PURE__*/React.createElement("span", { style: { fontWeight: 700, fontSize: 14, color: "#7a5c00" } }, a.val),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#7a5c00" } }, a.label)
+      ))
+    )
+  ),
+  /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 8,
       fontSize: 11,
@@ -1290,66 +1309,7 @@ function PageDashboard({
       textTransform: "uppercase",
       letterSpacing: ".08em"
     }
-  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contrato 181/2026 (vigente)"), renderKpiGrid(k181), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      color: "var(--text3)",
-      textTransform: "uppercase",
-      letterSpacing: ".08em"
-    }
-  }, "Seguran\xE7a Eletr\xF4nica \u2014 Contratos 216/217/218 de 2023 (encerrados)"), renderKpiGrid(kLegacy), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      color: "var(--text3)",
-      textTransform: "uppercase",
-      letterSpacing: ".08em"
-    }
-  }, "Telefonia \u2014 Contratos 013/2025 \xB7 318/319/320/2023 \xB7 096/2022"), /*#__PURE__*/React.createElement("div", {
-    className: "kpi-grid",
-    style: {
-      marginBottom: 24
-    }
-  }, [{
-    label: "Total chamados",
-    val: TEL_DADOS.length || 2620,
-    cls: "blue",
-    page: "tel-chamados"
-  }, {
-    label: "Atendidos",
-    val: TEL_DADOS.filter?.(c => c.situacao === "Atendido").length || 2455,
-    cls: "green",
-    page: "tel-chamados"
-  }, {
-    label: "Em atraso",
-    val: TEL_DADOS.filter?.(c => c.situacao === "Em Atraso").length || 30,
-    cls: "red",
-    page: "tel-chamados"
-  }, {
-    label: "Contratos",
-    val: 5,
-    cls: "purple",
-    page: "tel-sla"
-  }, {
-    label: "Glosa SLA",
-    val: "Calcular",
-    cls: "amber",
-    page: "tel-glosa"
-  }].map(k => /*#__PURE__*/React.createElement("div", {
-    key: k.label,
-    className: `kpi ${k.cls}`,
-    onClick: () => setPage(k.page)
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "kpi-val",
-    style: {
-      fontSize: k.val === "Calcular" ? 18 : 28
-    }
-  }, k.val), /*#__PURE__*/React.createElement("div", {
-    className: "kpi-lbl"
-  }, k.label)))), /*#__PURE__*/React.createElement("div", {
+  }, "Segurança Eletrônica \u2014 Contrato 181/2026"), renderKpiGrid(k181), /*#__PURE__*/React.createElement("div", {
     className: "grid2"
   }, /*#__PURE__*/React.createElement("div", {
     className: "card"
@@ -1357,7 +1317,7 @@ function PageDashboard({
     className: "card-title"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dot"
-  }), "Saldo contratual \u2014 Seguran\xE7a Eletr\xF4nica"), /*#__PURE__*/React.createElement("div", {
+  }), "Saldo contratual"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 12
     }
@@ -1417,7 +1377,7 @@ function PageDashboard({
       color: "var(--text3)",
       fontWeight: 600
     }
-  }, "SALDO DISPON\xCDVEL"), /*#__PURE__*/React.createElement("span", {
+  }, "SALDO DISPONÍVEL"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontFamily: "var(--mono)",
       fontSize: 17,
@@ -1430,26 +1390,26 @@ function PageDashboard({
     className: "card-title"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dot"
-  }), "M\xF3dulos do sistema"), [{
+  }), "Atalhos rápidos"), [{
     icon: "📋",
     title: "Nova OS",
     desc: "Abrir OS com autocomplete de comarca e SLA automático",
     page: "nova"
+  }, {
+    icon: "🛣️",
+    title: "Rota",
+    desc: "Criar várias OS de uma vez, comarca por comarca",
+    page: "rota"
   }, {
     icon: "✅",
     title: "Avaliação",
     desc: k181.pendentes + " OS aguardando avaliação",
     page: "avaliacao"
   }, {
-    icon: "💰",
-    title: "Medição",
-    desc: "Cálculo financeiro e glosa SLA",
-    page: "medicao"
-  }, {
-    icon: "📞",
-    title: "Telefonia",
-    desc: "2.620 chamados · 5 contratos",
-    page: "tel-home"
+    icon: "📦",
+    title: "Estoque",
+    desc: "Equipamentos Cobens e Cotesi",
+    page: "estoque"
   }].map(m => /*#__PURE__*/React.createElement("div", {
     key: m.title,
     onClick: () => setPage(m.page),
