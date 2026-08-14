@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786727048 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786727728 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -6876,7 +6876,7 @@ function PageEstoque() {
   const [previaImport, setPreviaImport] = useState([]);
   const [importando, setImportando] = useState(false);
   const [resultadoImport, setResultadoImport] = useState(null);
-  const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
+  const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true, unidade_responsavel: "" });
   const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
   const [buscaFiltro, setBuscaFiltro] = useState("");
@@ -7240,7 +7240,8 @@ function PageEstoque() {
         codigo_item: novoItem.codigo_item.trim(),
         item_material: novoItem.item_material.trim(),
         marca: novoItem.marca.trim() || null,
-        modelo: novoItem.modelo.trim() || null
+        modelo: novoItem.modelo.trim() || null,
+        unidade_responsavel: novoItem.unidade_responsavel || null
       };
       const promessas = [];
       if (aba === "comarcas") {
@@ -7263,7 +7264,7 @@ function PageEstoque() {
         }
       }
       await Promise.all(promessas);
-      setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true });
+      setNovoItem({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true, unidade_responsavel: "" });
       setPainelNovoAberto(false);
       carregar(0);
       carregarOpcoes();
@@ -7572,6 +7573,14 @@ function PageEstoque() {
         React.createElement("div", null,
           React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Modelo"),
           React.createElement("input", { value: novoItem.modelo, onChange: e => setNovoItem(n => ({ ...n, modelo: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+        ),
+        React.createElement("div", { style: { gridColumn: "span 2" } },
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Unidade Responsável"),
+          React.createElement("select", { value: novoItem.unidade_responsavel, onChange: e => setNovoItem(n => ({ ...n, unidade_responsavel: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } },
+            React.createElement("option", { value: "" }, "— Selecione —"),
+            React.createElement("option", { value: "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS" }, "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS"),
+            React.createElement("option", { value: "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS" }, "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS")
+          )
         ),
         React.createElement("div", null,
           React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio (Cobens)"),
