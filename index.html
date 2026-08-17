@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786989341 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786990301 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1331,6 +1331,7 @@ function PageDashboard({
     if (o.tipo === "Atendimento Remoto") return 0; // SLA 2h — aproximado por "mesmo dia"
     const mun = (o.comarca || "").split(" - ")[0];
     const isC181 = COLAR_181.has(mun);
+    if (o.tipo === "Correção") return isC181 ? 1 : 3;
     return (o.tipo || "").includes("Emergencial") ? (isC181 ? 2 : 5) : (isC181 ? 10 : 30);
   };
   const prazoData = o => {
@@ -4286,11 +4287,14 @@ function PageAvaliacao({
   const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const hoje = new Date().toISOString().slice(0,10);
   const vencidasLista = abertas.filter(o => {
-    if (o.prazo_date) return hoje > o.prazo_date;
     if(!o.data_os) return false;
     const mun = (o.comarca||"").split(" - ")[0];
     const isC181 = (o.contrato||"") === "181/2026" ? COLAR_181.has(mun) : COLAR_CIDADES.has(mun);
-    const dias = isC181 ? 10 : 30;
+    let dias;
+    if (o.tipo === "Atendimento Remoto") dias = 0; // SLA 2h — aproximado por "mesmo dia"
+    else if (o.tipo === "Correção") dias = isC181 ? 1 : 3;
+    else if ((o.tipo||"").includes("Emergencial")) dias = isC181 ? 2 : 5;
+    else dias = isC181 ? 10 : 30;
     const prazo = new Date(o.data_os+"T12:00");
     prazo.setDate(prazo.getDate()+dias);
     return hoje > prazo.toISOString().slice(0,10);
