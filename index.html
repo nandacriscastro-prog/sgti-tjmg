@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786988770 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786989140 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1409,17 +1409,24 @@ function PageDashboard({
   const medido = hist.reduce((a, m) => a + m.liq, 0);
   const valorRef = CONTRATO_VALOR_181 || CONTRATO_VALOR_IV;
   const saldo = valorRef - medido;
-  const renderKpiGrid4 = (titulo, s, vencidasLista) => /*#__PURE__*/React.createElement("div", null,
+  const renderKpiGrid4 = (titulo, s, vencidasLista, soRemoto) => /*#__PURE__*/React.createElement("div", null,
     /*#__PURE__*/React.createElement("div", { style: { marginBottom: 8, fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" } }, titulo),
     /*#__PURE__*/React.createElement("div", { className: "kpi-grid", style: { marginBottom: 24 } },
-      [{ label: "OS abertas no período", val: s.abertas, cls: "blue", page: "historico" },
-       { label: "Atendidas no prazo", val: s.noPrazo, cls: "green", page: "historico" },
-       { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico" },
+      [{ label: "OS abertas no período", val: s.abertas, cls: "blue", page: "historico",
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_os", soRemoto } },
+       { label: "Atendidas no prazo", val: s.noPrazo, cls: "green", page: "historico",
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
+       { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico",
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
        { label: "⚠️ Vencidas (em aberto)", val: vencidasLista.length, cls: "red", page: "avaliacao", filtroAval: "vencidas" }
       ].map(kk => /*#__PURE__*/React.createElement("div", {
         key: kk.label,
         className: `kpi ${kk.cls}`,
-        onClick: () => { if (kk.filtroAval) window._avaliacaoFiltro = kk.filtroAval; setPage(kk.page); }
+        onClick: () => {
+          if (kk.filtroAval) window._avaliacaoFiltro = kk.filtroAval;
+          if (kk.hist) window._historicoFiltro = kk.hist;
+          setPage(kk.page);
+        }
       }, /*#__PURE__*/React.createElement("div", { className: "kpi-val" }, kk.val), /*#__PURE__*/React.createElement("div", { className: "kpi-lbl" }, kk.label)))
     )
   );
@@ -1452,12 +1459,12 @@ function PageDashboard({
       ))
     )
   ),
-  renderKpiGrid4("📋 Atendimento Presencial — período atual (" + dtIniAtual.split("-").reverse().join("/") + " a " + dtFimAtual.split("-").reverse().join("/") + ")", statsPresencial, vencidasPresencial),
+  renderKpiGrid4("📋 Atendimento Presencial — período atual (" + dtIniAtual.split("-").reverse().join("/") + " a " + dtFimAtual.split("-").reverse().join("/") + ")", statsPresencial, vencidasPresencial, false),
   /*#__PURE__*/React.createElement("div", { className: "card", style: { marginBottom: 24 } },
     /*#__PURE__*/React.createElement("div", { className: "card-title" }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "Atendimento Presencial por período — últimos 6 ciclos"),
     /*#__PURE__*/React.createElement(GraficoPeriodos, { dados: periodosPresencial, series3: true })
   ),
-  renderKpiGrid4("📞 Atendimento Remoto — período atual (" + dtIniAtual.split("-").reverse().join("/") + " a " + dtFimAtual.split("-").reverse().join("/") + ")", statsRemoto, vencidasRemoto),
+  renderKpiGrid4("📞 Atendimento Remoto — período atual (" + dtIniAtual.split("-").reverse().join("/") + " a " + dtFimAtual.split("-").reverse().join("/") + ")", statsRemoto, vencidasRemoto, true),
   /*#__PURE__*/React.createElement("div", { className: "card", style: { marginBottom: 24 } },
     /*#__PURE__*/React.createElement("div", { className: "card-title" }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "Atendimento Remoto por período — últimos 6 ciclos"),
     /*#__PURE__*/React.createElement(GraficoPeriodos, { dados: periodosRemoto, series3: true })
@@ -3641,8 +3648,18 @@ function PageHistorico({
   const [busca, setBusca] = useState(() => { const v = window._buscaGlobal || ""; window._buscaGlobal = ""; return v; });
   const [fSt, setFSt] = useState("");
   const [fTipo, setFTipo] = useState("");
-  const [fDt1, setFDt1] = useState("");
-  const [fDt2, setFDt2] = useState("");
+  const [fDt1, setFDt1] = useState(() => window._historicoFiltro?.dtIni || "");
+  const [fDt2, setFDt2] = useState(() => window._historicoFiltro?.dtFim || "");
+  const [fStMulti, setFStMulti] = useState(() => window._historicoFiltro?.statusMulti || null);
+  const [dtCampoHandoff] = useState(() => {
+    const v = window._historicoFiltro?.dtCampo || "data_os";
+    return v;
+  });
+  const [fSoRemoto] = useState(() => {
+    const v = window._historicoFiltro?.soRemoto;
+    window._historicoFiltro = null;
+    return v === undefined ? null : v;
+  });
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
   const [paraExcluir, setParaExcluir] = useState(null);
@@ -3656,9 +3673,13 @@ function PageHistorico({
     const b = busca.toLowerCase();
     if (b && !`${o.numero} ${o.comarca} ${o.servico || ""}`.toLowerCase().includes(b)) return false;
     if (fSt && (o.status || "Concluída") !== fSt) return false;
+    if (fStMulti && !fStMulti.includes(o.status || "Concluída")) return false;
+    if (fSoRemoto === true && o.tipo !== "Atendimento Remoto") return false;
+    if (fSoRemoto === false && o.tipo === "Atendimento Remoto") return false;
     if (fTipo && !(o.tipo || "").includes(fTipo)) return false;
-    if (fDt1 && (o.data_os || "") < fDt1) return false;
-    if (fDt2 && (o.data_os || "") > fDt2) return false;
+    const campoData = o[dtCampoHandoff] || "";
+    if (fDt1 && campoData < fDt1) return false;
+    if (fDt2 && campoData > fDt2) return false;
     return true;
   }).sort((a, b) => {
     const numOrdenavel = o => {
