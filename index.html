@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786988493 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786988770 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10941,7 +10941,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes,criado_em&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,data_conclusao,atendido_2h,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes,criado_em&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
