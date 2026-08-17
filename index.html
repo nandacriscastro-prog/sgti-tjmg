@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786990301 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786990452 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1416,9 +1416,9 @@ function PageDashboard({
       [{ label: "OS abertas no período", val: s.abertas, cls: "blue", page: "historico",
          hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_os", soRemoto } },
        { label: "Atendidas no prazo", val: s.noPrazo, cls: "green", page: "historico",
-         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, prazoStatus: "noPrazo" } },
        { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico",
-         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, prazoStatus: "foraPrazo" } },
        { label: "⚠️ Vencidas (em aberto)", val: vencidasLista.length, cls: "red", page: "avaliacao", filtroAval: "vencidas", filtroSoRemoto: soRemoto }
       ].map(kk => /*#__PURE__*/React.createElement("div", {
         key: kk.label,
@@ -3658,8 +3658,12 @@ function PageHistorico({
   });
   const [fSoRemoto] = useState(() => {
     const v = window._historicoFiltro?.soRemoto;
-    window._historicoFiltro = null;
     return v === undefined ? null : v;
+  });
+  const [fPrazoStatus] = useState(() => {
+    const v = window._historicoFiltro?.prazoStatus || null;
+    window._historicoFiltro = null;
+    return v;
   });
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
@@ -3668,6 +3672,21 @@ function PageHistorico({
   const [filtroContrato, setFiltroContrato] = useState("todos");
   const [verPorRota, setVerPorRota] = useState(false);
   const POR_PAG = 25;
+  const prazoDiasHist = o => {
+    if (o.tipo === "Atendimento Remoto") return null; // usa atendido_2h, não data
+    const mun = (o.comarca || "").split(" - ")[0];
+    const isC181 = (o.contrato||"") === "181/2026" ? COLAR_181.has(mun) : COLAR_CIDADES.has(mun);
+    if (o.tipo === "Correção") return isC181 ? 1 : 3;
+    return (o.tipo || "").includes("Emergencial") ? (isC181 ? 2 : 5) : (isC181 ? 10 : 30);
+  };
+  const foiNoPrazo = o => {
+    if (o.tipo === "Atendimento Remoto") return o.atendido_2h === true;
+    if (!o.data_os || !o.data_conclusao) return null;
+    const dias = prazoDiasHist(o);
+    const prazo = new Date(o.data_os + "T12:00");
+    prazo.setDate(prazo.getDate() + dias);
+    return o.data_conclusao <= prazo.toISOString().slice(0, 10);
+  };
   const dados = os.filter(o => {
     const _ct = o.contrato || "218/2023";
     if(filtroContrato && filtroContrato !== "todos" && _ct !== filtroContrato) return false;
@@ -3677,6 +3696,8 @@ function PageHistorico({
     if (fStMulti && !fStMulti.includes(o.status || "Concluída")) return false;
     if (fSoRemoto === true && o.tipo !== "Atendimento Remoto") return false;
     if (fSoRemoto === false && o.tipo === "Atendimento Remoto") return false;
+    if (fPrazoStatus === "noPrazo" && foiNoPrazo(o) !== true) return false;
+    if (fPrazoStatus === "foraPrazo" && foiNoPrazo(o) !== false) return false;
     if (fTipo && !(o.tipo || "").includes(fTipo)) return false;
     const campoData = o[dtCampoHandoff] || "";
     if (fDt1 && campoData < fDt1) return false;
