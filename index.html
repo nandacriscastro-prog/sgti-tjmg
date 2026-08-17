@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786728045 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786961161 -->
+<script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -658,7 +659,21 @@ const CSS = `
   --radius:8px;--shadow:0 4px 16px rgba(0,0,0,.10);--shadow-sm:0 1px 3px rgba(0,0,0,.08);
   --tr:all .18s cubic-bezier(.4,0,.2,1);
 }
-body{font-family:var(--font);background:var(--surface);color:var(--text)}
+[data-theme="dark"]{
+  --navy:#0a1428;--navy2:#0e1c36;--navy3:#152744;
+  --accent:#e0435e;--accent2:#f0576f;--accent-bg:#3a1620;
+  --surface:#141b2e;--surface2:#1b2438;--border:#2a3550;
+  --text:#e6ebf5;--text2:#a9b6cc;--text3:#7684a0;
+  --white:#1a2338;--green:#22c58b;--amber:#f0a93e;--purple:#a78bfa;--blue:#5b8def;
+  --shadow:0 4px 20px rgba(0,0,0,.4);--shadow-sm:0 1px 4px rgba(0,0,0,.3);
+}
+[data-theme="dark"] body{background:var(--navy)}
+[data-theme="dark"] .kpi{background:var(--white)}
+[data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{background:var(--surface2);color:var(--text);border-color:var(--border)}
+[data-theme="dark"] table{color:var(--text)}
+[data-theme="dark"] th{background:var(--surface2)!important;color:var(--text2)}
+[data-theme="dark"] tr:hover{background:var(--surface2)}
+body{font-family:var(--font);background:var(--surface);color:var(--text);transition:background .25s,color .25s}
 .app{display:flex;height:100vh;overflow:hidden}
 /* SIDEBAR */
 .sidebar{width:var(--sidebar-w);background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
@@ -815,7 +830,9 @@ function Icon({
     dl: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
     print: "M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z",
     box: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8",
-    search: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35"
+    search: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35",
+    moon: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z",
+    sun: "M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
   };
   return React.createElement("svg", {
     width: s,
@@ -1005,6 +1022,12 @@ function Topbar({
 }) {
   const par = page.startsWith("tel-") ? "Telefonia" : page === "home" ? "SGTI" : "GEASI";
   const [buscaTopo, setBuscaTopo] = useState("");
+  const [tema, setTema] = useState(() => localStorage.getItem("sgti_theme") || "light");
+  useEffect(() => {
+    if (tema === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    else document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("sgti_theme", tema);
+  }, [tema]);
   const irParaBusca = () => {
     if (!buscaTopo.trim()) return;
     window._buscaGlobal = buscaTopo.trim();
@@ -1047,6 +1070,18 @@ function Topbar({
   ), /*#__PURE__*/React.createElement("div", {
     className: "tb-right"
   }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    style: {
+      border: "none",
+      background: "none",
+      color: "var(--text3)"
+    },
+    onClick: () => setTema(t => t === "dark" ? "light" : "dark"),
+    title: "Alternar modo claro/escuro"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    n: tema === "dark" ? "sun" : "moon",
+    s: 14
+  })), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sm",
     style: {
       border: "none",
