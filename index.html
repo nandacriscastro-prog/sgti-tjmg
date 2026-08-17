@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786971108 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786977023 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1382,7 +1382,8 @@ function PageDashboard({
     label: "⚠️ Vencidas",
     val: k.vencidas.length,
     cls: "red",
-    page: "avaliacao"
+    page: "avaliacao",
+    filtroAval: "vencidas"
   }, {
     label: "OS abertas",
     val: k.abertas,
@@ -1392,7 +1393,8 @@ function PageDashboard({
     label: "Ag. avaliação",
     val: k.pendentes,
     cls: "amber",
-    page: "avaliacao"
+    page: "avaliacao",
+    filtroAval: "pendente"
   }, {
     label: "Concluídas",
     val: k.conc,
@@ -1406,7 +1408,7 @@ function PageDashboard({
   }].map(kk => /*#__PURE__*/React.createElement("div", {
     key: kk.label,
     className: `kpi ${kk.cls}`,
-    onClick: () => setPage(kk.page)
+    onClick: () => { if (kk.filtroAval) window._avaliacaoFiltro = kk.filtroAval; setPage(kk.page); }
   }, /*#__PURE__*/React.createElement("div", {
     className: "kpi-val"
   }, kk.val), /*#__PURE__*/React.createElement("div", {
@@ -1415,7 +1417,7 @@ function PageDashboard({
   const atencaoItens = [
     correcaoAbertas > 0 && { label: "OS de reabertura em aberto", val: correcaoAbertas, page: "medicao", icone: "🔧" },
     remotoPendente > 0 && { label: "Atendimento remoto aguardando resposta", val: remotoPendente, page: "remoto", icone: "📞" },
-    k181.vencidas.length > 0 && { label: "OS vencidas precisam de atenção", val: k181.vencidas.length, page: "avaliacao", icone: "⚠️" }
+    k181.vencidas.length > 0 && { label: "OS vencidas precisam de atenção", val: k181.vencidas.length, page: "avaliacao", filtroAval: "vencidas", icone: "⚠️" }
   ].filter(Boolean);
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
@@ -1432,7 +1434,7 @@ function PageDashboard({
     /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#7a5c00", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".04em" } }, "🔔 Precisa da sua atenção"),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 20, flexWrap: "wrap" } },
       atencaoItens.map(a => /*#__PURE__*/React.createElement("div", {
-        key: a.label, onClick: () => setPage(a.page),
+        key: a.label, onClick: () => { if (a.filtroAval) window._avaliacaoFiltro = a.filtroAval; setPage(a.page); },
         style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }
       },
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, a.icone),
@@ -4215,7 +4217,11 @@ function PageAvaliacao({
   os,
   reload
 }) {
-  const [filtro, setFiltro] = useState("pendente");
+  const [filtro, setFiltro] = useState(() => {
+    const v = window._avaliacaoFiltro;
+    window._avaliacaoFiltro = "";
+    return v || "pendente";
+  });
   const [sel, setSel] = useState(null);
   const [aval, setAval] = useState("");
   const [obs, setObs] = useState("");
@@ -4236,7 +4242,7 @@ function PageAvaliacao({
   const [ordemDirAval, setOrdemDirAval] = useState("desc"); // "desc" | "asc"
   const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const hoje = new Date().toISOString().slice(0,10);
-  const qtdVencidas = abertas.filter(o => {
+  const vencidasLista = abertas.filter(o => {
     if (o.prazo_date) return hoje > o.prazo_date;
     if(!o.data_os) return false;
     const mun = (o.comarca||"").split(" - ")[0];
@@ -4245,7 +4251,8 @@ function PageAvaliacao({
     const prazo = new Date(o.data_os+"T12:00");
     prazo.setDate(prazo.getDate()+dias);
     return hoje > prazo.toISOString().slice(0,10);
-  }).length;
+  });
+  const qtdVencidas = vencidasLista.length;
   const sat = os.filter(o => o.avaliacao === "satisfatorio").length;
   const reab = os.filter(o => o.avaliacao === "insatisfatorio").length;
   const pend = os.filter(o => o.status === "Concluída" && !o.avaliacao).length;
@@ -4258,7 +4265,7 @@ function PageAvaliacao({
     const asInt = parseInt(n);
     return isNaN(asInt) ? -1 : asInt;
   };
-  let dados = (filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  let dados = (filtro === "vencidas" ? vencidasLista : filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
   if (filtroContratoAval !== "todos") dados = dados.filter(o => (o.contrato || "") === filtroContratoAval);
   if (filtroDt1Aval) dados = dados.filter(o => (o.data_os || "") >= filtroDt1Aval);
   if (filtroDt2Aval) dados = dados.filter(o => (o.data_os || "") <= filtroDt2Aval);
@@ -4489,7 +4496,7 @@ function PageAvaliacao({
     label: "🚨 Vencidas",
     val: qtdVencidas,
     cls: "red",
-    f: "abertas"
+    f: "vencidas"
   }, {
     label: "OS abertas",
     val: abertas.length - qtdVencidas,
