@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786991761 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786992123 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -894,6 +894,11 @@ const NAV = [{
   icon: "box",
   sec: null
 }, {
+  id: "encerrados",
+  label: "Contratos Encerrados",
+  icon: "list",
+  sec: null
+}, {
   id: "usuarios",
   label: "Usuários",
   icon: "users",
@@ -984,7 +989,10 @@ function Sidebar({
     className: "sb-sec"
   }, item.sec), /*#__PURE__*/React.createElement("div", {
     className: `nav-item${page === item.id ? " active" : ""}`,
-    onClick: () => setPage(item.id)
+    onClick: () => {
+      if (item.id === "encerrados") { window._historicoContratoInicial = "218/2023"; setPage("historico"); }
+      else setPage(item.id);
+    }
   }, /*#__PURE__*/React.createElement("span", {
     className: "nav-icon"
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -3669,7 +3677,11 @@ function PageHistorico({
   const [sel, setSel] = useState(null);
   const [paraExcluir, setParaExcluir] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
-  const [filtroContrato, setFiltroContrato] = useState("todos");
+  const [filtroContrato, setFiltroContrato] = useState(() => {
+    const v = window._historicoContratoInicial || "todos";
+    window._historicoContratoInicial = "";
+    return v;
+  });
   const [verPorRota, setVerPorRota] = useState(false);
   const POR_PAG = 25;
   const prazoDiasHist = o => {
@@ -3794,6 +3806,7 @@ function PageHistorico({
       React.createElement("button",{key:v,onClick:()=>{setFiltroContrato(v);setPag(0);},
         className:"btn btn-sm",style:{fontWeight:filtroContrato===v?700:400,background:filtroContrato===v?"var(--navy)":"",color:filtroContrato===v?"white":""}},l)
     ),
+    ["218/2023","217/2023","216/2023"].includes(filtroContrato) && React.createElement("span",{style:{fontSize:11,color:"var(--amber, #b8860b)",marginLeft:8,fontWeight:700}},"— contrato encerrado, só consulta —"),
     React.createElement("button",{
       onClick:()=>setVerPorRota(!verPorRota),
       className:"btn btn-sm",
