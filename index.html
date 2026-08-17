@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786987970 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786988493 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1348,6 +1348,12 @@ function PageDashboard({
     const abertasNoPeriodo = lista.filter(o => (o.data_os || "") >= dtIni && (o.data_os || "") <= dtFim).length;
     let noPrazo = 0, foraPrazo = 0;
     lista.filter(o => o.status === "Concluída" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim).forEach(o => {
+      if (o.tipo === "Atendimento Remoto") {
+        if (o.atendido_2h === true) noPrazo++;
+        else if (o.atendido_2h === false) foraPrazo++;
+        // se atendido_2h ainda não foi preenchido (null/undefined), não conta nem como no prazo nem fora
+        return;
+      }
       if (!o.data_os) return;
       if (o.data_conclusao <= prazoData(o)) noPrazo++; else foraPrazo++;
     });
@@ -2208,6 +2214,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
   const [respTecnico, setRespTecnico] = useState("");
   const [respMedidas, setRespMedidas] = useState("");
   const [respSituacao, setRespSituacao] = useState("solucionado");
+  const [respAtendido2h, setRespAtendido2h] = useState(null);
   const [respMsg, setRespMsg] = useState("");
   const [respLoading, setRespLoading] = useState(false);
 
@@ -2221,8 +2228,9 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
       setRespTecnico(mTec && mTec[1].trim() !== "—" ? mTec[1].trim() : "");
       setRespMedidas(mMed && mMed[1].trim() !== "—" ? mMed[1].trim() : "");
       setRespSituacao(o.avaliacao === "pendente" ? "pendente" : "solucionado");
+      setRespAtendido2h(o.atendido_2h ?? null);
     } else {
-      setRespTecnico(""); setRespMedidas(""); setRespSituacao("solucionado");
+      setRespTecnico(""); setRespMedidas(""); setRespSituacao("solucionado"); setRespAtendido2h(null);
     }
     setRespMsg("");
   };
@@ -2236,6 +2244,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
           status: "Concluída",
           data_conclusao: o.data_conclusao || new Date().toISOString().slice(0, 10),
           avaliacao: respSituacao,
+          atendido_2h: respAtendido2h,
           observacoes: obsBase + ` | Técnico Alvo: ${respTecnico || "—"} | Medidas adotadas: ${respMedidas || "—"} | Situação: ${respSituacao === "solucionado" ? "Solucionado" : "Pendente/Não solucionado"}`
         })
       });
@@ -2425,6 +2434,15 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
                   React.createElement("option", { value: "solucionado" }, "✅ Solucionado"),
                   React.createElement("option", { value: "pendente" }, "🔄 Pendente / Não solucionado (abrir OS presencial)")
                 ))
+            ),
+            React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+              React.createElement("label", null, "Foi atendido dentro do prazo de 2 horas?"),
+              React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 4 } },
+                React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", padding: "6px 12px", border: "1px solid var(--border)", borderRadius: 6, background: respAtendido2h === true ? "#e2f5ea" : "transparent" } },
+                  React.createElement("input", { type: "radio", checked: respAtendido2h === true, onChange: () => setRespAtendido2h(true) }), "✅ Sim, dentro de 2h"),
+                React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", padding: "6px 12px", border: "1px solid var(--border)", borderRadius: 6, background: respAtendido2h === false ? "#fdecea" : "transparent" } },
+                  React.createElement("input", { type: "radio", checked: respAtendido2h === false, onChange: () => setRespAtendido2h(false) }), "❌ Não, fora do prazo")
+              )
             ),
             React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
               React.createElement("label", null, "Medidas adotadas"),
