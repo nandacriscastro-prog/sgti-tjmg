@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786989140 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1786989341 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1418,12 +1418,12 @@ function PageDashboard({
          hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
        { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico",
          hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto } },
-       { label: "⚠️ Vencidas (em aberto)", val: vencidasLista.length, cls: "red", page: "avaliacao", filtroAval: "vencidas" }
+       { label: "⚠️ Vencidas (em aberto)", val: vencidasLista.length, cls: "red", page: "avaliacao", filtroAval: "vencidas", filtroSoRemoto: soRemoto }
       ].map(kk => /*#__PURE__*/React.createElement("div", {
         key: kk.label,
         className: `kpi ${kk.cls}`,
         onClick: () => {
-          if (kk.filtroAval) window._avaliacaoFiltro = kk.filtroAval;
+          if (kk.filtroAval) { window._avaliacaoFiltro = kk.filtroAval; window._avaliacaoSoRemoto = kk.filtroSoRemoto; }
           if (kk.hist) window._historicoFiltro = kk.hist;
           setPage(kk.page);
         }
@@ -4260,6 +4260,11 @@ function PageAvaliacao({
     window._avaliacaoFiltro = "";
     return v || "pendente";
   });
+  const [filtroSoRemoto, setFiltroSoRemoto] = useState(() => {
+    const v = window._avaliacaoSoRemoto;
+    window._avaliacaoSoRemoto = undefined;
+    return v === undefined ? null : v;
+  });
   const [sel, setSel] = useState(null);
   const [aval, setAval] = useState("");
   const [obs, setObs] = useState("");
@@ -4304,6 +4309,8 @@ function PageAvaliacao({
     return isNaN(asInt) ? -1 : asInt;
   };
   let dados = (filtro === "vencidas" ? vencidasLista : filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  if (filtroSoRemoto === true) dados = dados.filter(o => o.tipo === "Atendimento Remoto");
+  if (filtroSoRemoto === false) dados = dados.filter(o => o.tipo !== "Atendimento Remoto");
   if (filtroContratoAval !== "todos") dados = dados.filter(o => (o.contrato || "") === filtroContratoAval);
   if (filtroDt1Aval) dados = dados.filter(o => (o.data_os || "") >= filtroDt1Aval);
   if (filtroDt2Aval) dados = dados.filter(o => (o.data_os || "") <= filtroDt2Aval);
