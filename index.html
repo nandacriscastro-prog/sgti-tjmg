@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787056173 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787070795 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -319,36 +319,33 @@ function mapSituacao(sit) {
 async function loadDemandas() {
   if (_dem_loaded || DEMANDAS.length) return;
   try {
-    const el = document.getElementById("dem-data");
-    if (el && el.textContent.length > 10) {
-      const raw = JSON.parse(el.textContent);
-      // Carregar status customizados do localStorage
-      const custom = JSON.parse(localStorage.getItem("dem_status_custom") || "{}");
-      DEMANDAS = raw.map(d => ({
-        ...d,
-        status: custom[d.id] || mapSituacao(d.situacao)
-      }));
-      _dem_loaded = true;
+    let rows = [], offset = 0;
+    while (true) {
+      const batch = await sbFetch(`/demandas_cotesi?select=*&order=id.asc&limit=1000&offset=${offset}`);
+      if (!batch?.length) break;
+      rows = rows.concat(batch);
+      offset += batch.length;
+      if (batch.length < 1000) break;
     }
+    DEMANDAS = rows;
+    _dem_loaded = true;
   } catch (e) {
     console.warn("Erro demandas:", e);
   }
 }
-function salvarStatusDemanda(id, novoStatus, obs) {
-  const custom = JSON.parse(localStorage.getItem("dem_status_custom") || "{}");
-  custom[id] = novoStatus;
-  localStorage.setItem("dem_status_custom", JSON.stringify(custom));
-  // Salvar obs se fornecida
-  if (obs) {
-    const obsMap = JSON.parse(localStorage.getItem("dem_obs_custom") || "{}");
-    obsMap[id] = {
-      obs,
-      dt: new Date().toISOString()
-    };
-    localStorage.setItem("dem_obs_custom", JSON.stringify(obsMap));
-  }
+async function salvarStatusDemanda(id, novoStatus, obs) {
   const d = DEMANDAS.find(x => x.id === id);
   if (d) d.status = novoStatus;
+  try {
+    const corpo = { status: novoStatus, atualizado_em: new Date().toISOString() };
+    if (obs) corpo.comentarios = obs;
+    await sbFetch(`/demandas_cotesi?id=eq.${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(corpo)
+    });
+  } catch (e) {
+    console.warn("Erro ao salvar status da demanda:", e);
+  }
 }
 function loadStaticData() {
   // CM carrega imediatamente (74KB)
@@ -10378,42 +10375,50 @@ function PageDemandasInner({
     setTick(t => t + 1);
     toast(`✓ Status: "${DEM_STATUS[editStatus]?.label}"`, "ok");
   };
-  const salvarNovaDemanda = () => {
+  const salvarNovaDemanda = async () => {
     if (!novaDem.comarca || !novaDem.descricao) {
       toast("Preencha comarca e descrição", "error");
       return;
     }
     setSalvandoDem(true);
-    const nova = {
-      ...novaDem,
-      id: Date.now(),
-      dt_demanda: new Date().toISOString().slice(0, 10),
-      municipio: novaDem.comarca.split(" - ")[0] || "",
-      _local: true
-    };
-    DEMANDAS.unshift(nova);
-    const locais = JSON.parse(localStorage.getItem("dem_locais") || "[]");
-    locais.unshift(nova);
-    localStorage.setItem("dem_locais", JSON.stringify(locais));
-    const custom = JSON.parse(localStorage.getItem("dem_status_custom") || "{}");
-    custom[nova.id] = nova.status;
-    localStorage.setItem("dem_status_custom", JSON.stringify(custom));
-    setModalNovaDem(false);
-    setNovaDem({
-      comarca: "",
-      projeto: "",
-      descricao: "",
-      prioridade: "Média",
-      sei: "",
-      regiao: "",
-      resp_trat: "",
-      obs: "",
-      status: "novo",
-      origem: "email"
-    });
-    setSalvandoDem(false);
-    setTick(t => t + 1);
-    toast("✓ Demanda registrada!", "ok");
+    try {
+      const corpo = {
+        ref: novaDem.ref || null,
+        sei: novaDem.sei || null,
+        projeto: novaDem.projeto || null,
+        comarca: novaDem.comarca,
+        municipio: novaDem.comarca.split(" - ")[0] || "",
+        regiao: novaDem.regiao || null,
+        descricao: novaDem.descricao,
+        dt_demanda: new Date().toISOString().slice(0, 10),
+        prioridade: novaDem.prioridade || "Média",
+        resp_trat: novaDem.resp_trat || null,
+        comentarios: novaDem.obs || null,
+        situacao: "Em espera",
+        status: novaDem.status || "novo"
+      };
+      const criadas = await sbFetch("/demandas_cotesi", { method: "POST", body: JSON.stringify(corpo) });
+      if (criadas?.[0]) DEMANDAS.unshift(criadas[0]);
+      setModalNovaDem(false);
+      setNovaDem({
+        comarca: "",
+        projeto: "",
+        descricao: "",
+        prioridade: "Média",
+        sei: "",
+        regiao: "",
+        resp_trat: "",
+        obs: "",
+        status: "novo",
+        origem: "email"
+      });
+      setTick(t => t + 1);
+      toast("✓ Demanda registrada — já salva pra todo mundo ver!", "ok");
+    } catch (e) {
+      toast("Erro ao salvar: " + e.message, "error");
+    } finally {
+      setSalvandoDem(false);
+    }
   };
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
