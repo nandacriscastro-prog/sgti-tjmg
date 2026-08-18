@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787053027 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787053205 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1477,7 +1477,7 @@ function PageDashboard({
   ),
   renderKpiGrid4("📞 Atendimento Remoto — período atual (" + dtIniAtual.split("-").reverse().join("/") + " a " + dtFimAtual.split("-").reverse().join("/") + ")", statsRemoto, vencidasRemoto, true,
     { label: "✅ Solucionadas por remoto", val: solucionadasRemoto, cls: "purple", page: "historico",
-      hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto: true } }
+      hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto: true, avaliacaoValor: "solucionado" } }
   ),
   /*#__PURE__*/React.createElement("div", { className: "card", style: { marginBottom: 24 } },
     /*#__PURE__*/React.createElement("div", { className: "card-title" }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "Atendimento Remoto por período — últimos 6 ciclos"),
@@ -3673,6 +3673,7 @@ function PageHistorico({
     const v = window._historicoFiltro?.soRemoto;
     return v === undefined ? null : v;
   });
+  const [fAvaliacaoValor] = useState(() => window._historicoFiltro?.avaliacaoValor || null);
   const [fPrazoStatus] = useState(() => {
     const v = window._historicoFiltro?.prazoStatus || null;
     window._historicoFiltro = null;
@@ -3715,6 +3716,7 @@ function PageHistorico({
     if (fSoRemoto === false && o.tipo === "Atendimento Remoto") return false;
     if (fPrazoStatus === "noPrazo" && foiNoPrazo(o) !== true) return false;
     if (fPrazoStatus === "foraPrazo" && foiNoPrazo(o) !== false) return false;
+    if (fAvaliacaoValor && o.avaliacao !== fAvaliacaoValor) return false;
     if (fTipo && !(o.tipo || "").includes(fTipo)) return false;
     const campoData = o[dtCampoHandoff] || "";
     if (fDt1 && campoData < fDt1) return false;
