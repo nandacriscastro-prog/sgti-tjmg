@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787053307 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787053628 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1266,14 +1266,15 @@ function ComarcaInput({
 }
 
 // ── PAGE: DASHBOARD ──────────────────────────────────────────
-function GraficoPeriodos({ dados, series3 }) {
+function GraficoPeriodos({ dados, series3, incluirSolucionadas }) {
   const [hover, setHover] = useState(null);
   const W = 760, H = 260, padL = 36, padB = 40, padT = 16, padR = 12;
   const areaW = W - padL - padR, areaH = H - padT - padB;
   const series = series3 ? [
     { chave: "abertas", cor: "var(--blue)", label: "Abertas" },
     { chave: "noPrazo", cor: "var(--green)", label: "Atendidas no prazo" },
-    { chave: "foraPrazo", cor: "var(--amber)", label: "Atendidas fora do prazo" }
+    { chave: "foraPrazo", cor: "var(--amber)", label: "Atendidas fora do prazo" },
+    ...(incluirSolucionadas ? [{ chave: "solucionadas", cor: "var(--purple)", label: "Solucionadas por remoto" }] : [])
   ] : [
     { chave: "abertas", cor: "var(--blue)", label: "Abertas" },
     { chave: "atendidas", cor: "var(--green)", label: "Atendidas" },
@@ -1281,7 +1282,7 @@ function GraficoPeriodos({ dados, series3 }) {
   ];
   const maxVal = Math.max(1, ...dados.map(d => Math.max(...series.map(s => d[s.chave] || 0))));
   const grupoW = areaW / dados.length;
-  const barW = Math.min(20, grupoW / 5);
+  const barW = Math.min(20, grupoW / (series.length + 2));
   const yTicks = 4;
   return React.createElement("div", { style: { overflowX: "auto" } },
     React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", maxWidth: 820, height: "auto", display: "block" } },
@@ -1299,7 +1300,7 @@ function GraficoPeriodos({ dados, series3 }) {
           series.map((s, si) => {
             const val = d[s.chave];
             const h = (val / maxVal) * areaH;
-            const x = gx + grupoW / 2 - (barW * 1.5) + si * (barW + 4);
+            const x = gx + grupoW / 2 - (barW * series.length / 2) + si * (barW + 4);
             const y = padT + areaH - h;
             const chave = i + "_" + s.chave;
             return React.createElement("rect", {
@@ -1390,7 +1391,8 @@ function PageDashboard({
       const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
       const dtFim = `${refAno}-${String(mesNorm + 1).padStart(2, "0")}-19`;
       const s = statsPeriodo(lista, dtIni, dtFim);
-      lista6.push({ label: MESES_FULL[mesNorm].slice(0, 3) + "/" + String(refAno).slice(2), ...s });
+      const solucionadas = lista.filter(o => o.avaliacao === "solucionado" && (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim).length;
+      lista6.push({ label: MESES_FULL[mesNorm].slice(0, 3) + "/" + String(refAno).slice(2), ...s, solucionadas });
     }
     return lista6;
   };
@@ -1481,7 +1483,7 @@ function PageDashboard({
   ),
   /*#__PURE__*/React.createElement("div", { className: "card", style: { marginBottom: 24 } },
     /*#__PURE__*/React.createElement("div", { className: "card-title" }, /*#__PURE__*/React.createElement("span", { className: "dot" }), "Atendimento Remoto por período — últimos 6 ciclos"),
-    /*#__PURE__*/React.createElement(GraficoPeriodos, { dados: periodosRemoto, series3: true })
+    /*#__PURE__*/React.createElement(GraficoPeriodos, { dados: periodosRemoto, series3: true, incluirSolucionadas: true })
   ),
   /*#__PURE__*/React.createElement("div", {
     className: "grid2"
