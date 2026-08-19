@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787138831 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787138997 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10432,6 +10432,10 @@ function PageDemandasInner({
   const [fProjeto, setFProjeto] = useState("");
   const [fPrio, setFPrio] = useState("");
   const [fRegiao, setFRegiao] = useState("");
+  const [fDt1, setFDt1] = useState("");
+  const [fDt2, setFDt2] = useState("");
+  const [ordemPor, setOrdemPor] = useState("prioridade"); // "prioridade" | "data"
+  const [ordemDir, setOrdemDir] = useState("desc"); // "desc" | "asc"
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
   const [editStatus, setEditStatus] = useState("");
@@ -10466,6 +10470,8 @@ function PageDemandasInner({
     if (fProjeto && d.projeto !== fProjeto) return false;
     if (fPrio && d.prioridade !== fPrio) return false;
     if (fRegiao && d.regiao !== fRegiao) return false;
+    if (fDt1 && (d.dt_demanda || "") < fDt1) return false;
+    if (fDt2 && (d.dt_demanda || "") > fDt2) return false;
     return true;
   }).sort((a, b) => {
     const p = {
@@ -10474,7 +10480,10 @@ function PageDemandasInner({
       Média: 2,
       Baixa: 3
     };
-    return (p[a.prioridade] ?? 4) - (p[b.prioridade] ?? 4);
+    const cmp = ordemPor === "data"
+      ? (b.dt_demanda || "").localeCompare(a.dt_demanda || "")
+      : (p[a.prioridade] ?? 4) - (p[b.prioridade] ?? 4);
+    return ordemDir === "asc" ? -cmp : cmp;
   });
   const totalPags = Math.ceil(dados.length / POR_PAG) || 1;
   const pg = dados.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG);
@@ -10723,7 +10732,29 @@ function PageDemandasInner({
   }, "Todas as regi\xF5es"), regioes.map(r => /*#__PURE__*/React.createElement("option", {
     key: r,
     value: r
-  }, r))), (busca || fStatus || fProjeto || fPrio || fRegiao) && /*#__PURE__*/React.createElement("button", {
+  }, r))),
+  React.createElement("input", {
+    type: "date", value: fDt1,
+    onChange: e => { setFDt1(e.target.value); setPag(0); },
+    title: "Data de"
+  }),
+  React.createElement("input", {
+    type: "date", value: fDt2,
+    onChange: e => { setFDt2(e.target.value); setPag(0); },
+    title: "Até"
+  }),
+  React.createElement("select", {
+    value: ordemPor,
+    onChange: e => setOrdemPor(e.target.value)
+  },
+    React.createElement("option", { value: "prioridade" }, "Ordenar por prioridade"),
+    React.createElement("option", { value: "data" }, "Ordenar por data")
+  ),
+  React.createElement("button", {
+    className: "btn btn-sm",
+    onClick: () => setOrdemDir(d => d === "desc" ? "asc" : "desc")
+  }, ordemDir === "desc" ? "⬇ Decrescente" : "⬆ Crescente"),
+  (busca || fStatus || fProjeto || fPrio || fRegiao || fDt1 || fDt2) && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sm",
     onClick: () => {
       setBusca("");
@@ -10731,6 +10762,8 @@ function PageDemandasInner({
       setFProjeto("");
       setFPrio("");
       setFRegiao("");
+      setFDt1("");
+      setFDt2("");
       setPag(0);
     }
   }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
