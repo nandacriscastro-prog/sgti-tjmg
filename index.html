@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787073441 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787135045 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -894,6 +894,11 @@ const NAV = [{
   id: "encerrados",
   label: "Contratos Encerrados",
   icon: "list",
+  sec: null
+}, {
+  id: "limpeza",
+  label: "Limpeza de Anexos",
+  icon: "box",
   sec: null
 }, {
   id: "usuarios",
@@ -8794,6 +8799,137 @@ function PageTecnicos() {
 }
 
 // ── PAGE: CONFIGURAÇÕES ───────────────────────────────────────
+function PageLimpezaAnexos() {
+  const [meses, setMeses] = useState(6);
+  const [buscando, setBuscando] = useState(false);
+  const [itens, setItens] = useState([]);
+  const [selecionados, setSelecionados] = useState(new Set());
+  const [excluindo, setExcluindo] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [resultado, setResultado] = useState(null);
+
+  const extrairAnexos = observacoes => {
+    if (!observacoes) return [];
+    return [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)].map(m => m[1]);
+  };
+  const nomeArquivoDaUrl = url => {
+    const m = /\/os-anexos\/([^?]+)/.exec(url);
+    return m ? decodeURIComponent(m[1]) : null;
+  };
+
+  const buscar = async () => {
+    setBuscando(true); setMsg(""); setItens([]); setSelecionados(new Set()); setResultado(null);
+    try {
+      const limite = new Date();
+      limite.setMonth(limite.getMonth() - meses);
+      const limiteStr = limite.toISOString().slice(0, 10);
+      const rows = await sbFetch(`/ordens_servico?observacoes=ilike.*os-anexos*&select=id,numero,comarca,data_os,data_conclusao,status,observacoes&order=data_os.asc&limit=2000`);
+      const antigos = (rows || []).filter(o => {
+        const dataRef = o.data_conclusao || o.data_os || "";
+        return dataRef && dataRef <= limiteStr;
+      }).map(o => ({
+        ...o,
+        anexos: extrairAnexos(o.observacoes)
+      })).filter(o => o.anexos.length > 0);
+      setItens(antigos);
+      if (!antigos.length) setMsg("Nenhuma OS com anexo mais antigo que " + meses + " meses encontrada.");
+    } catch (e) {
+      setMsg("Erro ao buscar: " + e.message);
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const toggleSel = id => setSelecionados(s => {
+    const novo = new Set(s);
+    if (novo.has(id)) novo.delete(id); else novo.add(id);
+    return novo;
+  });
+  const selecionarTodos = () => {
+    if (selecionados.size === itens.length) setSelecionados(new Set());
+    else setSelecionados(new Set(itens.map(o => o.id)));
+  };
+
+  const excluirSelecionados = async () => {
+    if (!selecionados.size) return;
+    if (!confirm("Excluir os anexos de " + selecionados.size + " OS selecionada(s)? A OS e o PDF continuam existindo — só os arquivos anexados (fotos/PDFs) serão apagados do armazenamento pra liberar espaço.")) return;
+    setExcluindo(true);
+    let ok = 0, falhas = 0;
+    try {
+      for (const item of itens.filter(o => selecionados.has(o.id))) {
+        try {
+          for (const url of item.anexos) {
+            const nomeArq = nomeArquivoDaUrl(url);
+            if (!nomeArq) continue;
+            await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+              method: "DELETE",
+              headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+            });
+          }
+          const obsLimpa = (item.observacoes || "").replace(/\s*(Anexo\s*\d*:\s*https?:\/\/\S+\s*\|?\s*)/gi, "").trim() +
+            (item.observacoes ? " (anexos removidos pra liberar espaço — arquivo já não fica mais disponível, mas o registro da OS continua completo)" : "");
+          await sbFetch(`/ordens_servico?id=eq.${item.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ observacoes: obsLimpa })
+          });
+          ok++;
+        } catch (e) {
+          falhas++;
+        }
+      }
+      setResultado({ ok, falhas });
+      setItens(itens.filter(o => !selecionados.has(o.id)));
+      setSelecionados(new Set());
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Limpeza de Anexos"),
+        React.createElement("div", { className: "ph-sub" }, "Libera espaço de armazenamento apagando fotos/PDFs de OS antigas já concluídas — o histórico da OS continua intacto")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+      React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" } },
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)" } }, "OS com mais de quantos meses?"),
+          React.createElement("select", { value: meses, onChange: e => setMeses(Number(e.target.value)), style: { display: "block", marginTop: 4, padding: "8px 10px" } },
+            [3, 6, 12, 24].map(m => React.createElement("option", { key: m, value: m }, m + " meses"))
+          )
+        ),
+        React.createElement("button", { className: "btn btn-primary", onClick: buscar, disabled: buscando }, buscando ? "Buscando..." : "🔍 Buscar OS com anexo antigo")
+      )
+    ),
+    msg && React.createElement("div", { style: { marginBottom: 14, fontSize: 13, color: "var(--text3)" } }, msg),
+    resultado && React.createElement("div", { style: { marginBottom: 14, padding: "10px 14px", background: resultado.falhas ? "#fdecea" : "#e2f5ea", borderRadius: 8, fontSize: 13 } },
+      "✓ Anexos removidos de " + resultado.ok + " OS." + (resultado.falhas ? " ⚠️ " + resultado.falhas + " falharam." : "")
+    ),
+    itens.length > 0 && React.createElement("div", { className: "card" },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
+        React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } },
+          React.createElement("input", { type: "checkbox", checked: selecionados.size === itens.length, onChange: selecionarTodos }),
+          itens.length + " OS encontrada(s) com anexo — selecionar todas"
+        ),
+        selecionados.size > 0 && React.createElement("button", {
+          onClick: excluirSelecionados, disabled: excluindo,
+          style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }
+        }, excluindo ? "Excluindo..." : "🗑️ Excluir anexos de " + selecionados.size + " OS")
+      ),
+      React.createElement("div", { style: { maxHeight: 400, overflowY: "auto" } },
+        itens.map(o => React.createElement("label", { key: o.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" } },
+          React.createElement("input", { type: "checkbox", checked: selecionados.has(o.id), onChange: () => toggleSel(o.id) }),
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, "OS " + o.numero + " — " + o.comarca),
+            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)" } }, (o.data_conclusao || o.data_os) + " · " + o.anexos.length + " anexo(s) · " + o.status)
+          )
+        ))
+      )
+    )
+  );
+}
 function PageConfig() {
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
@@ -11117,6 +11253,8 @@ function AppInterno({
         });
       case "estoque":
         return /*#__PURE__*/React.createElement(PageEstoque, null);
+      case "limpeza":
+        return /*#__PURE__*/React.createElement(PageLimpezaAnexos, null);
       case "usuarios":
         return /*#__PURE__*/React.createElement(PageUsuarios, null);
       case "chamados":
