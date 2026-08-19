@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787138997 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787141788 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5288,8 +5288,9 @@ function PageLancamentoManual({
       )
     ),
     React.createElement("div", { className: "fr" },
-      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
-        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) })),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
+        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
+        React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, "⚠️ Essa data é usada pra calcular se a OS foi atendida no prazo ou não")),
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
         React.createElement("input", { type: "number", min: "0", value: l.km, onChange: e => atualizarLinha(i, "km", e.target.value), placeholder: "Ex: 85" }))
     ),
@@ -5945,8 +5946,9 @@ function PageMedicao({
       )
     ),
     React.createElement("div", { className: "fr" },
-      React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data de conclusão"),
-        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) })),
+      React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
+        React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
+        React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, "⚠️ Essa data é usada pra calcular se a OS foi atendida no prazo ou não")),
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
         React.createElement("input", { type: "number", min: "0", value: l.km, onChange: e => atualizarLinha(i, "km", e.target.value), placeholder: "Ex: 85" }))
     ),
