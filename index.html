@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787136258 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787138831 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -327,7 +327,10 @@ async function loadDemandas() {
       offset += batch.length;
       if (batch.length < 1000) break;
     }
-    DEMANDAS = rows;
+    DEMANDAS = rows.map(d => ({
+      ...d,
+      status: (d.status && d.status !== "importado") ? d.status : mapSituacao(d.situacao)
+    }));
     _dem_loaded = true;
   } catch (e) {
     console.warn("Erro demandas:", e);
