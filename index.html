@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787144004 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787145673 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1430,11 +1430,11 @@ function PageDashboard({
     /*#__PURE__*/React.createElement("div", { style: { marginBottom: 8, fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".08em" } }, titulo),
     /*#__PURE__*/React.createElement("div", { className: "kpi-grid", style: { marginBottom: 24 } },
       [{ label: "OS abertas no período", val: s.abertas, cls: "blue", page: "historico",
-         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_os", soRemoto } },
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_os", soRemoto, excluirCorrecao: !soRemoto } },
        { label: "Atendidas no prazo", val: s.noPrazo, cls: "green", page: "historico",
-         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, prazoStatus: "noPrazo" } },
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, excluirCorrecao: !soRemoto, prazoStatus: "noPrazo" } },
        { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico",
-         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, prazoStatus: "foraPrazo" } },
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, excluirCorrecao: !soRemoto, prazoStatus: "foraPrazo" } },
        { label: "⚠️ Vencidas (em aberto)", val: vencidasLista.length, cls: "red", page: "avaliacao", filtroAval: "vencidas", filtroSoRemoto: soRemoto },
        ...(extraKpi ? [extraKpi] : [])
       ].map(kk => /*#__PURE__*/React.createElement("div", {
@@ -3680,6 +3680,7 @@ function PageHistorico({
     const v = window._historicoFiltro?.soRemoto;
     return v === undefined ? null : v;
   });
+  const [fExcluirCorrecao] = useState(() => window._historicoFiltro?.excluirCorrecao || false);
   const [fAvaliacaoValor] = useState(() => window._historicoFiltro?.avaliacaoValor || null);
   const [fPrazoStatus] = useState(() => {
     const v = window._historicoFiltro?.prazoStatus || null;
@@ -3721,6 +3722,7 @@ function PageHistorico({
     if (fStMulti && !fStMulti.includes(o.status || "Concluída")) return false;
     if (fSoRemoto === true && o.tipo !== "Atendimento Remoto") return false;
     if (fSoRemoto === false && o.tipo === "Atendimento Remoto") return false;
+    if (fExcluirCorrecao && o.tipo === "Correção") return false;
     if (fPrazoStatus === "noPrazo" && foiNoPrazo(o) !== true) return false;
     if (fPrazoStatus === "foraPrazo" && foiNoPrazo(o) !== false) return false;
     if (fAvaliacaoValor && o.avaliacao !== fAvaliacaoValor) return false;
