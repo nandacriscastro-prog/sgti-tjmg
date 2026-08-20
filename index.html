@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787243738 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787244037 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3675,7 +3675,8 @@ function PageNovaOS({
 // ── PAGE: HISTÓRICO ───────────────────────────────────────────
 function PageHistorico({
   os,
-  loading
+  loading,
+  reload
 }) {
   const [busca, setBusca] = useState(() => { const v = window._buscaGlobal || ""; window._buscaGlobal = ""; return v; });
   const [fSt, setFSt] = useState("");
@@ -11446,7 +11447,8 @@ function AppInterno({
       case "historico":
         return /*#__PURE__*/React.createElement(PageHistorico, {
           os: os,
-          loading: loading
+          loading: loading,
+          reload: loadOS
         });
       case "avaliacao":
         return /*#__PURE__*/React.createElement(PageAvaliacao, {
