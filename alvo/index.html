@@ -296,9 +296,10 @@ let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, rota, pecas
 let simIdSeq = 1;
 let simPecasTemp = []; // peças sendo montadas na OS atual do formulário
 let simEditandoId = null; // id da OS em edição, ou null se for uma nova
+let simIncluirRemoto = true; // se inclui o valor fixo mensal de Atendimento Remoto no cálculo
 
 function simSalvarLocal(){
-  try{ localStorage.setItem("alvo_simulacoes", JSON.stringify({ os: simOS, seq: simIdSeq })); }catch(e){}
+  try{ localStorage.setItem("alvo_simulacoes", JSON.stringify({ os: simOS, seq: simIdSeq, incluirRemoto: simIncluirRemoto })); }catch(e){}
 }
 function simCarregarLocal(){
   try{
@@ -307,8 +308,14 @@ function simCarregarLocal(){
       const dados = JSON.parse(raw);
       simOS = dados.os || [];
       simIdSeq = dados.seq || (simOS.length ? Math.max(...simOS.map(o=>o.id))+1 : 1);
+      simIncluirRemoto = dados.incluirRemoto !== undefined ? dados.incluirRemoto : true;
     }
   }catch(e){}
+}
+function simToggleRemoto(){
+  simIncluirRemoto = document.getElementById("simIncluirRemoto").checked;
+  simSalvarLocal();
+  renderSim();
 }
 
 function renderSim(){
@@ -317,6 +324,10 @@ function renderSim(){
   <div class="card">
     <h3>Simulação de Medição — monte suas próprias OS e veja o valor calculado</h3>
     <p class="muted">Essa aba é só uma calculadora local no seu navegador — não lê nem grava nada no sistema do TJMG. Serve pra vocês estimarem a medição por conta própria.</p>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="simIncluirRemoto" ${simIncluirRemoto ? "checked" : ""} onchange="simToggleRemoto()">
+      <span>Incluir Atendimento Remoto (valor fixo mensal, ${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)} — cobrado uma vez por mês independente de quantidade)</span>
+    </label>
   </div>
   <div class="card">
     <h3>${simEditandoId ? "Editando OS simulada" : "Adicionar OS simulada"}</h3>
@@ -567,7 +578,9 @@ function simRenderTabela(){
   if(!elT) return;
   if(!simOS.length){
     elT.innerHTML = '<div class="empty">Nenhuma OS simulada ainda. Preencha o formulário acima e clique em "Adicionar esta OS".</div>';
-    elTot.innerHTML = "";
+    elTot.innerHTML = simIncluirRemoto
+      ? `<div class="kpis"><div class="kpi"><div class="val">${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div></div>`
+      : "";
     return;
   }
   // Agrupa por rota (os sem rota ficam num grupo "Sem rota/grupo")
@@ -615,20 +628,23 @@ function simRenderTabela(){
     </div>`;
   });
   elT.innerHTML = html;
+  const valorRemoto = simIncluirRemoto ? ANEXO_IV.find(a=>a.id==="rem").vu : 0;
+  const totalComRemoto = totalGeral + valorRemoto;
   let totalPts = 0;
   simOS.forEach(o=>{ totalPts += simCalcPtsGlosa(o).pts; });
   const pct = totalPts <= 10 ? 0 : totalPts <= 20 ? 2 : totalPts <= 30 ? 4 : totalPts <= 40 ? 6 : totalPts <= 50 ? 8 : 10;
-  const valorGlosa = totalGeral * (pct/100);
+  const valorGlosa = totalComRemoto * (pct/100);
   elTot.innerHTML = `<div class="kpis">
-    <div class="kpi"><div class="val">${fmtR(totalGeral)}</div><div class="lbl">Total simulado (${simOS.length} OS)</div></div>
+    ${simIncluirRemoto ? `<div class="kpi"><div class="val">${fmtR(valorRemoto)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div>` : ""}
+    <div class="kpi"><div class="val">${fmtR(totalComRemoto)}</div><div class="lbl">Total simulado (${simOS.length} OS${simIncluirRemoto ? " + remoto" : ""})</div></div>
     <div class="kpi"><div class="val" style="color:${totalPts>10?'var(--red)':'var(--green)'}">${totalPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
     <div class="kpi"><div class="val" style="color:${pct>0?'var(--red)':'var(--green)'}">${pct}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
-    <div class="kpi"><div class="val" style="font-weight:700">${fmtR(totalGeral - valorGlosa)}</div><div class="lbl">Total líquido (após glosa)</div></div>
+    <div class="kpi"><div class="val" style="font-weight:700">${fmtR(totalComRemoto - valorGlosa)}</div><div class="lbl">Total líquido (após glosa)</div></div>
   </div>`;
 }
 
 function simExportar(){
-  if(!simOS.length){ alert("Adicione ao menos uma OS simulada antes de exportar."); return; }
+  if(!simOS.length && !simIncluirRemoto){ alert("Adicione ao menos uma OS simulada, ou marque o Atendimento Remoto, antes de exportar."); return; }
 
   // Agregados para Anexo IV e Resumo
   let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0, totalPtsGlosa=0;
@@ -662,6 +678,8 @@ function simExportar(){
       pecasRows.push([o.rota||"—", o.comarca, `[${p.cod}] ${p.desc}`, p.qtd, Number(vUnit.toFixed(2)), Number((vUnit*p.qtd).toFixed(2))]);
     });
   });
+  const valorRemoto = simIncluirRemoto ? ANEXO_IV.find(a=>a.id==="rem").vu : 0;
+  brutoServicos += valorRemoto;
   const brutoTotal = brutoServicos + brutoMateriais;
   const pctGlosa = totalPtsGlosa <= 10 ? 0 : totalPtsGlosa <= 20 ? 2 : totalPtsGlosa <= 30 ? 4 : totalPtsGlosa <= 40 ? 6 : totalPtsGlosa <= 50 ? 8 : 10;
   const valorGlosa = brutoTotal * (pctGlosa/100);
@@ -676,25 +694,26 @@ function simExportar(){
     ["Soma das frações de diária", Number(totalDiarias.toFixed(3))],
     [],
     ["Dotação", "Valor (R$)"],
-    ["1 - Serviços (atendimento/diária/km)", Number(brutoServicos.toFixed(2))],
+    ["1 - Serviços (atendimento/diária/km)", Number((brutoServicos - valorRemoto).toFixed(2))],
+    simIncluirRemoto ? ["1b - Atendimento Remoto (fixo mensal)", Number(valorRemoto.toFixed(2))] : null,
     ["2 - Materiais/Equipamentos (peças substituídas)", Number(brutoMateriais.toFixed(2))],
-    ["Total bruto (soma das duas dotações)", Number(brutoTotal.toFixed(2))],
+    ["Total bruto (soma das dotações)", Number(brutoTotal.toFixed(2))],
     [],
     ["Glosa SLA (atraso)", ""],
     ["Total de pontos de glosa", totalPtsGlosa],
     ["Percentual de desconto aplicado", pctGlosa + "%"],
     ["Valor da glosa (R$)", Number(valorGlosa.toFixed(2))],
     ["TOTAL LÍQUIDO (após glosa)", Number(totalLiquido.toFixed(2))],
-  ];
+  ].filter(Boolean);
   const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
   wsResumo["!cols"] = [{wch:45},{wch:18}];
   wsResumo["!merges"] = [{s:{r:0,c:0},e:{r:0,c:1}}];
 
   // ---- Aba 2: Anexo IV - Serviços ----
-  const qtds = {rem:0, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+  const qtds = {rem: simIncluirRemoto ? 1 : 0, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
   const linhasAnexo = [["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]];
   ANEXO_IV.forEach(it=>{
-    if(it.id==="rem") return; // não simulado (atendimento remoto fica de fora da simulação)
+    if(it.id==="rem" && !simIncluirRemoto) return;
     const q = qtds[it.id]||0;
     linhasAnexo.push([it.id, it.desc, it.unid, Number.isInteger(q)?q:Number(q.toFixed(2)), it.vu, Number((q*it.vu).toFixed(2))]);
   });
