@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787228834 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787233974 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -4133,7 +4133,13 @@ function PageHistorico({
     title: `OS ${sel.numero} — ${sel.comarca || ""}`,
     width: 680,
     onClose: () => setSel(null)
-  }, /*#__PURE__*/React.createElement("div", {
+  }, (() => {
+    const mRotaTop = /Rota:\s*([^|]+)/i.exec(sel.observacoes || "");
+    const rotaTop = mRotaTop ? mRotaTop[1].trim() : null;
+    return rotaTop ? /*#__PURE__*/React.createElement("div", {
+      style: { display: "inline-block", fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#f3ecfd", padding: "4px 10px", borderRadius: 99, marginBottom: 12 }
+    }, "🛣️ Faz parte da Rota " + rotaTop) : null;
+  })(), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -4246,6 +4252,8 @@ function PageHistorico({
       ret = JSON.parse(sel.retorno_campo);
     } catch (e) {}
     if (!ret) return null;
+    const kmNum = parseFloat(ret.km || 0) || 0;
+    const temPecas = Array.isArray(ret.pecas) && ret.pecas.filter(p => p.desc).length > 0;
     return /*#__PURE__*/React.createElement("div", {
       style: {
         borderTop: "1px solid var(--border)",
@@ -4261,7 +4269,26 @@ function PageHistorico({
         color: "var(--green)",
         marginBottom: 10
       }
-    }, "\u2713 Retorno do t\xE9cnico"), ret.servicos && /*#__PURE__*/React.createElement("div", {
+    }, "✓ Execução do serviço"),
+    /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 12 } },
+      kmNum > 0 && /*#__PURE__*/React.createElement("div", { style: { background: "var(--surface)", borderRadius: 8, padding: "10px 12px" } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase" } }, "🚗 Km percorrido"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 16, fontWeight: 700 } }, kmNum + " km")
+      ),
+      ret.diarias && parseFloat(ret.diarias) > 0 && /*#__PURE__*/React.createElement("div", { style: { background: "var(--surface)", borderRadius: 8, padding: "10px 12px" } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase" } }, "📊 Fração de diária"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 16, fontWeight: 700 } }, ret.diarias)
+      ),
+      (() => {
+        const mRota = /Rota:\s*([^|]+)/i.exec(sel.observacoes || "");
+        const rota = mRota ? mRota[1].trim() : null;
+        return /*#__PURE__*/React.createElement("div", { style: { background: rota ? "#f3ecfd" : "var(--surface)", borderRadius: 8, padding: "10px 12px" } },
+          /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase" } }, "🛣️ Rota"),
+          /*#__PURE__*/React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: rota ? "#7c3aed" : "var(--text3)" } }, rota ? "Rota " + rota : "Avulsa — sem rota")
+        );
+      })()
+    ),
+    ret.servicos && /*#__PURE__*/React.createElement("div", {
       style: {
         marginBottom: 8
       }
@@ -4273,14 +4300,31 @@ function PageHistorico({
         textTransform: "uppercase",
         marginBottom: 3
       }
-    }, "Servi\xE7os realizados"), /*#__PURE__*/React.createElement("div", {
+    }, "Serviços realizados"), /*#__PURE__*/React.createElement("div", {
       style: {
         background: "var(--surface)",
         borderRadius: 6,
         padding: "8px 12px",
         fontSize: 12
       }
-    }, ret.servicos)), ret.solucao && /*#__PURE__*/React.createElement("div", {
+    }, ret.servicos)),
+    temPecas && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 8 } },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", marginBottom: 3 } }, "🔧 Peças substituídas"),
+      /*#__PURE__*/React.createElement("div", { style: { background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 6, padding: "4px 12px" } },
+        ret.pecas.filter(p => p.desc).map((p, i) => /*#__PURE__*/React.createElement("div", {
+          key: i,
+          style: { display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, borderBottom: i < ret.pecas.filter(x => x.desc).length - 1 ? "1px solid #f0e0b0" : "none" }
+        },
+          /*#__PURE__*/React.createElement("span", null, (p.cod ? "[" + p.cod + "] " : "") + p.desc),
+          /*#__PURE__*/React.createElement("span", { style: { fontWeight: 700 } }, "×" + (p.qtd || 1))
+        ))
+      )
+    ),
+    ret.obs && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 8 } },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", marginBottom: 3 } }, "Observações do fechamento"),
+      /*#__PURE__*/React.createElement("div", { style: { background: "var(--surface)", borderRadius: 6, padding: "8px 12px", fontSize: 12 } }, ret.obs)
+    ),
+    ret.solucao && /*#__PURE__*/React.createElement("div", {
       style: {
         marginBottom: 8
       }
@@ -4292,7 +4336,7 @@ function PageHistorico({
         textTransform: "uppercase",
         marginBottom: 3
       }
-    }, "Solu\xE7\xE3o"), /*#__PURE__*/React.createElement("div", {
+    }, "Solução"), /*#__PURE__*/React.createElement("div", {
       style: {
         background: "#f0fdf4",
         border: "1px solid #bbf7d0",
