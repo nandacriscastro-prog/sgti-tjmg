@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787244037 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787245500 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6015,6 +6015,15 @@ function PageMedicao({
   };
 
   const salvarTudo = async () => {
+    const comZero = linhas.filter(l => !parseFloat(l.km || 0));
+    if (comZero.length) {
+      const lista = comZero.map(l => `• OS ${l.numero} — ${l.comarca}`).join("\n");
+      const confirmado = confirm(
+        "⚠️ " + comZero.length + " OS estão com Km = 0:\n\n" + lista +
+        "\n\nIsso pode ser correto (ex: prédios vizinhos, mesmo endereço) ou um esquecimento de preencher.\n\nConfirma que quer salvar assim mesmo?"
+      );
+      if (!confirmado) return;
+    }
     setSalvando(true); setMsg("");
     let ok = 0;
       const novasOSCorrecao = [];
