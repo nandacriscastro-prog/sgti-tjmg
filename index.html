@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787235352 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787235675 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1440,6 +1440,8 @@ function PageDashboard({
     /*#__PURE__*/React.createElement("div", { className: "kpi-grid", style: { marginBottom: 24 } },
       [{ label: "OS abertas no período", val: s.abertas, cls: "blue", page: "historico",
          hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_os", soRemoto, excluirCorrecao: !soRemoto, contrato: "181/2026" } },
+       ...(!soRemoto ? [{ label: "Total atendidas no período", val: s.noPrazo + s.foraPrazo, cls: "purple", page: "historico",
+         hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, excluirCorrecao: !soRemoto, contrato: "181/2026" } }] : []),
        { label: "Atendidas no prazo", val: s.noPrazo, cls: "green", page: "historico",
          hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], soRemoto, excluirCorrecao: !soRemoto, contrato: "181/2026", prazoStatus: "noPrazo" } },
        { label: "Atendidas fora do prazo", val: s.foraPrazo, cls: "amber", page: "historico",
