@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787228643 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787228834 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -546,7 +546,15 @@ const GEASI_SLA = {
   interior_prog: 10,
   interior_emerg_uteis: 5
 };
-const COLAR_181 = new Set(["Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas","Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"]);
+const REGIAO_METROPOLITANA_BH = new Set(["Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"]);
+const COLAR_METROPOLITANO_PROPRIO = new Set(["Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas"]);
+const COLAR_181 = new Set([...REGIAO_METROPOLITANA_BH, ...COLAR_METROPOLITANO_PROPRIO]);
+function classificarRegiao181(comarca) {
+  const mun = (comarca || "").split(" - ")[0];
+  if (REGIAO_METROPOLITANA_BH.has(mun)) return "RM";
+  if (COLAR_METROPOLITANO_PROPRIO.has(mun)) return "Colar";
+  return "Interior";
+}
 const COLAR_CIDADES = new Set(["Baldim", "Barão de Cocais", "Belo Horizonte", "Belo Vale", "Betim", "Brumadinho", "Caeté", "Contagem", "Esmeraldas", "Ibirité", "Igarapé", "Itabirito", "Itaguara", "Jaboticatubas", "Juatuba", "Lagoa Santa", "Mateus Leme", "Matozinhos", "Nova Lima", "Pedro Leopoldo", "Raposos", "Ribeirão das Neves", "Rio Acima", "Sabará", "Santa Bárbara", "Santa Luzia", "Sarzedo", "Sete Lagoas", "Vespasiano"]);
 const TEL_SLA = {
   "318/2023": [{
@@ -6251,8 +6259,12 @@ function PageMedicao({
           const mRota = /Rota:\s*([^|]+)/i.exec(o.observacoes || "");
           const rota = mRota ? mRota[1].trim() : null;
           const mun = (o.comarca || "").split(" - ")[0];
-          const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(mun) : COLAR_CIDADES.has(mun);
-          const regiaoTxt = isColarOS ? "Colar / Região Metropolitana" : "Interior";
+          const regiao3 = (o.contrato || "") === "181/2026" ? classificarRegiao181(mun) : (COLAR_CIDADES.has(mun) ? "Colar" : "Interior");
+          const badgeRegiao = {
+            RM: { cor: "#1b8a5a", bg: "#e2f5ea", txt: "🏙️ Região Metropolitana" },
+            Colar: { cor: "#b8860b", bg: "#fff8e6", txt: "🌆 Colar Metropolitano" },
+            Interior: { cor: "#2563eb", bg: "#e8f0fe", txt: "📍 Interior" }
+          }[regiao3];
           return React.createElement("div", {
             key: o.numero,
             style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }
@@ -6265,7 +6277,7 @@ function PageMedicao({
                   precisaAvaliar
                     ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber, #b8860b)", background: "#fff8e6", padding: "3px 8px", borderRadius: 99 } }, "⏳ Falta avaliar")
                     : React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", background: "var(--surface)", padding: "3px 8px", borderRadius: 99 } }, "📝 Falta preencher"),
-                  React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: isColarOS ? "#1b8a5a" : "#2563eb", background: isColarOS ? "#e2f5ea" : "#e8f0fe", padding: "3px 8px", borderRadius: 99 } }, isColarOS ? "🏙️ Colar/RM" : "📍 Interior"),
+                  React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: badgeRegiao.cor, background: badgeRegiao.bg, padding: "3px 8px", borderRadius: 99 } }, badgeRegiao.txt),
                   rota
                     ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#f3ecfd", padding: "3px 8px", borderRadius: 99 } }, "🛣️ " + rota)
                     : React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, "— sem rota —")
