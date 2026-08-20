@@ -554,8 +554,10 @@ function simExportar(){
   const pecasRows = [];
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
-    if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
-    totalKm += o.km;
+    if(!c.isCorrecao){
+      if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
+      totalKm += o.km;
+    }
     totalDiarias += c.fracaoTotal;
     brutoMateriais += c.valorMateriais;
     brutoServicos += c.valorDiaria + c.valorKm + c.valorAtendimento;
