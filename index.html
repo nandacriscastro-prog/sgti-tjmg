@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787250060 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787252535 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5933,7 +5933,16 @@ function PageMedicao({
       totalKm += kmOS;
       const _mun = (o.comarca || "").split(" - ")[0];
       const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-      const fracaoTotalSalvo = isColarOS ? 0 : parseFloat(r.diarias || 0); // já é o total salvo (base+peças+deslocamento) do fechamento da OS — não soma deslocamento de novo
+      const fracaoTotalSalvo = (() => {
+        if (isColarOS) return 0;
+        const isCorrecaoOS = o.tipo === "Correção";
+        if (isCorrecaoOS) return 0;
+        const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
+        const baseCalc = isRaioServ ? 1.25 : 1.0;
+        const pecasCalc = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+        const deslocCalc = kmOS * FRACAO_KM_ANEXO_VI;
+        return baseCalc + pecasCalc + deslocCalc; // recalculado do zero, sem o arredondamento de 3 casas que ficava salvo em retorno_campo
+      })();
       totalDiarias += fracaoTotalSalvo;
       const pecasOS = r.pecas || [];
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
@@ -6233,10 +6242,12 @@ function PageMedicao({
             if (!isCorrecaoOS) totalKm += kmOS; // km da revisita de correção não é cobrado de novo
             const _mun = (o.comarca || "").split(" - ")[0];
             const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-            const fracaoTotalSalvo = isColarOS ? 0 : parseFloat(r.diarias || 0); // já é o total salvo (base+peças+deslocamento), calculado no fechamento da OS
-            // Deslocamento: fração de diária = km × 0,0032468 — usado só pra ver a parte do deslocamento separada, NÃO soma de novo no total (já está dentro de r.diarias)
+            const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
+            const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
+            const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
             const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM;
-            const fracaoBaseEPecas = fracaoTotalSalvo - fracaoDeslocamento;
+            const fracaoBaseEPecas = fracaoBase + fracaoPecasCalc;
+            const fracaoTotalSalvo = fracaoBaseEPecas + fracaoDeslocamento; // recalculado do zero (não usa mais o valor arredondado salvo em retorno_campo)
             const valorDeslocamentoDiaria = fracaoDeslocamento * valorDiariaUnitCalc;
             totalDiarias += fracaoTotalSalvo;
             diariaDetalhe.push({
