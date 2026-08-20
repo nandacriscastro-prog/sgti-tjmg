@@ -110,7 +110,7 @@ function mudarAba(aba){
   document.getElementById("painelHist").style.display = aba==="hist" ? "block" : "none";
   document.getElementById("painelMed").style.display = aba==="med" ? "block" : "none";
   document.getElementById("painelSim").style.display = aba==="sim" ? "block" : "none";
-  if(aba==="sim" && !simIniciado){ simIniciado=true; simCarregarLocal(); renderSim(); }
+  if(aba==="sim" && !simIniciado){ simIniciado=true; simCarregarLocal(); medCarregarListaLocal(); renderSim(); }
 }
 
 function fmtR(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -296,10 +296,11 @@ let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, rota, pecas
 let simIdSeq = 1;
 let simPecasTemp = []; // peças sendo montadas na OS atual do formulário
 let simEditandoId = null; // id da OS em edição, ou null se for uma nova
-let simIncluirRemoto = true; // se inclui o valor fixo mensal de Atendimento Remoto no cálculo
+let medicoesSalvas = []; // lista de medições de teste salvas: {id, nome, os, seq, criadoEm}
+let medicaoAtualId = null; // id da medição atualmente carregada, ou null se for um rascunho não salvo
 
 function simSalvarLocal(){
-  try{ localStorage.setItem("alvo_simulacoes", JSON.stringify({ os: simOS, seq: simIdSeq, incluirRemoto: simIncluirRemoto })); }catch(e){}
+  try{ localStorage.setItem("alvo_simulacoes", JSON.stringify({ os: simOS, seq: simIdSeq })); }catch(e){}
 }
 function simCarregarLocal(){
   try{
@@ -308,13 +309,77 @@ function simCarregarLocal(){
       const dados = JSON.parse(raw);
       simOS = dados.os || [];
       simIdSeq = dados.seq || (simOS.length ? Math.max(...simOS.map(o=>o.id))+1 : 1);
-      simIncluirRemoto = dados.incluirRemoto !== undefined ? dados.incluirRemoto : true;
     }
   }catch(e){}
 }
-function simToggleRemoto(){
-  simIncluirRemoto = document.getElementById("simIncluirRemoto").checked;
+
+function medSalvarListaLocal(){
+  try{ localStorage.setItem("alvo_medicoes_salvas", JSON.stringify(medicoesSalvas)); }catch(e){}
+}
+function medCarregarListaLocal(){
+  try{
+    const raw = localStorage.getItem("alvo_medicoes_salvas");
+    medicoesSalvas = raw ? JSON.parse(raw) : [];
+  }catch(e){ medicoesSalvas = []; }
+}
+function medProximoNome(){
+  let n = 1;
+  const nomes = new Set(medicoesSalvas.map(m=>m.nome));
+  while(nomes.has("Medição " + String(n).padStart(2,"0"))) n++;
+  return "Medição " + String(n).padStart(2,"0");
+}
+function medSalvarComoNova(){
+  if(!simOS.length){ alert("Adicione ao menos uma OS antes de salvar a medição."); return; }
+  const nome = prompt("Nome desta medição de teste:", medProximoNome());
+  if(!nome) return;
+  const nova = { id: Date.now(), nome: nome.trim(), os: JSON.parse(JSON.stringify(simOS)), seq: simIdSeq, criadoEm: new Date().toISOString() };
+  medicoesSalvas.push(nova);
+  medicaoAtualId = nova.id;
+  medSalvarListaLocal();
+  renderSim();
+}
+function medSalvarAlteracoes(){
+  const m = medicoesSalvas.find(x=>x.id===medicaoAtualId);
+  if(!m) return;
+  m.os = JSON.parse(JSON.stringify(simOS));
+  m.seq = simIdSeq;
+  medSalvarListaLocal();
+  renderSim();
+  alert("✓ Alterações salvas em \"" + m.nome + "\".");
+}
+function medCarregar(id){
+  const m = medicoesSalvas.find(x=>x.id===id);
+  if(!m) return;
+  simOS = JSON.parse(JSON.stringify(m.os));
+  simIdSeq = m.seq || (simOS.length ? Math.max(...simOS.map(o=>o.id))+1 : 1);
+  medicaoAtualId = id;
   simSalvarLocal();
+  renderSim();
+}
+function medNovaEmBranco(){
+  if(simOS.length && !confirm("Começar uma medição em branco? O que não estiver salvo será perdido.")) return;
+  simOS = [];
+  simIdSeq = 1;
+  medicaoAtualId = null;
+  simSalvarLocal();
+  renderSim();
+}
+function medRenomear(id){
+  const m = medicoesSalvas.find(x=>x.id===id);
+  if(!m) return;
+  const novoNome = prompt("Novo nome:", m.nome);
+  if(!novoNome) return;
+  m.nome = novoNome.trim();
+  medSalvarListaLocal();
+  renderSim();
+}
+function medExcluir(id){
+  const m = medicoesSalvas.find(x=>x.id===id);
+  if(!m) return;
+  if(!confirm("Excluir a medição \"" + m.nome + "\"? Essa ação não pode ser desfeita.")) return;
+  medicoesSalvas = medicoesSalvas.filter(x=>x.id!==id);
+  if(medicaoAtualId===id) medicaoAtualId = null;
+  medSalvarListaLocal();
   renderSim();
 }
 
@@ -324,10 +389,25 @@ function renderSim(){
   <div class="card">
     <h3>Simulação de Medição — monte suas próprias OS e veja o valor calculado</h3>
     <p class="muted">Essa aba é só uma calculadora local no seu navegador — não lê nem grava nada no sistema do TJMG. Serve pra vocês estimarem a medição por conta própria.</p>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
-      <input type="checkbox" id="simIncluirRemoto" ${simIncluirRemoto ? "checked" : ""} onchange="simToggleRemoto()">
-      <span>Incluir Atendimento Remoto (valor fixo mensal, ${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)} — cobrado uma vez por mês independente de quantidade)</span>
-    </label>
+    <p class="muted" style="margin-top:6px">📞 O Atendimento Remoto (valor fixo mensal de ${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)}) já entra automaticamente no total, igual acontece na medição real.</p>
+  </div>
+  <div class="card">
+    <h3>📁 Medições de teste salvas</h3>
+    ${medicoesSalvas.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+      ${medicoesSalvas.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${m.id===medicaoAtualId?"var(--accent-bg,#eef6ff)":"var(--bg)"};border-radius:8px;${m.id===medicaoAtualId?"border:1px solid var(--accent)":""}">
+        <span><strong>${m.nome}</strong> <span class="muted">(${m.os.length} OS)${m.id===medicaoAtualId?" — carregada agora":""}</span></span>
+        <span style="display:flex;gap:10px;white-space:nowrap">
+          ${m.id!==medicaoAtualId ? `<span style="cursor:pointer;color:var(--accent);font-weight:700" onclick="medCarregar(${m.id})">📂 Carregar</span>` : ""}
+          <span style="cursor:pointer;color:var(--navy);font-weight:700" onclick="medRenomear(${m.id})">✎ Renomear</span>
+          <span style="cursor:pointer;color:var(--red);font-weight:700" onclick="medExcluir(${m.id})">🗑️ Excluir</span>
+        </span>
+      </div>`).join("")}
+    </div>` : `<p class="muted" style="margin-bottom:12px">Nenhuma medição salva ainda. Monte uma simulação abaixo e clique em "Salvar como nova medição".</p>`}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="medSalvarComoNova()" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">💾 Salvar como nova medição</button>
+      ${medicaoAtualId ? `<button onclick="medSalvarAlteracoes()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">💾 Salvar alterações nesta medição</button>` : ""}
+      <button onclick="medNovaEmBranco()" style="padding:8px 16px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer">+ Nova medição em branco</button>
+    </div>
   </div>
   <div class="card">
     <h3>${simEditandoId ? "Editando OS simulada" : "Adicionar OS simulada"}</h3>
@@ -578,9 +658,7 @@ function simRenderTabela(){
   if(!elT) return;
   if(!simOS.length){
     elT.innerHTML = '<div class="empty">Nenhuma OS simulada ainda. Preencha o formulário acima e clique em "Adicionar esta OS".</div>';
-    elTot.innerHTML = simIncluirRemoto
-      ? `<div class="kpis"><div class="kpi"><div class="val">${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div></div>`
-      : "";
+    elTot.innerHTML = `<div class="kpis"><div class="kpi"><div class="val">${fmtR(ANEXO_IV.find(a=>a.id==="rem").vu)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div></div>`;
     return;
   }
   // Agrupa por rota (os sem rota ficam num grupo "Sem rota/grupo")
@@ -628,15 +706,15 @@ function simRenderTabela(){
     </div>`;
   });
   elT.innerHTML = html;
-  const valorRemoto = simIncluirRemoto ? ANEXO_IV.find(a=>a.id==="rem").vu : 0;
+  const valorRemoto = ANEXO_IV.find(a=>a.id==="rem").vu;
   const totalComRemoto = totalGeral + valorRemoto;
   let totalPts = 0;
   simOS.forEach(o=>{ totalPts += simCalcPtsGlosa(o).pts; });
   const pct = totalPts <= 10 ? 0 : totalPts <= 20 ? 2 : totalPts <= 30 ? 4 : totalPts <= 40 ? 6 : totalPts <= 50 ? 8 : 10;
   const valorGlosa = totalComRemoto * (pct/100);
   elTot.innerHTML = `<div class="kpis">
-    ${simIncluirRemoto ? `<div class="kpi"><div class="val">${fmtR(valorRemoto)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div>` : ""}
-    <div class="kpi"><div class="val">${fmtR(totalComRemoto)}</div><div class="lbl">Total simulado (${simOS.length} OS${simIncluirRemoto ? " + remoto" : ""})</div></div>
+    <div class="kpi"><div class="val">${fmtR(valorRemoto)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div>
+    <div class="kpi"><div class="val">${fmtR(totalComRemoto)}</div><div class="lbl">Total simulado (${simOS.length} OS + remoto)</div></div>
     <div class="kpi"><div class="val" style="color:${totalPts>10?'var(--red)':'var(--green)'}">${totalPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
     <div class="kpi"><div class="val" style="color:${pct>0?'var(--red)':'var(--green)'}">${pct}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
     <div class="kpi"><div class="val" style="font-weight:700">${fmtR(totalComRemoto - valorGlosa)}</div><div class="lbl">Total líquido (após glosa)</div></div>
@@ -644,7 +722,7 @@ function simRenderTabela(){
 }
 
 function simExportar(){
-  if(!simOS.length && !simIncluirRemoto){ alert("Adicione ao menos uma OS simulada, ou marque o Atendimento Remoto, antes de exportar."); return; }
+  
 
   // Agregados para Anexo IV e Resumo
   let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0, totalPtsGlosa=0;
@@ -678,7 +756,7 @@ function simExportar(){
       pecasRows.push([o.rota||"—", o.comarca, `[${p.cod}] ${p.desc}`, p.qtd, Number(vUnit.toFixed(2)), Number((vUnit*p.qtd).toFixed(2))]);
     });
   });
-  const valorRemoto = simIncluirRemoto ? ANEXO_IV.find(a=>a.id==="rem").vu : 0;
+  const valorRemoto = ANEXO_IV.find(a=>a.id==="rem").vu;
   brutoServicos += valorRemoto;
   const brutoTotal = brutoServicos + brutoMateriais;
   const pctGlosa = totalPtsGlosa <= 10 ? 0 : totalPtsGlosa <= 20 ? 2 : totalPtsGlosa <= 30 ? 4 : totalPtsGlosa <= 40 ? 6 : totalPtsGlosa <= 50 ? 8 : 10;
@@ -695,7 +773,7 @@ function simExportar(){
     [],
     ["Dotação", "Valor (R$)"],
     ["1 - Serviços (atendimento/diária/km)", Number((brutoServicos - valorRemoto).toFixed(2))],
-    simIncluirRemoto ? ["1b - Atendimento Remoto (fixo mensal)", Number(valorRemoto.toFixed(2))] : null,
+    ["1b - Atendimento Remoto (fixo mensal)", Number(valorRemoto.toFixed(2))],
     ["2 - Materiais/Equipamentos (peças substituídas)", Number(brutoMateriais.toFixed(2))],
     ["Total bruto (soma das dotações)", Number(brutoTotal.toFixed(2))],
     [],
@@ -710,10 +788,9 @@ function simExportar(){
   wsResumo["!merges"] = [{s:{r:0,c:0},e:{r:0,c:1}}];
 
   // ---- Aba 2: Anexo IV - Serviços ----
-  const qtds = {rem: simIncluirRemoto ? 1 : 0, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+  const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
   const linhasAnexo = [["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]];
   ANEXO_IV.forEach(it=>{
-    if(it.id==="rem" && !simIncluirRemoto) return;
     const q = qtds[it.id]||0;
     linhasAnexo.push([it.id, it.desc, it.unid, Number.isInteger(q)?q:Number(q.toFixed(2)), it.vu, Number((q*it.vu).toFixed(2))]);
   });
