@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787235675 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787243738 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3701,6 +3701,10 @@ function PageHistorico({
   });
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
+  const [editandoExecucao, setEditandoExecucao] = useState(false);
+  const [execForm, setExecForm] = useState(null);
+  const [editandoAvaliacao, setEditandoAvaliacao] = useState(false);
+  const [salvandoHist, setSalvandoHist] = useState(false);
   const [paraExcluir, setParaExcluir] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
   const [filtroContrato, setFiltroContrato] = useState(() => {
@@ -3725,6 +3729,54 @@ function PageHistorico({
     const prazo = new Date(o.data_os + "T12:00");
     prazo.setDate(prazo.getDate() + dias);
     return o.data_conclusao <= prazo.toISOString().slice(0, 10);
+  };
+  const abrirEdicaoExecucao = o => {
+    let ret = {};
+    try { ret = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+    setExecForm({
+      km: ret.km || "",
+      solucao: ret.solucao || "",
+      obs: ret.obs || "",
+      pecas: Array.isArray(ret.pecas) ? ret.pecas.filter(p => p.desc).map(p => ({ ...p })) : [],
+      _restante: ret
+    });
+    setEditandoExecucao(true);
+  };
+  const salvarExecucao = async () => {
+    if (!sel || !execForm) return;
+    setSalvandoHist(true);
+    try {
+      const novoRetorno = { ...execForm._restante, km: execForm.km, solucao: execForm.solucao, obs: execForm.obs, pecas: execForm.pecas };
+      delete novoRetorno._restante;
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ retorno_campo: JSON.stringify(novoRetorno) })
+      });
+      setSel(s => ({ ...s, retorno_campo: JSON.stringify(novoRetorno) }));
+      setEditandoExecucao(false);
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
+  };
+  const salvarAvaliacao = async novaAval => {
+    if (!sel) return;
+    setSalvandoHist(true);
+    try {
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ avaliacao: novaAval || null })
+      });
+      setSel(s => ({ ...s, avaliacao: novaAval || null }));
+      setEditandoAvaliacao(false);
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
   };
   const dados = os.filter(o => {
     const _ct = o.contrato || "218/2023";
@@ -3872,7 +3924,7 @@ function PageHistorico({
       ),
       r.itens.map(o => React.createElement("div", {
         key: o.id,
-        onClick: () => setSel(o),
+        onClick: () => { setSel(o); setEditandoExecucao(false); setEditandoAvaliacao(false); },
         style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13, gap: 8 }
       },
         React.createElement("div", null,
@@ -3988,7 +4040,7 @@ function PageHistorico({
     className: "empty-title"
   }, "Nenhuma OS encontrada")))) : pg.map(o => /*#__PURE__*/React.createElement("tr", {
     key: o.id,
-    onClick: () => setSel(o)
+    onClick: () => { setSel(o); setEditandoExecucao(false); setEditandoAvaliacao(false); }
   }, /*#__PURE__*/React.createElement("td", {
     className: "fw-700 text-mono",
     style: {
@@ -4161,7 +4213,25 @@ function PageHistorico({
       color: "var(--text3)",
       marginBottom: 2
     }
-  }, k), /*#__PURE__*/React.createElement("div", null, v))), /*#__PURE__*/React.createElement("div", {
+  }, k),
+    k === "Avaliação"
+      ? (editandoAvaliacao
+          ? React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+              ["satisfatorio", "insatisfatorio", ""].map(op => React.createElement("button", {
+                key: op || "pendente",
+                className: "btn btn-sm",
+                disabled: salvandoHist,
+                style: (sel.avaliacao || "") === op ? { background: "var(--navy)", color: "#fff" } : {},
+                onClick: () => salvarAvaliacao(op)
+              }, op === "satisfatorio" ? "✅ Satisfatório" : op === "insatisfatorio" ? "🔄 Insatisfatório" : "⏳ Pendente")),
+              React.createElement("button", { className: "btn btn-sm", onClick: () => setEditandoAvaliacao(false), disabled: salvandoHist }, "Cancelar"),
+              React.createElement("div", { style: { fontSize: 10, color: "var(--text3)", width: "100%" } }, "⚠️ Isso só corrige o rótulo — não cria nem apaga OS de reabertura automaticamente")
+            )
+          : React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+              React.createElement("span", null, v),
+              React.createElement("span", { style: { fontSize: 11, color: "var(--accent)", cursor: "pointer", fontWeight: 700 }, onClick: () => setEditandoAvaliacao(true) }, "✎ Corrigir")
+            ))
+      : React.createElement("div", null, v))), /*#__PURE__*/React.createElement("div", {
     style: {
       gridColumn: "1/-1"
     }
@@ -4249,14 +4319,45 @@ function PageHistorico({
       }, "🖨️ Imprimir Lib.")
     )
   )),
-  sel.retorno_campo && (() => {
-    let ret = null;
+  (() => {
+    let ret = {};
     try {
-      ret = JSON.parse(sel.retorno_campo);
+      ret = sel.retorno_campo ? JSON.parse(sel.retorno_campo) : {};
     } catch (e) {}
-    if (!ret) return null;
     const kmNum = parseFloat(ret.km || 0) || 0;
     const temPecas = Array.isArray(ret.pecas) && ret.pecas.filter(p => p.desc).length > 0;
+    if (editandoExecucao && execForm) {
+      const atualizarPeca = (i, campo, v) => setExecForm(f => ({ ...f, pecas: f.pecas.map((p, idx) => idx === i ? { ...p, [campo]: v } : p) }));
+      return /*#__PURE__*/React.createElement("div", { style: { borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 4 } },
+        React.createElement("div", { style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--accent)", marginBottom: 10 } }, "✎ Editando dados de execução"),
+        React.createElement("div", { className: "fr" },
+          React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
+            React.createElement("input", { type: "number", min: "0", value: execForm.km, onChange: e => setExecForm(f => ({ ...f, km: e.target.value })) }))
+        ),
+        React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+          React.createElement("label", null, "Solução aplicada"),
+          React.createElement("textarea", { value: execForm.solucao, onChange: e => setExecForm(f => ({ ...f, solucao: e.target.value })), rows: 3 })
+        ),
+        React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+          React.createElement("label", null, "Observações do fechamento"),
+          React.createElement("textarea", { value: execForm.obs, onChange: e => setExecForm(f => ({ ...f, obs: e.target.value })), rows: 2 })
+        ),
+        React.createElement("div", { style: { marginBottom: 10 } },
+          React.createElement("label", { style: { display: "block", marginBottom: 6 } }, "Peças substituídas"),
+          execForm.pecas.map((p, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
+            React.createElement("input", { placeholder: "Código", value: p.cod || "", onChange: e => atualizarPeca(i, "cod", e.target.value), style: { width: 90 } }),
+            React.createElement("input", { placeholder: "Descrição", value: p.desc || "", onChange: e => atualizarPeca(i, "desc", e.target.value), style: { flex: 1 } }),
+            React.createElement("input", { type: "number", min: "1", placeholder: "Qtd", value: p.qtd || 1, onChange: e => atualizarPeca(i, "qtd", e.target.value), style: { width: 60 } }),
+            React.createElement("button", { className: "btn btn-sm", onClick: () => setExecForm(f => ({ ...f, pecas: f.pecas.filter((_, idx) => idx !== i) })) }, "✕")
+          )),
+          React.createElement("button", { className: "btn btn-sm", onClick: () => setExecForm(f => ({ ...f, pecas: [...f.pecas, { cod: "", desc: "", qtd: 1 }] })) }, "+ Adicionar peça")
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { className: "btn", onClick: () => setEditandoExecucao(false), disabled: salvandoHist }, "Cancelar"),
+          React.createElement("button", { className: "btn btn-primary", onClick: salvarExecucao, disabled: salvandoHist }, salvandoHist ? "Salvando..." : "💾 Salvar")
+        )
+      );
+    }
     return /*#__PURE__*/React.createElement("div", {
       style: {
         borderTop: "1px solid var(--border)",
@@ -4264,15 +4365,19 @@ function PageHistorico({
         marginTop: 4
       }
     }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: ".06em",
-        color: "var(--green)",
-        marginBottom: 10
-      }
-    }, "✓ Execução do serviço"),
+      style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }
+    },
+      /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: ".06em",
+          color: "var(--green)"
+        }
+      }, "✓ Execução do serviço"),
+      React.createElement("button", { className: "btn btn-sm", onClick: () => abrirEdicaoExecucao(sel) }, "✎ Editar / completar dados")
+    ),
     /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 12 } },
       kmNum > 0 && /*#__PURE__*/React.createElement("div", { style: { background: "var(--surface)", borderRadius: 8, padding: "10px 12px" } },
         /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase" } }, "🚗 Km percorrido"),
