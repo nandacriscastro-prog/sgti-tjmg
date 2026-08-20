@@ -333,6 +333,12 @@ function renderSim(){
           <option value="raio">Scanner de raio-X</option>
         </select>
       </div>
+      <div><label class="muted">Tipo de OS</label><br>
+        <select id="simTipoOS" style="width:100%">
+          <option value="normal">Atendimento normal</option>
+          <option value="correcao">Correção / Reabertura (garantia — não cobra visita/km de novo)</option>
+        </select>
+      </div>
     </div>
     <div style="margin-bottom:6px"><label class="muted">Equipamento substituído</label></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
@@ -408,36 +414,39 @@ function simMostrarClassificacao(){
 }
 function simCalcularOS(o){
   const isColar = ehColar(o.comarca);
-  const base = isColar ? 0 : (o.sistema === "raio" ? 1.25 : 1.0);
+  const isCorrecao = o.tipoOS === "correcao";
+  const base = isColar || isCorrecao ? 0 : (o.sistema === "raio" ? 1.25 : 1.0);
   const fracaoPecasRaw = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
   const fracaoPecas = isColar ? 0 : fracaoPecasRaw;
-  const fracaoDeslocamento = isColar ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
+  const fracaoDeslocamento = (isColar || isCorrecao) ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
   const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;
   const valorDiaria = fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu;
-  const valorKm = o.km * ANEXO_IV.find(a=>a.id==="km").vu;
+  const valorKm = isCorrecao ? 0 : (o.km * ANEXO_IV.find(a=>a.id==="km").vu);
   const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
-  const valorAtendimento = atendItem.vu;
+  const valorAtendimento = isCorrecao ? 0 : atendItem.vu;
   const valorMateriais = o.pecas.reduce((a,p)=>a+((PRECO_ANEXO_V[p.cod]||0)*p.qtd),0);
   const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
-  return {isColar, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
+  return {isColar, isCorrecao, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
 }
 
 function simAddOS(){
   const comarca = document.getElementById("simComarca").value.trim();
   const km = parseFloat(document.getElementById("simKm").value) || 0;
   const sistema = document.getElementById("simTipoSistema").value;
+  const tipoOS = document.getElementById("simTipoOS").value;
   const rota = document.getElementById("simRota").value.trim();
   if(!comarca){ alert("Informe a comarca."); return; }
   if(simEditandoId){
     const idx = simOS.findIndex(o=>o.id===simEditandoId);
-    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, rota, pecas: simPecasTemp.slice() };
+    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, tipoOS, rota, pecas: simPecasTemp.slice() };
     simEditandoId = null;
   } else {
-    simOS.push({ id: simIdSeq++, comarca, km, sistema, rota, pecas: simPecasTemp.slice() });
+    simOS.push({ id: simIdSeq++, comarca, km, sistema, tipoOS, rota, pecas: simPecasTemp.slice() });
   }
   simPecasTemp = [];
   document.getElementById("simComarca").value = "";
   document.getElementById("simKm").value = "0";
+  document.getElementById("simTipoOS").value = "normal";
   document.getElementById("simRota").value = "";
   simSalvarLocal();
   renderSim();
@@ -450,6 +459,7 @@ function simEditarOS(id){
   renderSim();
   document.getElementById("simComarca").value = o.comarca;
   document.getElementById("simKm").value = o.km;
+  document.getElementById("simTipoOS").value = o.tipoOS || "normal";
   document.getElementById("simTipoSistema").value = o.sistema;
   document.getElementById("simRota").value = o.rota || "";
   document.getElementById("simComarca").scrollIntoView({behavior:"smooth", block:"center"});
