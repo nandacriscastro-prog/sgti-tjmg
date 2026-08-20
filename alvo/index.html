@@ -334,12 +334,24 @@ function renderSim(){
         </select>
       </div>
       <div><label class="muted">Tipo de OS</label><br>
-        <select id="simTipoOS" style="width:100%">
-          <option value="normal">Atendimento normal</option>
+        <select id="simTipoOS" style="width:100%" onchange="simMostrarPrioridade(); simAtualizarPreviewGlosa();">
+          <option value="programado">Presencial Programado</option>
+          <option value="emergencial">Presencial Emergencial</option>
           <option value="correcao">Correção / Reabertura (garantia — não cobra visita/km de novo)</option>
         </select>
       </div>
+      <div id="simPrioridadeWrap" style="display:none"><label class="muted">Prioridade (só emergencial)</label><br>
+        <select id="simPrioridade" style="width:100%" onchange="simAtualizarPreviewGlosa()">
+          <option value="P0 - Urgente">P0 - Urgente (só Colar)</option>
+          <option value="P1 - Crítica">P1 - Crítica</option>
+          <option value="P2 - Alta">P2 - Alta</option>
+          <option value="P3 - Média">P3 - Média</option>
+        </select>
+      </div>
+      <div><label class="muted">Data de abertura do chamado</label><br><input type="date" id="simDtAbertura" style="width:100%" onchange="simAtualizarPreviewGlosa()"></div>
+      <div><label class="muted">Data de fechamento do chamado</label><br><input type="date" id="simDtFechamento" style="width:100%" onchange="simAtualizarPreviewGlosa()"></div>
     </div>
+    <div id="simGlosaPreview" style="margin-bottom:10px;font-size:12px"></div>
     <div style="margin-bottom:6px"><label class="muted">Equipamento substituído</label></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
       <select id="simCodPeca" style="flex:3;min-width:220px">
@@ -429,24 +441,80 @@ function simCalcularOS(o){
   return {isColar, isCorrecao, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
 }
 
+function simMostrarPrioridade(){
+  const t = document.getElementById("simTipoOS").value;
+  document.getElementById("simPrioridadeWrap").style.display = t === "emergencial" ? "block" : "none";
+}
+function simDiasUteisEntre(d1, d2){
+  let u = 0; const cur = new Date(d1);
+  while (cur < d2) { cur.setDate(cur.getDate()+1); if (cur.getDay()!==0 && cur.getDay()!==6) u++; }
+  return u;
+}
+function simDiasCorridosEntre(d1, d2){ return Math.round((d2-d1)/86400000); }
+function simBlocoGlosaSLA(tipoOS, prioridade, isColar){
+  if (tipoOS === "programado") return isColar ? {dias:5,pts:2,uteis:false} : {dias:10,pts:2,uteis:false};
+  if (tipoOS === "correcao") return isColar ? {dias:1,pts:5,uteis:true} : {dias:3,pts:3,uteis:true};
+  const mapaColar = {"P0 - Urgente":{dias:1,pts:5,uteis:true},"P1 - Crítica":{dias:2,pts:3,uteis:true},"P2 - Alta":{dias:2,pts:2,uteis:true},"P3 - Média":{dias:2,pts:1,uteis:true}};
+  const mapaDemais = {"P1 - Crítica":{dias:5,pts:3,uteis:true},"P2 - Alta":{dias:5,pts:2,uteis:true},"P3 - Média":{dias:5,pts:1,uteis:true}};
+  if (isColar) return mapaColar[prioridade] || {dias:5,pts:1,uteis:true};
+  return mapaDemais[prioridade] || {dias:10,pts:1,uteis:true};
+}
+function simCalcPtsGlosa(o){
+  if (!o.dtAbertura || !o.dtFechamento) return {pts:0, diasAtraso:0};
+  const isColar = ehColar(o.comarca);
+  let diasPrazo, uteisPrazo;
+  if (o.tipoOS === "emergencial") { const p = simBlocoGlosaSLA("emergencial", o.prioridade, isColar); diasPrazo = p.dias; uteisPrazo = p.uteis; }
+  else if (o.tipoOS === "correcao") { diasPrazo = isColar ? 1 : 3; uteisPrazo = true; }
+  else { diasPrazo = isColar ? 10 : 30; uteisPrazo = false; }
+  const prazo = new Date(o.dtAbertura+"T12:00");
+  if (uteisPrazo) { let u=0; while(u<diasPrazo){ prazo.setDate(prazo.getDate()+1); if(prazo.getDay()!==0 && prazo.getDay()!==6) u++; } }
+  else { prazo.setDate(prazo.getDate()+diasPrazo); }
+  const conc = new Date(o.dtFechamento+"T12:00");
+  if (isNaN(conc.getTime()) || conc <= prazo) return {pts:0, diasAtraso:0};
+  const bloco = simBlocoGlosaSLA(o.tipoOS, o.prioridade, isColar);
+  const diasAtraso = bloco.uteis ? simDiasUteisEntre(prazo, conc) : simDiasCorridosEntre(prazo, conc);
+  const blocos = Math.floor(diasAtraso / bloco.dias);
+  return {pts: blocos * bloco.pts, diasAtraso};
+}
+function simAtualizarPreviewGlosa(){
+  const el = document.getElementById("simGlosaPreview");
+  if(!el) return;
+  const comarca = document.getElementById("simComarca").value.trim();
+  const tipoOS = document.getElementById("simTipoOS").value;
+  const prioridade = document.getElementById("simPrioridade").value;
+  const dtAbertura = document.getElementById("simDtAbertura").value;
+  const dtFechamento = document.getElementById("simDtFechamento").value;
+  if(!comarca || !dtAbertura || !dtFechamento){ el.innerHTML = ""; return; }
+  const r = simCalcPtsGlosa({comarca, tipoOS, prioridade, dtAbertura, dtFechamento});
+  el.innerHTML = r.pts > 0
+    ? `<span style="color:var(--red);font-weight:700">⚠️ ${r.diasAtraso} dia(s) de atraso → ${r.pts} ponto(s) de glosa nesta OS</span>`
+    : `<span style="color:var(--green)">✅ Dentro do prazo — sem glosa</span>`;
+}
 function simAddOS(){
   const comarca = document.getElementById("simComarca").value.trim();
   const km = parseFloat(document.getElementById("simKm").value) || 0;
   const sistema = document.getElementById("simTipoSistema").value;
   const tipoOS = document.getElementById("simTipoOS").value;
+  const prioridade = document.getElementById("simPrioridade").value;
+  const dtAbertura = document.getElementById("simDtAbertura").value;
+  const dtFechamento = document.getElementById("simDtFechamento").value;
   const rota = document.getElementById("simRota").value.trim();
   if(!comarca){ alert("Informe a comarca."); return; }
   if(simEditandoId){
     const idx = simOS.findIndex(o=>o.id===simEditandoId);
-    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, tipoOS, rota, pecas: simPecasTemp.slice() };
+    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, tipoOS, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() };
     simEditandoId = null;
   } else {
-    simOS.push({ id: simIdSeq++, comarca, km, sistema, tipoOS, rota, pecas: simPecasTemp.slice() });
+    simOS.push({ id: simIdSeq++, comarca, km, sistema, tipoOS, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() });
   }
   simPecasTemp = [];
   document.getElementById("simComarca").value = "";
   document.getElementById("simKm").value = "0";
-  document.getElementById("simTipoOS").value = "normal";
+  document.getElementById("simTipoOS").value = "programado";
+  document.getElementById("simDtAbertura").value = "";
+  document.getElementById("simDtFechamento").value = "";
+  document.getElementById("simGlosaPreview").innerHTML = "";
+  simMostrarPrioridade();
   document.getElementById("simRota").value = "";
   simSalvarLocal();
   renderSim();
@@ -459,8 +527,13 @@ function simEditarOS(id){
   renderSim();
   document.getElementById("simComarca").value = o.comarca;
   document.getElementById("simKm").value = o.km;
-  document.getElementById("simTipoOS").value = o.tipoOS || "normal";
+  document.getElementById("simTipoOS").value = o.tipoOS || "programado";
   document.getElementById("simTipoSistema").value = o.sistema;
+  document.getElementById("simPrioridade").value = o.prioridade || "P2 - Alta";
+  document.getElementById("simDtAbertura").value = o.dtAbertura || "";
+  document.getElementById("simDtFechamento").value = o.dtFechamento || "";
+  simMostrarPrioridade();
+  simAtualizarPreviewGlosa();
   document.getElementById("simRota").value = o.rota || "";
   document.getElementById("simComarca").scrollIntoView({behavior:"smooth", block:"center"});
 }
@@ -542,16 +615,26 @@ function simRenderTabela(){
     </div>`;
   });
   elT.innerHTML = html;
-  elTot.innerHTML = `<div class="kpis"><div class="kpi"><div class="val">${fmtR(totalGeral)}</div><div class="lbl">Total simulado (${simOS.length} OS)</div></div></div>`;
+  let totalPts = 0;
+  simOS.forEach(o=>{ totalPts += simCalcPtsGlosa(o).pts; });
+  const pct = totalPts <= 10 ? 0 : totalPts <= 20 ? 2 : totalPts <= 30 ? 4 : totalPts <= 40 ? 6 : totalPts <= 50 ? 8 : 10;
+  const valorGlosa = totalGeral * (pct/100);
+  elTot.innerHTML = `<div class="kpis">
+    <div class="kpi"><div class="val">${fmtR(totalGeral)}</div><div class="lbl">Total simulado (${simOS.length} OS)</div></div>
+    <div class="kpi"><div class="val" style="color:${totalPts>10?'var(--red)':'var(--green)'}">${totalPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
+    <div class="kpi"><div class="val" style="color:${pct>0?'var(--red)':'var(--green)'}">${pct}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
+    <div class="kpi"><div class="val" style="font-weight:700">${fmtR(totalGeral - valorGlosa)}</div><div class="lbl">Total líquido (após glosa)</div></div>
+  </div>`;
 }
 
 function simExportar(){
   if(!simOS.length){ alert("Adicione ao menos uma OS simulada antes de exportar."); return; }
 
   // Agregados para Anexo IV e Resumo
-  let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0;
+  let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0, totalPtsGlosa=0;
   const detalheRows = [];
   const pecasRows = [];
+  const glosaRows = [];
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
     if(!c.isCorrecao){
@@ -561,6 +644,11 @@ function simExportar(){
     totalDiarias += c.fracaoTotal;
     brutoMateriais += c.valorMateriais;
     brutoServicos += c.valorDiaria + c.valorKm + c.valorAtendimento;
+    const g = simCalcPtsGlosa(o);
+    if (g.pts > 0) {
+      totalPtsGlosa += g.pts;
+      glosaRows.push([o.rota||"—", o.comarca, o.tipoOS, o.prioridade||"—", o.dtAbertura, o.dtFechamento, g.diasAtraso, g.pts]);
+    }
     const pecasTxt = o.pecas.length ? o.pecas.map(p=>`[${p.cod}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
     const sistemaTxt = o.sistema==="portal"?"Portal detector de metais":o.sistema==="raio"?"Scanner de raio-X":"Alarme/CFTV/Acesso";
     const regiaoTxt = c.isColar ? "Colar Metropolitano" : "Interior";
@@ -575,6 +663,9 @@ function simExportar(){
     });
   });
   const brutoTotal = brutoServicos + brutoMateriais;
+  const pctGlosa = totalPtsGlosa <= 10 ? 0 : totalPtsGlosa <= 20 ? 2 : totalPtsGlosa <= 30 ? 4 : totalPtsGlosa <= 40 ? 6 : totalPtsGlosa <= 50 ? 8 : 10;
+  const valorGlosa = brutoTotal * (pctGlosa/100);
+  const totalLiquido = brutoTotal - valorGlosa;
 
   // ---- Aba 1: Resumo ----
   const linhasResumo = [
@@ -588,6 +679,12 @@ function simExportar(){
     ["1 - Serviços (atendimento/diária/km)", Number(brutoServicos.toFixed(2))],
     ["2 - Materiais/Equipamentos (peças substituídas)", Number(brutoMateriais.toFixed(2))],
     ["Total bruto (soma das duas dotações)", Number(brutoTotal.toFixed(2))],
+    [],
+    ["Glosa SLA (atraso)", ""],
+    ["Total de pontos de glosa", totalPtsGlosa],
+    ["Percentual de desconto aplicado", pctGlosa + "%"],
+    ["Valor da glosa (R$)", Number(valorGlosa.toFixed(2))],
+    ["TOTAL LÍQUIDO (após glosa)", Number(totalLiquido.toFixed(2))],
   ];
   const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
   wsResumo["!cols"] = [{wch:45},{wch:18}];
@@ -618,11 +715,19 @@ function simExportar(){
   const wsPecas = XLSX.utils.aoa_to_sheet(linhasPecas);
   wsPecas["!cols"] = [{wch:18},{wch:22},{wch:36},{wch:6},{wch:14},{wch:14}];
 
+  // ---- Aba: Ocorrências de atraso (Glosa) ----
+  const linhasGlosa = [["Rota/Grupo","Comarca","Tipo de OS","Prioridade","Data abertura","Data fechamento","Dias de atraso","Pontos de glosa"], ...glosaRows];
+  if(!glosaRows.length) linhasGlosa.push(["Nenhuma OS simulada teve atraso — sem glosa."]);
+  else linhasGlosa.push(["","","","","","","Total de pontos", totalPtsGlosa]);
+  const wsGlosa = XLSX.utils.aoa_to_sheet(linhasGlosa);
+  wsGlosa["!cols"] = [{wch:18},{wch:22},{wch:16},{wch:14},{wch:14},{wch:16},{wch:14},{wch:14}];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
   XLSX.utils.book_append_sheet(wb, wsDet, "Detalhamento Completo");
   XLSX.utils.book_append_sheet(wb, wsAnexo, "Anexo IV - Serviços");
   XLSX.utils.book_append_sheet(wb, wsPecas, "Peças substituídas");
+  XLSX.utils.book_append_sheet(wb, wsGlosa, "Ocorrências de Atraso (Glosa)");
 
   // ---- Aba 5: Total por Rota (só se houver rotas nomeadas) ----
   const rotasUsadas = [...new Set(simOS.map(o=>o.rota).filter(Boolean))];
