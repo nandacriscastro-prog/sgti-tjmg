@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787318997 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787320090 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -11191,7 +11191,7 @@ function PageDemandasInner({
     className: "table-card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "table-wrap"
-  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Projeto"), /*#__PURE__*/React.createElement("th", null, "Comarca"), /*#__PURE__*/React.createElement("th", null, "Descri\xE7\xE3o"), /*#__PURE__*/React.createElement("th", null, "Prioridade"), /*#__PURE__*/React.createElement("th", null, "Origem"), /*#__PURE__*/React.createElement("th", null, "SEI"), /*#__PURE__*/React.createElement("th", null, "OS"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, pg.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Projeto"), /*#__PURE__*/React.createElement("th", null, "Comarca"), /*#__PURE__*/React.createElement("th", null, "Descri\xE7\xE3o"), /*#__PURE__*/React.createElement("th", null, "Prioridade"), /*#__PURE__*/React.createElement("th", null, "Regi\xE3o"), /*#__PURE__*/React.createElement("th", null, "SEI"), /*#__PURE__*/React.createElement("th", null, "OS"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, pg.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
     colSpan: 9
   }, /*#__PURE__*/React.createElement("div", {
     className: "empty"
@@ -11232,7 +11232,7 @@ function PageDemandasInner({
     }
   }, (d.descricao || "—").substring(0, 60)), /*#__PURE__*/React.createElement("td", null, pBadge(d.prioridade)), /*#__PURE__*/React.createElement("td", {
     className: "text-sm text-muted"
-  }, d.origem || d.regiao || "—"), /*#__PURE__*/React.createElement("td", {
+  }, d.regiao || "—"), /*#__PURE__*/React.createElement("td", {
     className: "text-sm text-muted",
     style: {
       maxWidth: 120,
