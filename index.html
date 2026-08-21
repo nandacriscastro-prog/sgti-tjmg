@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787307295 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787318997 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -896,6 +896,11 @@ const NAV = [{
   id: "medicao",
   label: "Medição",
   icon: "money",
+  sec: null
+}, {
+  id: "notas",
+  label: "Notas Fiscais",
+  icon: "file",
   sec: null
 }, {
   id: "estoque",
@@ -9133,6 +9138,222 @@ function PageLimpezaAnexos() {
     )
   );
 }
+function PageNotasFiscais({ os, setPage }) {
+  const [notas, setNotas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [modalNova, setModalNova] = useState(false);
+  const [novaNota, setNovaNota] = useState({ periodo_label: "", dt_ini: "", dt_fim: "", numero_nf: "", valor_total: "", observacoes: "" });
+  const [salvando, setSalvando] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+
+  const carregar = async () => {
+    setCarregando(true);
+    try {
+      const rows = await sbFetch("/notas_fiscais?order=dt_ini.desc&limit=500");
+      setNotas(rows || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCarregando(false);
+    }
+  };
+  useEffect(() => { carregar(); }, []);
+
+  // Período de medição atual, pra já sugerir no formulário de nova nota
+  const periodoAtualSugerido = () => {
+    const agora = new Date();
+    const mesAnt = agora.getMonth() === 0 ? 11 : agora.getMonth() - 1;
+    const anoAnt = agora.getMonth() === 0 ? agora.getFullYear() - 1 : agora.getFullYear();
+    const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
+    const dtFim = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-19`;
+    return { dtIni, dtFim, label: MESES_FULL[agora.getMonth()] + "/" + agora.getFullYear() };
+  };
+
+  const abrirNova = () => {
+    const sug = periodoAtualSugerido();
+    setNovaNota({ periodo_label: sug.label, dt_ini: sug.dtIni, dt_fim: sug.dtFim, numero_nf: "", valor_total: "", observacoes: "" });
+    setModalNova(true);
+  };
+
+  const contarOSDoPeriodo = (dtIni, dtFim) => os.filter(o =>
+    (o.contrato || "") === "181/2026" &&
+    o.status === "Concluída" &&
+    o.avaliacao === "satisfatorio" &&
+    (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim
+  ).length;
+
+  const salvarNova = async () => {
+    if (!novaNota.periodo_label || !novaNota.dt_ini || !novaNota.dt_fim) {
+      alert("Preencha ao menos o período (rótulo e datas).");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await sbFetch("/notas_fiscais", {
+        method: "POST",
+        body: JSON.stringify({
+          periodo_label: novaNota.periodo_label,
+          dt_ini: novaNota.dt_ini,
+          dt_fim: novaNota.dt_fim,
+          numero_nf: novaNota.numero_nf || null,
+          valor_total: novaNota.valor_total ? parseFloat(novaNota.valor_total.toString().replace(",", ".")) : null,
+          status: "Pendente",
+          observacoes: novaNota.observacoes || null,
+          criado_por: getSession()?.fiscal?.email || getSession()?.fiscal?.nome || null
+        })
+      });
+      setModalNova(false);
+      carregar();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const mudarStatus = async (nota, novoStatus) => {
+    try {
+      await sbFetch(`/notas_fiscais?id=eq.${nota.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: novoStatus, atualizado_em: new Date().toISOString() })
+      });
+      setNotas(ns => ns.map(n => n.id === nota.id ? { ...n, status: novoStatus } : n));
+    } catch (e) {
+      alert("Erro ao atualizar status: " + e.message);
+    }
+  };
+
+  const editarCampo = async (nota, campo, valor) => {
+    try {
+      await sbFetch(`/notas_fiscais?id=eq.${nota.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ [campo]: valor, atualizado_em: new Date().toISOString() })
+      });
+      setNotas(ns => ns.map(n => n.id === nota.id ? { ...n, [campo]: valor } : n));
+    } catch (e) {
+      alert("Erro ao atualizar: " + e.message);
+    }
+  };
+
+  const excluir = async nota => {
+    if (!confirm("Excluir a nota fiscal do período \"" + nota.periodo_label + "\"?")) return;
+    try {
+      await sbFetch(`/notas_fiscais?id=eq.${nota.id}`, { method: "DELETE" });
+      setNotas(ns => ns.filter(n => n.id !== nota.id));
+    } catch (e) {
+      alert("Erro ao excluir: " + e.message);
+    }
+  };
+
+  const verOSDoPeriodo = nota => {
+    window._historicoFiltro = {
+      dtIni: nota.dt_ini, dtFim: nota.dt_fim, dtCampo: "data_conclusao",
+      statusMulti: ["Concluída"], avaliacaoValor: "satisfatorio", contrato: "181/2026"
+    };
+    setPage("historico");
+  };
+
+  const STATUS_CORES = {
+    "Pendente": { bg: "#fff8e6", cor: "#b8860b", icone: "⏳" },
+    "Enviada": { bg: "#e8f0fe", cor: "#2563eb", icone: "📤" },
+    "Recebida": { bg: "#e2f5ea", cor: "#1b8a5a", icone: "✅" }
+  };
+
+  const notasFiltradas = filtroStatus === "todos" ? notas : notas.filter(n => n.status === filtroStatus);
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "Notas Fiscais"),
+        React.createElement("div", { className: "ph-sub" }, "Acompanhamento das notas fiscais por período de medição — Pendente → Enviada → Recebida")
+      ),
+      React.createElement("button", { className: "btn btn-primary", onClick: abrirNova }, "+ Nova Nota Fiscal")
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } },
+      ["todos", "Pendente", "Enviada", "Recebida"].map(s => React.createElement("button", {
+        key: s, className: "btn btn-sm",
+        style: filtroStatus === s ? { background: "var(--navy)", color: "#fff" } : {},
+        onClick: () => setFiltroStatus(s)
+      }, s === "todos" ? "Todos" : (STATUS_CORES[s].icone + " " + s)))
+    ),
+    carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
+    !notasFiltradas.length ? React.createElement("div", { className: "card" }, "Nenhuma nota fiscal registrada ainda. Clica em \"+ Nova Nota Fiscal\" pra começar.") :
+    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+      notasFiltradas.map(nota => {
+        const cor = STATUS_CORES[nota.status] || STATUS_CORES["Pendente"];
+        const qtdOS = contarOSDoPeriodo(nota.dt_ini, nota.dt_fim);
+        return React.createElement("div", { key: nota.id, className: "card", style: { borderLeft: "4px solid " + cor.cor } },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 } },
+            React.createElement("div", null,
+              React.createElement("div", { style: { fontSize: 15, fontWeight: 700 } }, nota.periodo_label),
+              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } },
+                fmtDate(nota.dt_ini) + " a " + fmtDate(nota.dt_fim) + " · " + qtdOS + " OS satisfatória(s) no período"
+              ),
+              nota.numero_nf && React.createElement("div", { style: { fontSize: 12, marginTop: 2 } }, "NF nº: " + nota.numero_nf)
+            ),
+            React.createElement("div", { style: { textAlign: "right" } },
+              React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: cor.cor, background: cor.bg, padding: "4px 10px", borderRadius: 99 } }, cor.icone + " " + nota.status),
+              nota.valor_total != null && React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginTop: 6 } }, fmtR(nota.valor_total))
+            )
+          ),
+          nota.observacoes && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 8, fontStyle: "italic" } }, "\"" + nota.observacoes + "\""),
+          React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" } },
+            ["Pendente", "Enviada", "Recebida"].map(s => React.createElement("button", {
+              key: s, className: "btn btn-sm",
+              disabled: nota.status === s,
+              style: nota.status === s ? { background: STATUS_CORES[s].cor, color: "#fff", opacity: 1 } : {},
+              onClick: () => mudarStatus(nota, s)
+            }, STATUS_CORES[s].icone + " " + s)),
+            React.createElement("button", { className: "btn btn-sm", onClick: () => verOSDoPeriodo(nota) }, "📋 Ver OS do período"),
+            React.createElement("button", {
+              className: "btn btn-sm",
+              onClick: () => {
+                const v = prompt("Número da NF:", nota.numero_nf || "");
+                if (v !== null) editarCampo(nota, "numero_nf", v.trim() || null);
+              }
+            }, "✎ Nº da NF"),
+            React.createElement("button", {
+              className: "btn btn-sm",
+              onClick: () => {
+                const v = prompt("Valor total da nota (R$):", nota.valor_total || "");
+                if (v !== null) editarCampo(nota, "valor_total", v.trim() ? parseFloat(v.replace(",", ".")) : null);
+              }
+            }, "✎ Valor"),
+            React.createElement("button", { className: "btn btn-sm", style: { color: "var(--red, #c0392b)" }, onClick: () => excluir(nota) }, "🗑️ Excluir")
+          )
+        );
+      })
+    ),
+    modalNova && React.createElement(Modal, { title: "Nova Nota Fiscal", width: 520, onClose: () => setModalNova(false) },
+      React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+        React.createElement("label", null, "Período (rótulo)"),
+        React.createElement("input", { value: novaNota.periodo_label, onChange: e => setNovaNota(n => ({ ...n, periodo_label: e.target.value })) })
+      ),
+      React.createElement("div", { className: "fr" },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data início"),
+          React.createElement("input", { type: "date", value: novaNota.dt_ini, onChange: e => setNovaNota(n => ({ ...n, dt_ini: e.target.value })) })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data fim"),
+          React.createElement("input", { type: "date", value: novaNota.dt_fim, onChange: e => setNovaNota(n => ({ ...n, dt_fim: e.target.value })) }))
+      ),
+      React.createElement("div", { className: "fg", style: { marginTop: 10, marginBottom: 10 } },
+        React.createElement("label", null, "Número da NF (opcional, pode preencher depois)"),
+        React.createElement("input", { value: novaNota.numero_nf, onChange: e => setNovaNota(n => ({ ...n, numero_nf: e.target.value })) })
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+        React.createElement("label", null, "Valor total (R$, opcional)"),
+        React.createElement("input", { value: novaNota.valor_total, onChange: e => setNovaNota(n => ({ ...n, valor_total: e.target.value })), placeholder: "Ex: 15234.50" })
+      ),
+      React.createElement("div", { className: "fg", style: { marginBottom: 14 } },
+        React.createElement("label", null, "Observações (opcional)"),
+        React.createElement("textarea", { value: novaNota.observacoes, onChange: e => setNovaNota(n => ({ ...n, observacoes: e.target.value })), rows: 2 })
+      ),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: () => setModalNova(false), disabled: salvando }, "Cancelar"),
+        React.createElement("button", { className: "btn btn-primary", onClick: salvarNova, disabled: salvando }, salvando ? "Salvando..." : "💾 Criar Nota Fiscal")
+      )
+    )
+  );
+}
 function PageConfig() {
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
@@ -11489,6 +11710,11 @@ function AppInterno({
         return /*#__PURE__*/React.createElement(PageMedicao, {
           os: os,
           reload: loadOS
+        });
+      case "notas":
+        return /*#__PURE__*/React.createElement(PageNotasFiscais, {
+          os: os,
+          setPage: setPage
         });
       case "estoque":
         return /*#__PURE__*/React.createElement(PageEstoque, null);
