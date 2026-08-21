@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787322105 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787326734 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6237,14 +6237,13 @@ function PageMedicao({
       osMes.forEach(o => {
         const isCorrecaoOS = o.tipo === "Correção";
         const s = (o.servico || o.tipo || "").toLowerCase();
-        if (!isCorrecaoOS) {
-          if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
-        }
+        // Correção continua cobrando atendimento/km normalmente — só a fração de DIÁRIA fica zerada (a garantia cobre o "dia" já pago, não a visita/km em si)
+        if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
           if (!r.historico) {
             const kmOS = parseFloat(r.km || 0);
-            if (!isCorrecaoOS) totalKm += kmOS; // km da revisita de correção não é cobrado de novo
+            totalKm += kmOS;
             const _mun = (o.comarca || "").split(" - ")[0];
             const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
             const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");

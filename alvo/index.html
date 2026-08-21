@@ -523,9 +523,10 @@ function simCalcularOS(o){
   const fracaoDeslocamento = (isColar || isCorrecao) ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
   const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;
   const valorDiaria = fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu;
-  const valorKm = isCorrecao ? 0 : (o.km * ANEXO_IV.find(a=>a.id==="km").vu);
+  // Correção continua cobrando km e atendimento normalmente — só a fração de DIÁRIA fica zerada (a garantia cobre o "dia", não a visita/km em si)
+  const valorKm = o.km * ANEXO_IV.find(a=>a.id==="km").vu;
   const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
-  const valorAtendimento = isCorrecao ? 0 : atendItem.vu;
+  const valorAtendimento = atendItem.vu;
   const valorMateriais = o.pecas.reduce((a,p)=>a+((PRECO_ANEXO_V[p.cod]||0)*p.qtd),0);
   const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
   return {isColar, isCorrecao, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
@@ -730,10 +731,8 @@ function simExportar(){
   const glosaRows = [];
   simOS.forEach(o=>{
     const c = simCalcularOS(o);
-    if(!c.isCorrecao){
-      if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
-      totalKm += o.km;
-    }
+    if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
+    totalKm += o.km;
     totalDiarias += c.fracaoTotal;
     brutoMateriais += c.valorMateriais;
     brutoServicos += c.valorDiaria + c.valorKm + c.valorAtendimento;
