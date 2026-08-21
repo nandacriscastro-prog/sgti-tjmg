@@ -94,6 +94,8 @@ function sair(){
   sessionStorage.removeItem("alvo_ok");
   location.reload();
 }
+let medMes = new Date().getMonth();
+let medAno = new Date().getFullYear();
 function mostrarApp(){
   document.getElementById("login").style.display = "none";
   document.getElementById("header").style.display = "flex";
@@ -167,9 +169,6 @@ const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.
 const FRACAO_KM_ANEXO_VI = 0.0032468;
 const COLAR_181 = new Set(["Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas","Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"]);
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-
-let medMes = new Date().getMonth();
-let medAno = new Date().getFullYear();
 
 function renderMedicaoShell(){
   const el = document.getElementById("painelMed");
