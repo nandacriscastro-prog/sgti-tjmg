@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787579129 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787579370 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6798,6 +6798,7 @@ function PageMedicao({
   materiaisAcumulados !== null && (() => {
     const pct = (materiaisAcumulados / CONTRATO_VALOR_ANEXO_V_181 * 100);
     const saldo = CONTRATO_VALOR_ANEXO_V_181 - materiaisAcumulados;
+    const fmtR4 = v => "R$ " + (v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
     return React.createElement("div", {
       style: { padding: "8px 13px", background: "var(--surface)", borderRadius: 6, margin: "4px 0", fontSize: 12 }
     },
@@ -6806,7 +6807,7 @@ function PageMedicao({
         React.createElement("strong", { style: { color: pct > 90 ? "var(--red, #c0392b)" : pct > 70 ? "var(--amber, #b8860b)" : "var(--green)" } }, pct.toFixed(4) + "%")
       ),
       React.createElement("div", { style: { color: "var(--text3)" } },
-        fmtR(materiaisAcumulados) + " de " + fmtR(CONTRATO_VALOR_ANEXO_V_181) + " · saldo restante: " + fmtR(saldo)
+        fmtR4(materiaisAcumulados) + " de " + fmtR4(CONTRATO_VALOR_ANEXO_V_181) + " · saldo restante: " + fmtR4(saldo)
       )
     );
   })(), /*#__PURE__*/React.createElement("div", {
