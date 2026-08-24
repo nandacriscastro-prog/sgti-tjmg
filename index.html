@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787578221 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787578298 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5906,6 +5906,25 @@ function PageMedicao({
   const [soAguardando, setSoAguardando] = useState(false);
   const [agruparRotaMed, setAgruparRotaMed] = useState(false);
   const [mostrarFecharOS, setMostrarFecharOS] = useState(false);
+  const [materiaisAcumulados, setMateriaisAcumulados] = useState(null); // total de materiais já gasto em TODO o contrato 181/2026 (não só o período atual)
+  useEffect(() => {
+    (async () => {
+      try {
+        const rows = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=retorno_campo&limit=5000`);
+        let total = 0;
+        (rows || []).forEach(o => {
+          let r = {};
+          try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+          (r.pecas || []).filter(p => p.desc).forEach(p => {
+            total += (PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1);
+          });
+        });
+        setMateriaisAcumulados(total);
+      } catch (e) {
+        console.error("Erro ao calcular materiais acumulados:", e);
+      }
+    })();
+  }, []);
   const [selecionadas, setSelecionadas] = useState(new Set());
   const [painelAberto, setPainelAberto] = useState(false);
   const [linhas, setLinhas] = useState([]);
@@ -6775,7 +6794,22 @@ function PageMedicao({
       justifyContent: "space-between",
       fontSize: 13
     }
-  }, /*#__PURE__*/React.createElement("span", null, "+ Materiais/equipamentos (peças substituídas)"), /*#__PURE__*/React.createElement("strong", null, fmtR(resultado.brutoMateriais))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "+ Materiais/equipamentos (peças substituídas)"), /*#__PURE__*/React.createElement("strong", null, fmtR(resultado.brutoMateriais))),
+  materiaisAcumulados !== null && (() => {
+    const pct = (materiaisAcumulados / CONTRATO_VALOR_ANEXO_V_181 * 100);
+    const saldo = CONTRATO_VALOR_ANEXO_V_181 - materiaisAcumulados;
+    return React.createElement("div", {
+      style: { padding: "8px 13px", background: "var(--surface)", borderRadius: 6, margin: "4px 0", fontSize: 12 }
+    },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 3 } },
+        React.createElement("span", { style: { color: "var(--text3)" } }, "📦 Aplicação de Recursos Sob Demanda — consumido de todo o contrato até agora"),
+        React.createElement("strong", { style: { color: pct > 90 ? "var(--red, #c0392b)" : pct > 70 ? "var(--amber, #b8860b)" : "var(--green)" } }, pct.toFixed(4) + "%")
+      ),
+      React.createElement("div", { style: { color: "var(--text3)" } },
+        fmtR(materiaisAcumulados) + " de " + fmtR(CONTRATO_VALOR_ANEXO_V_181) + " · saldo restante: " + fmtR(saldo)
+      )
+    );
+  })(), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px 13px",
       display: "flex",
