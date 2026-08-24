@@ -109,6 +109,7 @@ const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.
 const FRACAO_KM_ANEXO_VI = 0.0032468;
 const COLAR_181 = new Set(["Barão de Cocais","Belo Vale","Bom Jesus do Amparo","Bonfim","Fortuna de Minas","Funilândia","Inhaúma","Itabirito","Itaúna","Moeda","Pará de Minas","Prudente de Morais","Santa Bárbara","São Gonçalo do Rio Abaixo","São José da Varginha","Sete Lagoas","Baldim","Belo Horizonte","Betim","Brumadinho","Caeté","Capim Branco","Confins","Contagem","Esmeraldas","Florestal","Ibirité","Igarapé","Itaguara","Itatiaiuçu","Jabuticatubas","Juatuba","Lagoa Santa","Mário Campos","Mateus Leme","Matozinhos","Nova Lima","Nova União","Pedro Leopoldo","Raposos","Ribeirão das Neves","Rio Acima","Rio Manso","Sabará","Santa Luzia","São Joaquim de Bicas","São José da Lapa","Sarzedo","Taquaraçu de Minas","Vespasiano"]);
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const FRAC_D = {'3.1.1':0.125,'3.1.2':0.25,'3.1.3':0.375,'3.1.4':0.25,'3.1.5':0.125,'3.1.6':0.125,'3.1.7':0.125,'3.1.8':0.25,'3.1.9':0.25,'3.1.10':0.125,'3.1.11':0.125,'3.1.12':0.125,'3.1.13':0.375,'3.2.1':0.125,'3.2.2':0.125,'3.2.3':0.125,'3.2.4':0.125,'3.2.5':0.125,'3.2.6':0.125,'3.3.1':0.125,'3.3.2':0.125,'3.4':0.188,'3.5.1':0.125,'3.5.2':0.125,'3.5.3':0.125,'3.5.4':0.125,'3.5.5':0.125,'3.5.6':0.125,'3.5.7':0.125,'3.5.8':0.125,'3.6.1':1.0,'3.6.2':1.0,'3.6.3':1.0,'3.6.4':0.0041667,'3.7.1':0.125,'3.7.2':0.125,'3.7.3':0.125,'3.7.4':0.125,'3.8.1':0.125,'3.8.2':0.125,'3.8.3':0.125,'3.8.4':0.125,'3.8.5':0.125,'3.8.6':0.125,'3.8.7':0.125,'3.9.1':0.125,'3.9.2':0.125,'3.9.3':0.125,'3.9.4':0.125,'3.9.5':0.25,'3.9.6':0.25,'3.9.7':0.5,'3.9.8':0.25,'3.10':0.75};
 
 function mostrarApp(){
   document.getElementById("login").style.display = "none";
@@ -205,6 +206,8 @@ async function carregarMedicao(){
     const pecasDetalhe = [];
     osMes.forEach(o=>{
       const s=(o.servico||o.tipo||"").toLowerCase();
+      const tipo = o.tipo || "";
+      const isCorrecaoOS = tipo === "Correção";
       if(s.includes("portal")||s.includes("detector")) qtdPortal++;
       else if(s.includes("raio")||s.includes("scanner")) qtdRaio++;
       else qtdAlarme++;
@@ -213,8 +216,12 @@ async function carregarMedicao(){
       totalKm += kmOS;
       const mun=(o.comarca||"").split(" - ")[0];
       const isColar = COLAR_181.has(mun);
-      // r.diarias já é a fração COMPLETA (base+peças+deslocamento) calculada no fechamento da OS — não soma deslocamento de novo
-      const fracaoTotalSalvo = isColar ? 0 : parseFloat(r.diarias||0);
+      // Recalcula a fração do zero (não usa mais o valor arredondado de 3 casas salvo em retorno_campo) — mesma precisão do sistema principal
+      const isRaioServ = s.includes("raio") || s.includes("scanner");
+      const fracaoBase = (isColar || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
+      const fracaoPecasCalc = isColar ? 0 : (r.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
+      const fracaoDeslocamento = (isColar || isCorrecaoOS) ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
+      const fracaoTotalSalvo = fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       totalDiarias += fracaoTotalSalvo;
       (r.pecas||[]).filter(p=>p.desc).forEach(p=>{
         const vUnit = PRECO_ANEXO_V[p.cod]||0;
@@ -224,14 +231,20 @@ async function carregarMedicao(){
       });
     });
     const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
-    const brutoServicos = ANEXO_IV.reduce((a,it)=>a+(qtds[it.id]||0)*it.vu,0);
+    // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela) — bate com a soma manual das linhas mostradas, igual ao sistema principal
+    const brutoServicos = ANEXO_IV.reduce((a,it)=>{
+      const q = qtds[it.id]||0;
+      const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
+      return a + Number((qArred*it.vu).toFixed(2));
+    },0);
     const bruto = brutoServicos + brutoMateriais;
 
     let linhasAnexo = "";
     ANEXO_IV.forEach(it=>{
       const q = qtds[it.id]||0;
+      const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
       const qFmt = Number.isInteger(q) ? q : q.toFixed(2);
-      linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(q*it.vu)}</td></tr>`;
+      linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(qArred*it.vu)}</td></tr>`;
     });
 
     let linhasPecas = pecasDetalhe.length ? pecasDetalhe.map(p=>`<tr><td>${p.numero}</td><td>${p.comarca}</td><td>${p.desc}</td><td style="text-align:center">${p.qtd}</td><td style="text-align:right">${fmtR(p.vUnit)}</td><td style="text-align:right;font-weight:700">${fmtR(p.total)}</td></tr>`).join("") : `<tr><td colspan="6" class="muted" style="text-align:center;padding:16px">Nenhuma peça substituída neste mês</td></tr>`;
@@ -289,7 +302,6 @@ const ANEXO_V_DESC = {
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
   "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
 };
-const FRAC_D = {'3.1.1':0.125,'3.1.2':0.25,'3.1.3':0.375,'3.1.4':0.25,'3.1.5':0.125,'3.1.6':0.125,'3.1.7':0.125,'3.1.8':0.25,'3.1.9':0.25,'3.1.10':0.125,'3.1.11':0.125,'3.1.12':0.125,'3.1.13':0.375,'3.2.1':0.125,'3.2.2':0.125,'3.2.3':0.125,'3.2.4':0.125,'3.2.5':0.125,'3.2.6':0.125,'3.3.1':0.125,'3.3.2':0.125,'3.4':0.188,'3.5.1':0.125,'3.5.2':0.125,'3.5.3':0.125,'3.5.4':0.125,'3.5.5':0.125,'3.5.6':0.125,'3.5.7':0.125,'3.5.8':0.125,'3.6.1':1.0,'3.6.2':1.0,'3.6.3':1.0,'3.6.4':0.0041667,'3.7.1':0.125,'3.7.2':0.125,'3.7.3':0.125,'3.7.4':0.125,'3.8.1':0.125,'3.8.2':0.125,'3.8.3':0.125,'3.8.4':0.125,'3.8.5':0.125,'3.8.6':0.125,'3.8.7':0.125,'3.9.1':0.125,'3.9.2':0.125,'3.9.3':0.125,'3.9.4':0.125,'3.9.5':0.25,'3.9.6':0.25,'3.9.7':0.5,'3.9.8':0.25,'3.10':0.75};
 
 let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, rota, pecas:[{cod,desc,qtd}]}
 let simIdSeq = 1;
