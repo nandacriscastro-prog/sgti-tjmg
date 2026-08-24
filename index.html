@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787580358 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787589723 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6315,7 +6315,12 @@ function PageMedicao({
         diaria: totalDiarias
       };
       setQtds(novos);
-      const brutoServicos = ANEXO_IV.reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0);
+      // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela/exportação) — assim TUDO que deriva daqui (Resumo, Total Bruto, Glosa, Total Líquido) bate exatamente com a soma manual das linhas mostradas
+      const brutoServicos = ANEXO_IV.reduce((a, it) => {
+        const q = novos[it.id] || 0;
+        const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
+        return a + Number((qArred * it.vu).toFixed(2));
+      }, 0);
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -6787,11 +6792,7 @@ function PageMedicao({
       fontSize: 14,
       padding: "10px 13px"
     }
-  }, fmtR(ANEXO_IV.reduce((acc, it) => {
-    const q = qtds[it.id] || 0;
-    const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-    return acc + Number((qArred * it.vu).toFixed(2));
-  }, 0))))))), /*#__PURE__*/React.createElement("div", {
+  }, fmtR(resultado.brutoServicos)))))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px 13px",
       display: "flex",
@@ -6900,15 +6901,12 @@ function PageMedicao({
 
       // ---- Aba 2: Anexo IV - Serviços/Atendimento ----
       const linhasAnexoIV = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
-      let somaSubtotaisAnexoIV = 0;
       ANEXO_IV.forEach(it => {
         const q = qtds[it.id] || 0;
         const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-        const subtotalLinha = Number((qArred * it.vu).toFixed(2));
-        somaSubtotaisAnexoIV += subtotalLinha;
-        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, subtotalLinha]);
+        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number((qArred * it.vu).toFixed(2))]);
       });
-      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(somaSubtotaisAnexoIV.toFixed(2))]);
+      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(resultado.brutoServicos.toFixed(2))]);
       const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
       wsAnexoIV["!cols"] = [{ wch: 8 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 16 }];
 
@@ -6963,20 +6961,20 @@ function PageMedicao({
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const valorPecas = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
         const kmOS = parseFloat(r.km || 0) || 0;
-        const valorKm = kmOS * valorKmUnit;
+        const valorKm = Number((kmOS * valorKmUnit).toFixed(2));
         const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
-        const valorDiaria = (d ? d.fracaoTotal : 0) * valorDiariaUnit;
+        const valorDiaria = Number(((d ? d.fracaoTotal : 0) * valorDiariaUnit).toFixed(2));
         const isRaioServOS = /raio|scanner/i.test(o.servico || o.tipo || "");
         const isPortalServOS = /portal|detector/i.test(o.servico || o.tipo || "");
         const atendItemOS = isPortalServOS ? ANEXO_IV.find(a=>a.id==="portal") : isRaioServOS ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
         const valorAtend = atendItemOS.vu;
-        const totalOS = valorPecas + valorKm + valorDiaria + valorAtend;
-        totalGeralOS += totalOS;
+        const totalOS = Number((valorPecas + valorKm + valorDiaria + valorAtend).toFixed(2));
+        totalGeralOS += totalOS; // já soma o valor arredondado de cada linha — bate com a soma manual das linhas mostradas
         const mRota = /Rota:\s*([^|]+)/i.exec(o.observacoes || "");
         const rota = mRota ? mRota[1].trim() : "";
-        linhasTotalOS.push([o.numero, o.comarca || "", rota || "—", Number(valorPecas.toFixed(2)), Number(valorKm.toFixed(2)), Number(valorDiaria.toFixed(2)), Number(valorAtend.toFixed(2)), Number(totalOS.toFixed(2))]);
+        linhasTotalOS.push([o.numero, o.comarca || "", rota || "—", valorPecas, valorKm, valorDiaria, Number(valorAtend.toFixed(2)), totalOS]);
         if (rota) {
           if (!porRota[rota]) porRota[rota] = { qtdOS: 0, valorPecas: 0, valorKm: 0, valorDiaria: 0, valorAtend: 0, total: 0, comarcas: [] };
           porRota[rota].qtdOS++;
