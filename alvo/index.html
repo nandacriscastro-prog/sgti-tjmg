@@ -213,9 +213,9 @@ async function carregarMedicao(){
       totalKm += kmOS;
       const mun=(o.comarca||"").split(" - ")[0];
       const isColar = COLAR_181.has(mun);
-      const fracaoBase = isColar ? 0 : parseFloat(r.diarias||0);
-      const fracaoDesloc = isColar ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
-      totalDiarias += fracaoBase + fracaoDesloc;
+      // r.diarias já é a fração COMPLETA (base+peças+deslocamento) calculada no fechamento da OS — não soma deslocamento de novo
+      const fracaoTotalSalvo = isColar ? 0 : parseFloat(r.diarias||0);
+      totalDiarias += fracaoTotalSalvo;
       (r.pecas||[]).filter(p=>p.desc).forEach(p=>{
         const vUnit = PRECO_ANEXO_V[p.cod]||0;
         const qtd = parseFloat(p.qtd)||1;
