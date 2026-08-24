@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787578298 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787578733 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6757,7 +6757,7 @@ function PageMedicao({
         textAlign: "center",
         fontFamily: "var(--mono)"
       }
-    }, Number.isInteger(q) ? q : q.toFixed(2)), /*#__PURE__*/React.createElement("td", {
+    }, Number.isInteger(q) ? q : q.toFixed(4)), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
         fontFamily: "var(--mono)"
@@ -6891,7 +6891,7 @@ function PageMedicao({
       const linhasAnexoIV = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
       ANEXO_IV.forEach(it => {
         const q = qtds[it.id] || 0;
-        linhasAnexoIV.push([it.id, it.desc, it.unid, Number.isInteger(q) ? q : Number(q.toFixed(2)), it.vu, Number((q * it.vu).toFixed(2))]);
+        linhasAnexoIV.push([it.id, it.desc, it.unid, Number.isInteger(q) ? q : Number(q.toFixed(4)), it.vu, Number((q * it.vu).toFixed(2))]);
       });
       linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(resultado.brutoServicos.toFixed(2))]);
       const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
@@ -6933,7 +6933,7 @@ function PageMedicao({
       // ---- Aba 5: Fração de diária por OS ----
       const linhasDiaria = [["Nº OS", "Comarca", "Região", "Fração base+peças", "Km da OS", "Fração deslocamento", "Fração total"]];
       (resultado.diariaDetalhe || []).forEach(d => {
-        linhasDiaria.push([d.numero, d.comarca, d.regiao, Number(d.fracaoBaseEPecas.toFixed(2)), d.kmOS, Number(d.fracaoDeslocamento.toFixed(2)), Number(d.fracaoTotal.toFixed(2))]);
+        linhasDiaria.push([d.numero, d.comarca, d.regiao, Number(d.fracaoBaseEPecas.toFixed(4)), d.kmOS, Number(d.fracaoDeslocamento.toFixed(4)), Number(d.fracaoTotal.toFixed(4))]);
       });
       linhasDiaria.push(["", "", "", "", "", "Soma total", Number((resultado.totalDiarias||0).toFixed(2))]);
       const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
@@ -7015,8 +7015,8 @@ function PageMedicao({
         const totalOS = valorDiariaOS + valorKmOS + valorAtendOS + valorMateriaisOS;
         linhasDetCompleto.push([
           o.numero, o.comarca || "", d.regiao || "", o.data_conclusao || r.dtconc || "", o.servico || o.tipo || "",
-          Number(fracaoBase.toFixed(3)), pecasTxt, Number(fracaoPecas.toFixed(3)),
-          kmOS, Number((d.fracaoDeslocamento || 0).toFixed(3)), Number((d.fracaoTotal || 0).toFixed(3)),
+          Number(fracaoBase.toFixed(4)), pecasTxt, Number(fracaoPecas.toFixed(4)),
+          kmOS, Number((d.fracaoDeslocamento || 0).toFixed(4)), Number((d.fracaoTotal || 0).toFixed(4)),
           Number(valorDiariaOS.toFixed(2)), Number(valorKmOS.toFixed(2)), Number(valorAtendOS.toFixed(2)),
           Number(valorMateriaisOS.toFixed(2)), Number(totalOS.toFixed(2))
         ]);
