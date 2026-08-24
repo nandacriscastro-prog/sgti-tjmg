@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787579669 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787580358 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6787,7 +6787,11 @@ function PageMedicao({
       fontSize: 14,
       padding: "10px 13px"
     }
-  }, fmtR(resultado.brutoServicos)))))), /*#__PURE__*/React.createElement("div", {
+  }, fmtR(ANEXO_IV.reduce((acc, it) => {
+    const q = qtds[it.id] || 0;
+    const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
+    return acc + Number((qArred * it.vu).toFixed(2));
+  }, 0))))))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px 13px",
       display: "flex",
@@ -6896,12 +6900,15 @@ function PageMedicao({
 
       // ---- Aba 2: Anexo IV - Serviços/Atendimento ----
       const linhasAnexoIV = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
+      let somaSubtotaisAnexoIV = 0;
       ANEXO_IV.forEach(it => {
         const q = qtds[it.id] || 0;
         const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number((qArred * it.vu).toFixed(2))]);
+        const subtotalLinha = Number((qArred * it.vu).toFixed(2));
+        somaSubtotaisAnexoIV += subtotalLinha;
+        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, subtotalLinha]);
       });
-      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(resultado.brutoServicos.toFixed(2))]);
+      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(somaSubtotaisAnexoIV.toFixed(2))]);
       const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
       wsAnexoIV["!cols"] = [{ wch: 8 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 16 }];
 
