@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787686056 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787686568 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -9421,6 +9421,7 @@ function PageControleAtivos() {
   const [usoAprovado, setUsoAprovado] = useState({});
   const [usoReservado, setUsoReservado] = useState({});
   const [erro, setErro] = useState("");
+  const [busca, setBusca] = useState("");
 
   const carregar = async () => {
     setCarregando(true);
@@ -9480,6 +9481,11 @@ function PageControleAtivos() {
     valorRestante: a.valorRestante + l.valorRestante
   }), { valorContratado: 0, valorUsado: 0, valorReservado: 0, valorRestante: 0 });
 
+  const buscaLower = busca.trim().toLowerCase();
+  const linhasFiltradas = buscaLower
+    ? linhas.filter(l => l.cod.toLowerCase().includes(buscaLower) || l.desc.toLowerCase().includes(buscaLower))
+    : linhas;
+
   const exportar = async () => {
     const linhasExcel = [["Item", "Descrição", "Unid.", "Vlr unit. (R$)",
       "Qtd contratada", "Vlr contratado (R$)",
@@ -9515,12 +9521,19 @@ function PageControleAtivos() {
     erro && React.createElement("div", { className: "card", style: { color: "var(--red, #c0392b)" } }, erro),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
-      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totais.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
+      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totais.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totais.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totais.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: totais.valorRestante < 0 ? "var(--red, #c0392b)" : "var(--navy)", fontWeight: 700 } }, fmtR(totais.valorRestante)), React.createElement("div", { className: "lbl" }, "Saldo restante"))
       ),
+      React.createElement("input", {
+        type: "text",
+        placeholder: "🔎 Buscar item por código ou nome (ex: bateria, câmera, sensor, 3.1.1...)",
+        value: busca,
+        onChange: e => setBusca(e.target.value),
+        style: { width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)", fontSize: 14 }
+      }),
+      linhasFiltradas.length === 0 && React.createElement("div", { className: "card" }, "Nenhum item encontrado para \"" + busca + "\"."),
       React.createElement("div", { className: "card", style: { overflowX: "auto" } },
         React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
           React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
@@ -9528,7 +9541,7 @@ function PageControleAtivos() {
               React.createElement("th", { key: h, style: { textAlign: h === "Descrição" ? "left" : "right", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
             )
           )),
-          React.createElement("tbody", null, linhas.map(l => React.createElement("tr", {
+          React.createElement("tbody", null, linhasFiltradas.map(l => React.createElement("tr", {
             key: l.cod,
             style: { borderBottom: "1px solid var(--border)", background: l.qtdRestante < 0 ? "#fdecea" : "transparent" }
           },
