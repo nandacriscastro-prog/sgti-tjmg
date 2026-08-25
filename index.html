@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787686810 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787689234 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6368,7 +6368,7 @@ function PageMedicao({
       toast("Erro ao buscar OS: " + e.message, "error");
     }
   };
-  const aprovarMedicao = () => {
+  const aprovarMedicao = async () => {
     if (!resultado) return;
     const nova = [...hist.filter(h => !(h.mes === resultado.mes && h.ano === resultado.ano)), {
       mes: resultado.mes,
@@ -6381,7 +6381,34 @@ function PageMedicao({
     }].sort((a, b) => b.ano !== a.ano ? b.ano - a.ano : b.mes - a.mes);
     localStorage.setItem(STORAGE_MED, JSON.stringify(nova));
     setHist(nova);
-    toast("✓ Medição de " + resultado.label + " aprovada!", "ok");
+
+    // Cria ou atualiza a Nota Fiscal correspondente a esse período (dia 20 do mês anterior a dia 19 do mês selecionado)
+    try {
+      const mesAnt = mes === 0 ? 11 : mes - 1;
+      const anoAnt = mes === 0 ? ano - 1 : ano;
+      const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
+      const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
+      const existentes = await sbFetch(`/notas_fiscais?dt_ini=eq.${dtIni}&dt_fim=eq.${dtFim}&select=id`);
+      if (existentes && existentes.length) {
+        await sbFetch(`/notas_fiscais?id=eq.${existentes[0].id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ valor_total: resultado.liq, atualizado_em: new Date().toISOString() })
+        });
+        toast("✓ Medição de " + resultado.label + " aprovada! Nota Fiscal do período atualizada.", "ok");
+      } else {
+        await sbFetch("/notas_fiscais", {
+          method: "POST",
+          body: JSON.stringify({
+            periodo_label: resultado.label, dt_ini: dtIni, dt_fim: dtFim,
+            valor_total: resultado.liq, status: "Pendente",
+            criado_por: getSession()?.fiscal?.email || getSession()?.fiscal?.nome || null
+          })
+        });
+        toast("✓ Medição de " + resultado.label + " aprovada! Nota Fiscal do período criada.", "ok");
+      }
+    } catch (e) {
+      toast("Medição aprovada, mas houve erro ao atualizar a Nota Fiscal: " + e.message, "erro");
+    }
   };
   const totalMedido = hist.reduce((a, h) => a + h.liq, 0);
   const saldo = (CONTRATO_VALOR_181||CONTRATO_VALOR_IV) - totalMedido;
