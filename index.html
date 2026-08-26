@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787689234 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787739563 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -400,6 +400,7 @@ const CONTRATO_VALOR_IV = 2245534.86;
 const CONTRATO_VALOR_181 = 2222831.00;
 const CONTRATO_VALOR_ANEXO_V_181 = 1327474.62; // Aplicação de recursos sob demanda (materiais/equipamentos)
 const ANEXO_V_QTD_CONTRATADA = {"3.1.1":80,"3.1.2":15,"3.1.3":15,"3.1.4":15,"3.1.5":15,"3.1.6":45,"3.1.7":90,"3.1.8":15,"3.1.9":15,"3.1.10":24,"3.1.11":15,"3.1.12":10,"3.1.13":10,"3.2.1":10,"3.2.2":30,"3.2.3":300,"3.2.4":40,"3.2.5":40,"3.2.6":20,"3.3.1":3,"3.3.2":2,"3.4":1000,"3.5.1":18,"3.5.2":35,"3.5.3":15,"3.5.4":12,"3.5.5":15,"3.5.6":15,"3.5.7":12,"3.5.8":12,"3.6.1":9,"3.6.2":2,"3.6.3":2,"3.6.4":700,"3.7.1":120,"3.7.2":120,"3.7.3":80,"3.7.4":80,"3.8.1":80,"3.8.2":150,"3.8.3":30,"3.8.4":12,"3.8.5":10,"3.8.6":10,"3.8.7":2,"3.9.1":2,"3.9.2":2,"3.9.3":2,"3.9.4":2,"3.9.5":6,"3.9.6":6,"3.9.7":4,"3.9.8":8,"3.10":10,"3.11":150};
+const ANEXO_IV_QTD_CONTRATADA = {"rem":12,"pres":500,"portal":90,"raio":15,"km":120000,"diaria":1200};
 const SLA_CRITERIOS = [{
   id: "comum_col",
   grupo: "Atendimento programado",
@@ -9447,6 +9448,9 @@ function PageControleAtivos() {
   const [carregando, setCarregando] = useState(true);
   const [usoAprovado, setUsoAprovado] = useState({});
   const [usoReservado, setUsoReservado] = useState({});
+  const [usoAprovadoIV, setUsoAprovadoIV] = useState({});
+  const [usoReservadoIV, setUsoReservadoIV] = useState({});
+  const [mesesRemoto, setMesesRemoto] = useState(0);
   const [erro, setErro] = useState("");
   const [busca, setBusca] = useState("");
 
@@ -9454,22 +9458,47 @@ function PageControleAtivos() {
     setCarregando(true);
     setErro("");
     try {
-      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=avaliacao,status,retorno_campo&limit=5000`);
+      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=avaliacao,status,servico,tipo,comarca,retorno_campo&limit=5000`);
       const aprovado = {};
       const reservado = {};
+      const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
+      const reservadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
       (rows || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
         const pecas = (r.pecas || []).filter(p => p.desc && p.cod);
-        if (!pecas.length) return;
+        const s = (o.servico || o.tipo || "").toLowerCase();
+        const isCorrecaoOS = o.tipo === "Correção";
+        const mun = (o.comarca || "").split(" - ")[0];
+        const isColarOS = COLAR_181.has(mun);
+        const kmOS = parseFloat(r.km || 0) || 0;
+        const isRaioServ = s.includes("raio") || s.includes("scanner");
+        const isPortalServ = s.includes("portal") || s.includes("detector");
+        const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
+        const fracaoPecasCalc = isColarOS ? 0 : pecas.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
+        const fracaoTotal = fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
+        const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
+
         if (o.avaliacao === "satisfatorio") {
           pecas.forEach(p => { aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
+          aprovadoIV[itemAtend]++;
+          aprovadoIV.km += kmOS;
+          aprovadoIV.diaria += fracaoTotal;
         } else if (o.status === "Concluída" && !o.avaliacao) {
           pecas.forEach(p => { reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
+          reservadoIV[itemAtend]++;
+          reservadoIV.km += kmOS;
+          reservadoIV.diaria += fracaoTotal;
         }
       });
       setUsoAprovado(aprovado);
       setUsoReservado(reservado);
+      setUsoAprovadoIV(aprovadoIV);
+      setUsoReservadoIV(reservadoIV);
+
+      const notas = await sbFetch(`/notas_fiscais?select=id`);
+      setMesesRemoto((notas || []).length);
     } catch (e) {
       setErro("Erro ao carregar dados: " + e.message);
     } finally {
@@ -9501,7 +9530,27 @@ function PageControleAtivos() {
     };
   });
 
-  const totais = linhas.reduce((a, l) => ({
+  const ANEXO_IV_DESC = {
+    rem: "Atendimento remoto (mensal)", pres: "Atend. Alarme/CFTV/Controle de Acesso",
+    portal: "Atend. Portal detector de metais", raio: "Atend. Scanner Raio-X",
+    km: "Deslocamento", diaria: "Diária"
+  };
+  const linhasIV = Object.keys(ANEXO_IV_QTD_CONTRATADA).map(item => {
+    const qtdContratada = ANEXO_IV_QTD_CONTRATADA[item] || 0;
+    const vu = ANEXO_IV.find(a => a.id === item)?.vu || 0;
+    const qtdUsada = item === "rem" ? mesesRemoto : (Number((usoAprovadoIV[item] || 0).toFixed(item === "km" ? 2 : 4)));
+    const qtdReservada = item === "rem" ? 0 : (Number((usoReservadoIV[item] || 0).toFixed(item === "km" ? 2 : 4)));
+    const qtdRestante = Number((qtdContratada - qtdUsada - qtdReservada).toFixed(item === "km" ? 2 : 4));
+    return {
+      cod: item, desc: ANEXO_IV_DESC[item], vu,
+      qtdContratada, valorContratado: qtdContratada * vu,
+      qtdUsada, valorUsado: qtdUsada * vu,
+      qtdReservada, valorReservado: qtdReservada * vu,
+      qtdRestante, valorRestante: qtdRestante * vu
+    };
+  });
+
+  const totais = [...linhas, ...linhasIV].reduce((a, l) => ({
     valorContratado: a.valorContratado + l.valorContratado,
     valorUsado: a.valorUsado + l.valorUsado,
     valorReservado: a.valorReservado + l.valorReservado,
@@ -9512,6 +9561,9 @@ function PageControleAtivos() {
   const linhasFiltradas = buscaLower
     ? linhas.filter(l => l.cod.toLowerCase().includes(buscaLower) || l.desc.toLowerCase().includes(buscaLower))
     : linhas;
+  const linhasIVFiltradas = buscaLower
+    ? linhasIV.filter(l => l.cod.toLowerCase().includes(buscaLower) || l.desc.toLowerCase().includes(buscaLower))
+    : linhasIV;
 
   const exportar = async () => {
     const linhasExcel = [["Item", "Descrição", "Unid.", "Vlr unit. (R$)",
@@ -9529,15 +9581,37 @@ function PageControleAtivos() {
     linhasExcel.push(["", "TOTAL", "", "", "", Number(totais.valorContratado.toFixed(2)), "", Number(totais.valorUsado.toFixed(2)), "", Number(totais.valorReservado.toFixed(2)), "", Number(totais.valorRestante.toFixed(2))]);
     const ws = XLSX.utils.aoa_to_sheet(linhasExcel);
     ws["!cols"] = [{ wch: 8 }, { wch: 46 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
+
+    const linhasExcelIV = [["Item", "Descrição", "Unid.", "Vlr unit. (R$)",
+      "Qtd contratada", "Vlr contratado (R$)",
+      "Qtd já usada (aprovada)", "Vlr já usado (R$)",
+      "Qtd reservada (pendente avaliação)", "Vlr reservado (R$)",
+      "Qtd restante", "Vlr restante (R$)"]];
+    linhasIV.forEach(l => {
+      linhasExcelIV.push([l.cod, l.desc, ANEXO_IV.find(a => a.id === l.cod)?.unid || "", l.vu,
+        l.qtdContratada, Number(l.valorContratado.toFixed(2)),
+        l.qtdUsada, Number(l.valorUsado.toFixed(2)),
+        l.qtdReservada, Number(l.valorReservado.toFixed(2)),
+        l.qtdRestante, Number(l.valorRestante.toFixed(2))]);
+    });
+    const totaisIV = linhasIV.reduce((a, l) => ({
+      valorContratado: a.valorContratado + l.valorContratado, valorUsado: a.valorUsado + l.valorUsado,
+      valorReservado: a.valorReservado + l.valorReservado, valorRestante: a.valorRestante + l.valorRestante
+    }), { valorContratado: 0, valorUsado: 0, valorReservado: 0, valorRestante: 0 });
+    linhasExcelIV.push(["", "TOTAL", "", "", "", Number(totaisIV.valorContratado.toFixed(2)), "", Number(totaisIV.valorUsado.toFixed(2)), "", Number(totaisIV.valorReservado.toFixed(2)), "", Number(totaisIV.valorRestante.toFixed(2))]);
+    const wsIV = XLSX.utils.aoa_to_sheet(linhasExcelIV);
+    wsIV["!cols"] = ws["!cols"];
+
     const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsIV, "Controle Anexo IV");
     XLSX.utils.book_append_sheet(wb, ws, "Controle Anexo V");
-    XLSX.writeFile(wb, `Controle_Ativos_Anexo_V_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `Controle_Ativos_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return React.createElement("div", null,
     React.createElement("div", { className: "ph-row" },
       React.createElement("div", null,
-        React.createElement("div", { className: "ph-title" }, "Controle de Ativos — Aplicação de Recursos Sob Demanda (Anexo V)"),
+        React.createElement("div", { className: "ph-title" }, "Controle de Ativos — Anexo IV e V"),
         React.createElement("div", { className: "ph-sub" }, "Saldo de cada item já descontando o que foi substituído (medição aprovada) e o que será substituído (OS fechada aguardando avaliação)")
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
@@ -9553,6 +9627,30 @@ function PageControleAtivos() {
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totais.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: totais.valorRestante < 0 ? "var(--red, #c0392b)" : "var(--navy)", fontWeight: 700 } }, fmtR(totais.valorRestante)), React.createElement("div", { className: "lbl" }, "Saldo restante"))
       ),
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8, marginTop: 4 } }, "📶 Anexo IV — Serviços/Atendimento"),
+      React.createElement("div", { className: "card", style: { overflowX: "auto", marginBottom: 20 } },
+        React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
+          React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
+            ["Item", "Descrição", "Vlr unit.", "Contratada", "Já usada", "Reservada", "Restante", "Vlr restante"].map(h =>
+              React.createElement("th", { key: h, style: { textAlign: h === "Descrição" ? "left" : "right", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
+            )
+          )),
+          React.createElement("tbody", null, linhasIVFiltradas.map(l => React.createElement("tr", {
+            key: l.cod,
+            style: { borderBottom: "1px solid var(--border)", background: l.qtdRestante < 0 ? "#fdecea" : "transparent" }
+          },
+            React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)" } }, l.cod),
+            React.createElement("td", { style: { padding: "5px 8px" } }, l.desc),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.vu)),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, l.qtdContratada),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdUsada > 0 ? "var(--green)" : "var(--text3)" } }, l.qtdUsada || "—"),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdReservada > 0 ? "var(--amber, #b8860b)" : "var(--text3)" } }, l.qtdReservada || "—"),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: l.qtdRestante < 0 ? "var(--red, #c0392b)" : "var(--text)" } }, l.qtdRestante),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700 } }, fmtR(l.valorRestante))
+          )))
+        )
+      ),
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "🔧 Anexo V — Aplicação de Recursos Sob Demanda (peças)"),
       React.createElement("input", {
         type: "text",
         placeholder: "🔎 Buscar item por código ou nome (ex: bateria, câmera, sensor, 3.1.1...)",
