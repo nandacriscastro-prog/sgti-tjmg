@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740889 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787749724 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7308,6 +7308,10 @@ function PageEstoque() {
   const [filtroModelos, setFiltroModelos] = useState([]);
   const [painelFiltroAberto, setPainelFiltroAberto] = useState(false);
   const [painelNovoAberto, setPainelNovoAberto] = useState(false);
+  const [unidadesEstoque, setUnidadesEstoque] = useState([]);
+  const [painelUnidadesAberto, setPainelUnidadesAberto] = useState(false);
+  const [novaUnidade, setNovaUnidade] = useState({ codigo_unidade: "", nome: "", tipo: "Novo" });
+  const [salvandoUnidade, setSalvandoUnidade] = useState(false);
   const [painelImportAberto, setPainelImportAberto] = useState(false);
   const [arquivoImport, setArquivoImport] = useState(null);
   const [previaImport, setPreviaImport] = useState([]);
@@ -7402,6 +7406,52 @@ function PageEstoque() {
   };
 
   useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); setFiltroBaixoAtivo(false); carregarOpcoes(); }, [aba]);
+
+  const carregarUnidadesEstoque = async () => {
+    try {
+      const rows = await sbFetch("/unidades_estoque?select=*&order=nome.asc");
+      setUnidadesEstoque(rows || []);
+    } catch (e) {
+      console.error("Erro ao carregar unidades de estoque:", e);
+    }
+  };
+  useEffect(() => { carregarUnidadesEstoque(); }, []);
+
+  const salvarNovaUnidade = async () => {
+    if (!novaUnidade.codigo_unidade.trim() || !novaUnidade.nome.trim()) {
+      toast("Preencha código e nome da unidade", "erro");
+      return;
+    }
+    setSalvandoUnidade(true);
+    try {
+      await sbFetch("/unidades_estoque", {
+        method: "POST",
+        body: JSON.stringify({
+          codigo_unidade: novaUnidade.codigo_unidade.trim(),
+          nome: novaUnidade.nome.trim(),
+          tipo: novaUnidade.tipo
+        })
+      });
+      setNovaUnidade({ codigo_unidade: "", nome: "", tipo: "Novo" });
+      await carregarUnidadesEstoque();
+      toast("✓ Unidade cadastrada!", "ok");
+    } catch (e) {
+      toast("Erro ao salvar: " + e.message, "erro");
+    } finally {
+      setSalvandoUnidade(false);
+    }
+  };
+
+  const excluirUnidade = async (id) => {
+    if (!confirm("Excluir essa unidade responsável do cadastro?")) return;
+    try {
+      await sbFetch(`/unidades_estoque?id=eq.${id}`, { method: "DELETE" });
+      await carregarUnidadesEstoque();
+      toast("✓ Unidade removida", "ok");
+    } catch (e) {
+      toast("Erro ao excluir: " + e.message, "erro");
+    }
+  };
 
   const [estoqueBaixo, setEstoqueBaixo] = useState([]);
   const [filtroBaixoAtivo, setFiltroBaixoAtivo] = useState(false);
@@ -7895,14 +7945,11 @@ function PageEstoque() {
           ? React.createElement("div", null,
               React.createElement(ComarcaInput, { value: editForm[k] ?? "", onChange: (novaComarca) => setEditForm(f => ({ ...f, [k]: novaComarca })) }),
               React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" } },
-                React.createElement("span", {
-                  onClick: () => setEditForm(f => ({ ...f, [k]: "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS" })),
+                unidadesEstoque.map(u => React.createElement("span", {
+                  key: u.id,
+                  onClick: () => setEditForm(f => ({ ...f, [k]: u.codigo_unidade + " - " + u.nome })),
                   style: { fontSize: 10, color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }
-                }, "Estoque de usados"),
-                React.createElement("span", {
-                  onClick: () => setEditForm(f => ({ ...f, [k]: "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS" })),
-                  style: { fontSize: 10, color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }
-                }, "Estoque de novos")
+                }, u.nome))
               )
             )
           : React.createElement("input", {
@@ -7995,6 +8042,10 @@ function PageEstoque() {
           style: { background: painelNovoAberto ? "var(--navy)" : "var(--surface)", color: painelNovoAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "+ Adicionar item"),
         React.createElement("button", {
+          onClick: () => setPainelUnidadesAberto(!painelUnidadesAberto),
+          style: { background: painelUnidadesAberto ? "var(--navy)" : "var(--surface)", color: painelUnidadesAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "🏢 Unidades Responsáveis"),
+        React.createElement("button", {
           onClick: () => { setPainelImportAberto(!painelImportAberto); setResultadoImport(null); },
           style: { background: painelImportAberto ? "var(--navy)" : "var(--surface)", color: painelImportAberto ? "#fff" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "📥 Importar Excel"),
@@ -8003,6 +8054,63 @@ function PageEstoque() {
           style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, exportando ? "Exportando..." : "⬇ Exportar Excel")
       )
+    ),
+    painelUnidadesAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
+      React.createElement("div", { className: "card-title" }, "🏢 Cadastro de Unidades Responsáveis"),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } }, "Cadastre aqui os estoques/unidades usados na tela de Adicionar item (código, nome, e se é estoque de peças novas ou usadas)."),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 2fr auto auto", gap: 8, alignItems: "end", marginBottom: 14 } },
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Código da unidade"),
+          React.createElement("input", {
+            value: novaUnidade.codigo_unidade,
+            onChange: e => setNovaUnidade(n => ({ ...n, codigo_unidade: e.target.value })),
+            placeholder: "Ex: 00.0000.0094 07",
+            style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
+          })
+        ),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nome da unidade"),
+          React.createElement("input", {
+            value: novaUnidade.nome,
+            onChange: e => setNovaUnidade(n => ({ ...n, nome: e.target.value })),
+            placeholder: "Ex: COTESI - ESTOQUE REGIONAL",
+            style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
+          })
+        ),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Tipo de estoque"),
+          React.createElement("select", {
+            value: novaUnidade.tipo,
+            onChange: e => setNovaUnidade(n => ({ ...n, tipo: e.target.value })),
+            style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }
+          },
+            React.createElement("option", { value: "Novo" }, "Novo"),
+            React.createElement("option", { value: "Usado" }, "Usado")
+          )
+        ),
+        React.createElement("button", {
+          onClick: salvarNovaUnidade, disabled: salvandoUnidade,
+          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", height: 33 }
+        }, salvandoUnidade ? "Salvando..." : "+ Cadastrar")
+      ),
+      unidadesEstoque.length === 0
+        ? React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, "Nenhuma unidade cadastrada ainda.")
+        : React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
+            React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
+              ["Código", "Nome", "Tipo", ""].map(h => React.createElement("th", { key: h, style: { textAlign: "left", padding: "6px 8px" } }, h))
+            )),
+            React.createElement("tbody", null, unidadesEstoque.map(u => React.createElement("tr", { key: u.id, style: { borderBottom: "1px solid var(--border)" } },
+              React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)" } }, u.codigo_unidade),
+              React.createElement("td", { style: { padding: "5px 8px" } }, u.nome),
+              React.createElement("td", { style: { padding: "5px 8px" } }, u.tipo),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } },
+                React.createElement("button", {
+                  onClick: () => excluirUnidade(u.id),
+                  style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontSize: 12 }
+                }, "🗑 Excluir")
+              )
+            )))
+          )
     ),
     painelNovoAberto && React.createElement("div", { className: "card", style: { marginBottom: 14 } },
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, "+ Adicionar item manualmente ao estoque " + nomeAba),
@@ -8027,8 +8135,7 @@ function PageEstoque() {
           React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Unidade Responsável"),
           React.createElement("select", { value: novoItem.unidade_responsavel, onChange: e => setNovoItem(n => ({ ...n, unidade_responsavel: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } },
             React.createElement("option", { value: "" }, "— Selecione —"),
-            React.createElement("option", { value: "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS" }, "00.0000.0094 03 - COPAT - ESTOQUE DE USADOS"),
-            React.createElement("option", { value: "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS" }, "00.0000.0094 05 - COPAT - ESTOQUE DE NOVOS")
+            unidadesEstoque.map(u => React.createElement("option", { key: u.id, value: u.codigo_unidade + " - " + u.nome }, u.codigo_unidade + " - " + u.nome))
           )
         ),
         React.createElement("div", null,
