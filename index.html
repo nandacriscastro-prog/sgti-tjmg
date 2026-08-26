@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787759660 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787759991 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6394,7 +6394,7 @@ function PageMedicao({
     const direita = { horizontal: "right", vertical: "center" };
     const fmtMoeda = '#,##0.00;(#,##0.00)';
 
-    const cell = (v, extra) => ({ v, ...(extra || {}) });
+    const cell = (v, sty) => ({ v, s: sty || {} });
     const styNavy = (bold, sz, align) => ({ font: { name: "Calibri", sz: sz || 10, bold: !!bold, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: corNavy } }, alignment: align || centro, border: bordaFina });
     const styCinza = (bold, align) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, fill: { fgColor: { rgb: corCinza } }, alignment: align || centro, border: bordaFina });
     const styNormal = (align, bold) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, alignment: align || esquerda, border: bordaFina });
@@ -6503,8 +6503,7 @@ function PageMedicao({
     }
     {
       const linha = new Array(11).fill(cell("", styAmareloMoeda(true)));
-      linha[2] = cell("VALOR LÍQUIDO DA MEDIÇÃO", styAmareloMoeda(true));
-      linha[2].s.alignment = esquerda;
+      linha[2] = cell("VALOR LÍQUIDO DA MEDIÇÃO", { ...styAmareloMoeda(true), alignment: esquerda });
       linha[9] = cell(Number(resultado.liq.toFixed(2)), styAmareloMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 8 } });
