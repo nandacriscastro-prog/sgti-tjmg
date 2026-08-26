@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740094 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740363 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -9694,10 +9694,10 @@ function PageControleAtivos() {
             React.createElement("td", { colSpan: 2, style: { padding: "8px" } }, "TOTAL"),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
-            React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totais.valorUsado)),
-            React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totais.valorReservado)),
+            React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totaisV.valorUsado)),
+            React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totaisV.valorReservado)),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
-            React.createElement("td", { style: { padding: "8px", textAlign: "right", color: "var(--navy)" } }, fmtR(totais.valorRestante))
+            React.createElement("td", { style: { padding: "8px", textAlign: "right", color: "var(--navy)" } }, fmtR(totaisV.valorRestante))
           ))
         )
       )
