@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740363 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740889 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -9272,6 +9272,13 @@ function PageNotasFiscais({ os, setPage }) {
     (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim
   ).length;
 
+  const listarOSDoPeriodo = (dtIni, dtFim) => os.filter(o =>
+    (o.contrato || "") === "181/2026" &&
+    o.status === "Concluída" &&
+    o.avaliacao === "satisfatorio" &&
+    (o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim
+  ).sort((a, b) => (a.data_conclusao || "").localeCompare(b.data_conclusao || ""));
+
   const salvarNova = async () => {
     if (!novaNota.periodo_label || !novaNota.dt_ini || !novaNota.dt_fim) {
       alert("Preencha ao menos o período (rótulo e datas).");
@@ -9387,6 +9394,19 @@ function PageNotasFiscais({ os, setPage }) {
             )
           ),
           nota.observacoes && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 8, fontStyle: "italic" } }, "\"" + nota.observacoes + "\""),
+          (() => {
+            const listaOS = listarOSDoPeriodo(nota.dt_ini, nota.dt_fim);
+            if (!listaOS.length) return React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 8 } }, "Nenhuma OS satisfatória encontrada nesse período ainda.");
+            return React.createElement("div", { style: { marginTop: 10, border: "1px solid var(--border)", borderRadius: 8, maxHeight: 220, overflowY: "auto" } },
+              listaOS.map((o, i) => React.createElement("div", {
+                key: o.numero,
+                style: { display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 10px", fontSize: 12, borderBottom: i < listaOS.length - 1 ? "1px solid var(--border)" : "none" }
+              },
+                React.createElement("span", null, React.createElement("strong", null, o.numero), " — ", o.comarca),
+                React.createElement("span", { style: { color: "var(--text3)", whiteSpace: "nowrap" } }, fmtDate(o.data_conclusao))
+              ))
+            );
+          })(),
           React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" } },
             ["Pendente", "Enviada", "Recebida"].map(s => React.createElement("button", {
               key: s, className: "btn btn-sm",
