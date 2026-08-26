@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787759991 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787764514 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6326,11 +6326,15 @@ function PageMedicao({
       };
       setQtds(novos);
       // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela/exportação) — assim TUDO que deriva daqui (Resumo, Total Bruto, Glosa, Total Líquido) bate exatamente com a soma manual das linhas mostradas
-      const brutoServicos = ANEXO_IV.reduce((a, it) => {
+      // Km e Diária são somados por OS individual (arredondando cada linha antes de somar) — não pela quantidade total arredondada — pois é assim que bate com a verificação manual OS por OS
+      const vuKmCalc = ANEXO_IV.find(a => a.id === "km").vu;
+      const valorKmSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number((d.kmOS * vuKmCalc).toFixed(2)), 0);
+      const valorDiariaSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number((d.fracaoTotal * valorDiariaUnitCalc).toFixed(2)), 0);
+      const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => {
         const q = novos[it.id] || 0;
         const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
         return a + Number((qArred * it.vu).toFixed(2));
-      }, 0);
+      }, 0) + Number(valorKmSomaPorOS.toFixed(2)) + Number(valorDiariaSomaPorOS.toFixed(2));
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -6456,13 +6460,17 @@ function PageMedicao({
     addRow(headersDotacao.map(h => cell(h, styNavy(true))));
     merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 4 } });
 
+    const vuKmSEI = ANEXO_IV.find(a => a.id === "km").vu;
+    const vuDiariaSEI = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const valorKmAutoritativo = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmSEI).toFixed(2)), 0);
+    const valorDiariaAutoritativo = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaSEI).toFixed(2)), 0);
     const itensDotacao = [
       { item: "1", dotacao: "39.21", desc: "ATENDIMENTO REMOTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.rem, vu: ANEXO_IV.find(a => a.id === "rem").vu, medPresente: ANEXO_IV.find(a => a.id === "rem").vu },
       { item: "2.1", dotacao: "", desc: "ATENDIMENTO SISTEMA DE ALARME, VIDEOMONITORAMENTO E CONTROLE DE ACESSO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.pres, vu: ANEXO_IV.find(a => a.id === "pres").vu, medPresente: resultado.qtdAlarme * ANEXO_IV.find(a => a.id === "pres").vu },
       { item: "2.2", dotacao: "", desc: "ATENDIMENTO PORTAL DETECTOR DE METAIS", qtdAnual: ANEXO_IV_QTD_CONTRATADA.portal, vu: ANEXO_IV.find(a => a.id === "portal").vu, medPresente: resultado.qtdPortal * ANEXO_IV.find(a => a.id === "portal").vu },
       { item: "2.3", dotacao: "", desc: "ATENDIMENTO SCANNER DE RAIO X", qtdAnual: ANEXO_IV_QTD_CONTRATADA.raio, vu: ANEXO_IV.find(a => a.id === "raio").vu, medPresente: resultado.qtdRaio * ANEXO_IV.find(a => a.id === "raio").vu },
-      { item: "2.4", dotacao: "", desc: "DESLOCAMENTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.km, vu: ANEXO_IV.find(a => a.id === "km").vu, medPresente: Number(resultado.totalKm.toFixed(2)) * ANEXO_IV.find(a => a.id === "km").vu },
-      { item: "2.5", dotacao: "", desc: "DIÁRIA", qtdAnual: ANEXO_IV_QTD_CONTRATADA.diaria, vu: ANEXO_IV.find(a => a.id === "diaria").vu, medPresente: Number(resultado.totalDiarias.toFixed(2)) * ANEXO_IV.find(a => a.id === "diaria").vu },
+      { item: "2.4", dotacao: "", desc: "DESLOCAMENTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.km, vu: ANEXO_IV.find(a => a.id === "km").vu, medPresente: valorKmAutoritativo },
+      { item: "2.5", dotacao: "", desc: "DIÁRIA", qtdAnual: ANEXO_IV_QTD_CONTRATADA.diaria, vu: ANEXO_IV.find(a => a.id === "diaria").vu, medPresente: valorDiariaAutoritativo },
       { item: "3", dotacao: "51.13", desc: "APLICAÇÃO DE RECURSOS SOB DEMANDA", qtdAnual: 1, vu: CONTRATO_VALOR_ANEXO_V_181, medPresente: resultado.brutoMateriais }
     ];
     itensDotacao.forEach(it => {
@@ -6557,9 +6565,9 @@ function PageMedicao({
       linha[0] = cell("TOTAL", styCinza(true));
       linha[4] = cell(Number(totAtend.toFixed(2)), styCinza(true, direita));
       linha[5] = cell(Number(totRSD.toFixed(2)), styCinza(true, direita));
-      linha[6] = cell(Number(totDesloc.toFixed(2)), styCinza(true, direita));
-      linha[7] = cell(Number(totDiariaVal.toFixed(2)), styCinza(true, direita));
-      linha[8] = cell(Number(totGeralOS.toFixed(2)), styCinza(true, direita));
+      linha[6] = cell(Number(valorKmAutoritativo.toFixed(2)), styCinza(true, direita));
+      linha[7] = cell(Number(valorDiariaAutoritativo.toFixed(2)), styCinza(true, direita));
+      linha[8] = cell(Number((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo).toFixed(2)), styCinza(true, direita));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
@@ -7040,6 +7048,13 @@ function PageMedicao({
     }
   }, "Subtotal"))), /*#__PURE__*/React.createElement("tbody", null, ANEXO_IV.map(it => {
     const q = qtds[it.id] || 0;
+    const vuKmDisp = ANEXO_IV.find(a => a.id === "km").vu;
+    const vuDiariaDisp = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const subtotalItem = it.id === "km"
+      ? (resultado?.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmDisp).toFixed(2)), 0)
+      : it.id === "diaria"
+      ? (resultado?.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaDisp).toFixed(2)), 0)
+      : (Number.isInteger(q) ? q : Number(q.toFixed(2))) * it.vu;
     return /*#__PURE__*/React.createElement("tr", {
       key: it.id
     }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
@@ -7064,7 +7079,7 @@ function PageMedicao({
         fontFamily: "var(--mono)",
         fontWeight: 700
       }
-    }, fmtR((Number.isInteger(q) ? q : Number(q.toFixed(2))) * it.vu)));
+    }, fmtR(subtotalItem)));
   })), /*#__PURE__*/React.createElement("tfoot", null, /*#__PURE__*/React.createElement("tr", {
     style: {
       background: "var(--surface)"
@@ -7195,10 +7210,17 @@ function PageMedicao({
 
       // ---- Aba 2: Anexo IV - Serviços/Atendimento ----
       const linhasAnexoIV = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
+      const vuKmExp = ANEXO_IV.find(a => a.id === "km").vu;
+      const vuDiariaExp = ANEXO_IV.find(a => a.id === "diaria").vu;
       ANEXO_IV.forEach(it => {
         const q = qtds[it.id] || 0;
         const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number((qArred * it.vu).toFixed(2))]);
+        const subtotalExp = it.id === "km"
+          ? (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmExp).toFixed(2)), 0)
+          : it.id === "diaria"
+          ? (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaExp).toFixed(2)), 0)
+          : Number((qArred * it.vu).toFixed(2));
+        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number(subtotalExp.toFixed(2))]);
       });
       linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(resultado.brutoServicos.toFixed(2))]);
       const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
