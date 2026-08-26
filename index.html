@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787764514 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787764993 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6463,7 +6463,12 @@ function PageMedicao({
     const vuKmSEI = ANEXO_IV.find(a => a.id === "km").vu;
     const vuDiariaSEI = ANEXO_IV.find(a => a.id === "diaria").vu;
     const valorKmAutoritativo = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmSEI).toFixed(2)), 0);
-    const valorDiariaAutoritativo = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaSEI).toFixed(2)), 0);
+    const valorDiariaAutoritativo = Number(resultado.totalDiarias.toFixed(1)) * vuDiariaSEI;
+    const vuRemSEI = ANEXO_IV.find(a => a.id === "rem").vu, vuPresSEI = ANEXO_IV.find(a => a.id === "pres").vu, vuPortalSEI = ANEXO_IV.find(a => a.id === "portal").vu, vuRaioSEI = ANEXO_IV.find(a => a.id === "raio").vu;
+    const brutoServicosSEI = vuRemSEI + Number((resultado.qtdAlarme * vuPresSEI).toFixed(2)) + Number((resultado.qtdPortal * vuPortalSEI).toFixed(2)) + Number((resultado.qtdRaio * vuRaioSEI).toFixed(2)) + Number(valorKmAutoritativo.toFixed(2)) + Number(valorDiariaAutoritativo.toFixed(2));
+    const brutoSEI = brutoServicosSEI + resultado.brutoMateriais;
+    const glosaSEI = brutoSEI * resultado.pct / 100;
+    const liqSEI = brutoSEI - glosaSEI;
     const itensDotacao = [
       { item: "1", dotacao: "39.21", desc: "ATENDIMENTO REMOTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.rem, vu: ANEXO_IV.find(a => a.id === "rem").vu, medPresente: ANEXO_IV.find(a => a.id === "rem").vu },
       { item: "2.1", dotacao: "", desc: "ATENDIMENTO SISTEMA DE ALARME, VIDEOMONITORAMENTO E CONTROLE DE ACESSO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.pres, vu: ANEXO_IV.find(a => a.id === "pres").vu, medPresente: resultado.qtdAlarme * ANEXO_IV.find(a => a.id === "pres").vu },
@@ -6492,7 +6497,7 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[2] = cell("SUBTOTAL", styCinza(true, esquerda));
-      linha[8] = cell(Number(resultado.bruto.toFixed(2)), styCinza(true, direita));
+      linha[8] = cell(Number(brutoSEI.toFixed(2)), styCinza(true, direita));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 7 } });
     }
@@ -6506,13 +6511,13 @@ function PageMedicao({
       linha[5] = cell("GLOSA SLA (%)", styCinza(true));
       linha[6] = cell(resultado.pct + "%", styNormal(centro));
       linha[8] = cell("VALOR DA GLOSA (R$)", styCinza(true));
-      linha[9] = cell(Number(resultado.glosa.toFixed(2)), styMoeda());
+      linha[9] = cell(Number(glosaSEI.toFixed(2)), styMoeda());
       addRow(linha);
     }
     {
       const linha = new Array(11).fill(cell("", styAmareloMoeda(true)));
       linha[2] = cell("VALOR LÍQUIDO DA MEDIÇÃO", { ...styAmareloMoeda(true), alignment: esquerda });
-      linha[9] = cell(Number(resultado.liq.toFixed(2)), styAmareloMoeda(true));
+      linha[9] = cell(Number(liqSEI.toFixed(2)), styAmareloMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 8 } });
     }
