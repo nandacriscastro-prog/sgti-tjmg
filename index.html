@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787739563 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787740094 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -9458,11 +9458,12 @@ function PageControleAtivos() {
     setCarregando(true);
     setErro("");
     try {
-      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=avaliacao,status,servico,tipo,comarca,retorno_campo&limit=5000`);
+      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
       const aprovado = {};
       const reservado = {};
       const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
       const reservadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
+      const periodosMedidos = new Set(); // um período (ciclo 20-19) conta como "1 mês de remoto usado"
       (rows || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -9485,6 +9486,13 @@ function PageControleAtivos() {
           aprovadoIV[itemAtend]++;
           aprovadoIV.km += kmOS;
           aprovadoIV.diaria += fracaoTotal;
+          if (o.data_conclusao) {
+            // Ciclo do contrato: dia 20 de um mês até dia 19 do mês seguinte
+            const dt = new Date(o.data_conclusao + "T12:00");
+            let anoP = dt.getFullYear(), mesP = dt.getMonth();
+            if (dt.getDate() < 20) { mesP -= 1; if (mesP < 0) { mesP = 11; anoP -= 1; } }
+            periodosMedidos.add(anoP + "-" + mesP);
+          }
         } else if (o.status === "Concluída" && !o.avaliacao) {
           pecas.forEach(p => { reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
           reservadoIV[itemAtend]++;
@@ -9496,9 +9504,7 @@ function PageControleAtivos() {
       setUsoReservado(reservado);
       setUsoAprovadoIV(aprovadoIV);
       setUsoReservadoIV(reservadoIV);
-
-      const notas = await sbFetch(`/notas_fiscais?select=id`);
-      setMesesRemoto((notas || []).length);
+      setMesesRemoto(periodosMedidos.size);
     } catch (e) {
       setErro("Erro ao carregar dados: " + e.message);
     } finally {
@@ -9550,12 +9556,14 @@ function PageControleAtivos() {
     };
   });
 
-  const totais = [...linhas, ...linhasIV].reduce((a, l) => ({
+  const somaTotais = arr => arr.reduce((a, l) => ({
     valorContratado: a.valorContratado + l.valorContratado,
     valorUsado: a.valorUsado + l.valorUsado,
     valorReservado: a.valorReservado + l.valorReservado,
     valorRestante: a.valorRestante + l.valorRestante
   }), { valorContratado: 0, valorUsado: 0, valorReservado: 0, valorRestante: 0 });
+  const totaisV = somaTotais(linhas);
+  const totaisIV = somaTotais(linhasIV);
 
   const buscaLower = busca.trim().toLowerCase();
   const linhasFiltradas = buscaLower
@@ -9578,7 +9586,7 @@ function PageControleAtivos() {
         l.qtdReservada, Number(l.valorReservado.toFixed(2)),
         l.qtdRestante, Number(l.valorRestante.toFixed(2))]);
     });
-    linhasExcel.push(["", "TOTAL", "", "", "", Number(totais.valorContratado.toFixed(2)), "", Number(totais.valorUsado.toFixed(2)), "", Number(totais.valorReservado.toFixed(2)), "", Number(totais.valorRestante.toFixed(2))]);
+    linhasExcel.push(["", "TOTAL", "", "", "", Number(totaisV.valorContratado.toFixed(2)), "", Number(totaisV.valorUsado.toFixed(2)), "", Number(totaisV.valorReservado.toFixed(2)), "", Number(totaisV.valorRestante.toFixed(2))]);
     const ws = XLSX.utils.aoa_to_sheet(linhasExcel);
     ws["!cols"] = [{ wch: 8 }, { wch: 46 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
 
@@ -9594,10 +9602,6 @@ function PageControleAtivos() {
         l.qtdReservada, Number(l.valorReservado.toFixed(2)),
         l.qtdRestante, Number(l.valorRestante.toFixed(2))]);
     });
-    const totaisIV = linhasIV.reduce((a, l) => ({
-      valorContratado: a.valorContratado + l.valorContratado, valorUsado: a.valorUsado + l.valorUsado,
-      valorReservado: a.valorReservado + l.valorReservado, valorRestante: a.valorRestante + l.valorRestante
-    }), { valorContratado: 0, valorUsado: 0, valorReservado: 0, valorRestante: 0 });
     linhasExcelIV.push(["", "TOTAL", "", "", "", Number(totaisIV.valorContratado.toFixed(2)), "", Number(totaisIV.valorUsado.toFixed(2)), "", Number(totaisIV.valorReservado.toFixed(2)), "", Number(totaisIV.valorRestante.toFixed(2))]);
     const wsIV = XLSX.utils.aoa_to_sheet(linhasExcelIV);
     wsIV["!cols"] = ws["!cols"];
@@ -9622,12 +9626,13 @@ function PageControleAtivos() {
     erro && React.createElement("div", { className: "card", style: { color: "var(--red, #c0392b)" } }, erro),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
-      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totais.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totais.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totais.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: totais.valorRestante < 0 ? "var(--red, #c0392b)" : "var(--navy)", fontWeight: 700 } }, fmtR(totais.valorRestante)), React.createElement("div", { className: "lbl" }, "Saldo restante"))
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "📶 Anexo IV — Serviços/Atendimento"),
+      React.createElement("div", { className: "kpis", style: { marginBottom: 12 } },
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totaisIV.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totaisIV.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totaisIV.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: totaisIV.valorRestante < 0 ? "var(--red, #c0392b)" : "var(--navy)", fontWeight: 700 } }, fmtR(totaisIV.valorRestante)), React.createElement("div", { className: "lbl" }, "Saldo restante"))
       ),
-      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8, marginTop: 4 } }, "📶 Anexo IV — Serviços/Atendimento"),
       React.createElement("div", { className: "card", style: { overflowX: "auto", marginBottom: 20 } },
         React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
           React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
@@ -9651,6 +9656,12 @@ function PageControleAtivos() {
         )
       ),
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "🔧 Anexo V — Aplicação de Recursos Sob Demanda (peças)"),
+      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totaisV.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totaisV.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totaisV.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: totaisV.valorRestante < 0 ? "var(--red, #c0392b)" : "var(--navy)", fontWeight: 700 } }, fmtR(totaisV.valorRestante)), React.createElement("div", { className: "lbl" }, "Saldo restante"))
+      ),
       React.createElement("input", {
         type: "text",
         placeholder: "🔎 Buscar item por código ou nome (ex: bateria, câmera, sensor, 3.1.1...)",
