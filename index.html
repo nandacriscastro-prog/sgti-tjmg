@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787764993 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787765999 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6326,15 +6326,16 @@ function PageMedicao({
       };
       setQtds(novos);
       // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela/exportação) — assim TUDO que deriva daqui (Resumo, Total Bruto, Glosa, Total Líquido) bate exatamente com a soma manual das linhas mostradas
-      // Km e Diária são somados por OS individual (arredondando cada linha antes de somar) — não pela quantidade total arredondada — pois é assim que bate com a verificação manual OS por OS
+      // Km é somado por OS individual (arredondando cada linha antes de somar) — bate com a verificação manual OS por OS
+      // Diária usa a fração TOTAL agregada arredondada em 1 casa decimal antes de multiplicar (ex: 14,895... -> 14,9 -> R$3.452,78) — mesma regra usada na Planilha SEI
       const vuKmCalc = ANEXO_IV.find(a => a.id === "km").vu;
       const valorKmSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number((d.kmOS * vuKmCalc).toFixed(2)), 0);
-      const valorDiariaSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number((d.fracaoTotal * valorDiariaUnitCalc).toFixed(2)), 0);
+      const valorDiariaArredondada = Number(totalDiarias.toFixed(1)) * valorDiariaUnitCalc;
       const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => {
         const q = novos[it.id] || 0;
         const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
         return a + Number((qArred * it.vu).toFixed(2));
-      }, 0) + Number(valorKmSomaPorOS.toFixed(2)) + Number(valorDiariaSomaPorOS.toFixed(2));
+      }, 0) + Number(valorKmSomaPorOS.toFixed(2)) + Number(valorDiariaArredondada.toFixed(2));
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -7058,7 +7059,7 @@ function PageMedicao({
     const subtotalItem = it.id === "km"
       ? (resultado?.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmDisp).toFixed(2)), 0)
       : it.id === "diaria"
-      ? (resultado?.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaDisp).toFixed(2)), 0)
+      ? Number((qtds.diaria || 0).toFixed(1)) * vuDiariaDisp
       : (Number.isInteger(q) ? q : Number(q.toFixed(2))) * it.vu;
     return /*#__PURE__*/React.createElement("tr", {
       key: it.id
@@ -7223,7 +7224,7 @@ function PageMedicao({
         const subtotalExp = it.id === "km"
           ? (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * vuKmExp).toFixed(2)), 0)
           : it.id === "diaria"
-          ? (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.fracaoTotal * vuDiariaExp).toFixed(2)), 0)
+          ? Number((qtds.diaria || 0).toFixed(1)) * vuDiariaExp
           : Number((qArred * it.vu).toFixed(2));
         linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number(subtotalExp.toFixed(2))]);
       });
