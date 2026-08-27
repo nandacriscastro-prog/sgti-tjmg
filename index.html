@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787832343 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787833233 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10275,7 +10275,7 @@ function PageControleAtivos() {
       React.createElement("div", { className: "card", style: { overflowX: "auto", marginBottom: 20 } },
         React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
           React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
-            ["Item", "Descrição", "Vlr unit.", "Contratada", "Já usada", "Reservada", "Restante", "Vlr restante"].map(h =>
+            ["Item", "Descrição", "Vlr unit.", "Contratada", "Vlr contratado", "Já usada", "Reservada", "Restante", "Vlr restante"].map(h =>
               React.createElement("th", { key: h, style: { textAlign: h === "Descrição" ? "left" : "right", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
             )
           )),
@@ -10287,6 +10287,7 @@ function PageControleAtivos() {
             React.createElement("td", { style: { padding: "5px 8px" } }, l.desc),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.vu)),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, l.qtdContratada),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.valorContratado)),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdUsada > 0 ? "var(--green)" : "var(--text3)" } }, l.qtdUsada || "—"),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdReservada > 0 ? "var(--amber, #b8860b)" : "var(--text3)" } }, l.qtdReservada || "—"),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: l.qtdRestante < 0 ? "var(--red, #c0392b)" : "var(--text)" } }, l.qtdRestante),
@@ -10312,7 +10313,7 @@ function PageControleAtivos() {
       React.createElement("div", { className: "card", style: { overflowX: "auto" } },
         React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
           React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
-            ["Item", "Descrição", "Vlr unit.", "Contratada", "Já usada", "Reservada", "Restante", "Vlr restante"].map(h =>
+            ["Item", "Descrição", "Vlr unit.", "Contratada", "Vlr contratado", "Já usada", "Reservada", "Restante", "Vlr restante"].map(h =>
               React.createElement("th", { key: h, style: { textAlign: h === "Descrição" ? "left" : "right", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
             )
           )),
@@ -10324,6 +10325,7 @@ function PageControleAtivos() {
             React.createElement("td", { style: { padding: "5px 8px" } }, l.desc),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.vu)),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, l.qtdContratada),
+            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.valorContratado)),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdUsada > 0 ? "var(--green)" : "var(--text3)" } }, l.qtdUsada || "—"),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdReservada > 0 ? "var(--amber, #b8860b)" : "var(--text3)" } }, l.qtdReservada || "—"),
             React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: l.qtdRestante < 0 ? "var(--red, #c0392b)" : "var(--text)" } }, l.qtdRestante),
@@ -10333,6 +10335,7 @@ function PageControleAtivos() {
             React.createElement("td", { colSpan: 2, style: { padding: "8px" } }, "TOTAL"),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
+            React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totaisV.valorContratado)),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totaisV.valorUsado)),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, fmtR(totaisV.valorReservado)),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
