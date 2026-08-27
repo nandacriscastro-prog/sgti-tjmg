@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787833710 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787838454 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -12077,6 +12077,40 @@ function PageDemandasInner({
   }, k.val), /*#__PURE__*/React.createElement("div", {
     className: "kpi-lbl"
   }, k.label)))),
+  (() => {
+    const padraoAberturaOS = /abrir\s*os\s*presencial|os\s*rem\s*aberta/i;
+    const pendentesAbertura = DEMANDAS.filter(d => !IGNORAR.has(d.status) && padraoAberturaOS.test(d.comentarios || ""));
+    if (!pendentesAbertura.length) return null;
+    const classifica = d => {
+      const mun = (d.comarca || "").split(" - ")[0];
+      if (REGIAO_METROPOLITANA_BH.has(mun)) return "rm";
+      if (COLAR_METROPOLITANO_PROPRIO.has(mun)) return "colar";
+      return "interior";
+    };
+    const grupos = { rm: [], colar: [], interior: [] };
+    pendentesAbertura.forEach(d => grupos[classifica(d)].push(d));
+    return React.createElement("div", { className: "card", style: { marginBottom: 16, padding: "14px 18px", border: "1px solid #f0b429" } },
+      React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 } }, "⏰ Aguardando abertura de OS Presencial — " + pendentesAbertura.length + " no total"),
+      React.createElement("div", { style: { display: "flex", gap: 24, flexWrap: "wrap" } },
+        [
+          { key: "rm", label: "🏙️ Região Metropolitana BH (prazo curto)", cor: "#c8102e" },
+          { key: "colar", label: "🌆 Colar Metropolitano (prazo curto)", cor: "#d97706" },
+          { key: "interior", label: "📍 Interior", cor: "#2563eb" }
+        ].map(g => React.createElement("div", { key: g.key, style: { cursor: "pointer" }, onClick: () => { setBusca(""); setFStatus(""); setFRegiao(""); setPag(0); } },
+          React.createElement("div", { style: { fontSize: 26, fontWeight: 800, color: grupos[g.key].length > 0 ? g.cor : "var(--text3)" } }, grupos[g.key].length),
+          React.createElement("div", { style: { fontSize: 11, color: "var(--text3)" } }, g.label)
+        ))
+      ),
+      React.createElement("div", { style: { marginTop: 10, maxHeight: 160, overflowY: "auto", fontSize: 12, borderTop: "1px solid var(--border)", paddingTop: 8 } },
+        pendentesAbertura.slice(0, 30).map(d => React.createElement("div", {
+          key: d.id, style: { padding: "4px 0", display: "flex", justifyContent: "space-between", gap: 10 }
+        },
+          React.createElement("span", null, (d.comarca || ""), " — ", React.createElement("span", { style: { color: "var(--text3)" } }, d.comentarios)),
+          React.createElement("span", { style: { fontSize: 10, textTransform: "uppercase", color: classifica(d) === "interior" ? "var(--text3)" : "#c8102e", fontWeight: 700 } }, classifica(d) === "rm" ? "RM" : classifica(d) === "colar" ? "COLAR" : "")
+        ))
+      )
+    );
+  })(),
   (() => {
     const contagem = {};
     DEMANDAS.filter(d => !IGNORAR.has(d.status)).forEach(d => {
