@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787831671 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787832343 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6435,6 +6435,15 @@ function PageMedicao({
     const centro = { horizontal: "center", vertical: "center", wrapText: true };
     const esquerda = { horizontal: "left", vertical: "center", wrapText: true };
     const direita = { horizontal: "right", vertical: "center" };
+    const brl = v => {
+      v = Number(v) || 0;
+      const neg = v < 0;
+      v = Math.abs(v);
+      const fixed = v.toFixed(2);
+      const partes = fixed.split(".");
+      const comPontos = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return (neg ? "-" : "") + "R$ " + comPontos + "," + partes[1];
+    };
     const fmtMoeda = '"R$" #,##0.00;-"R$" #,##0.00';
 
     const cell = (v, sty) => ({ v, s: sty || {} });
@@ -6528,11 +6537,11 @@ function PageMedicao({
         cell(it.dotacao, styNormal(centro)),
         cell(it.desc, styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
         cell(it.qtdAnual, styNormal(centro)),
-        cell(idx === 0 || it.dotacao !== itensDotacao[idx - 1].dotacao ? Number(totalPorDotacao[it.dotacao].toFixed(2)) : "", styMoeda()),
-        cell(Number(valorTotalContratado.toFixed(2)), styMoeda()),
-        cell(Number(it.medPresente.toFixed(2)), styVerdeMoeda(true)),
-        cell(0, styMoeda()),
-        cell(Number((valorTotalContratado - it.medPresente).toFixed(2)), styMoeda())
+        cell(idx === 0 || it.dotacao !== itensDotacao[idx - 1].dotacao ? brl(totalPorDotacao[it.dotacao]) : "", styMoeda()),
+        cell(brl(valorTotalContratado), styMoeda()),
+        cell(brl(it.medPresente), styVerdeMoeda(true)),
+        cell(brl(0), styMoeda()),
+        cell(brl((valorTotalContratado - it.medPresente)), styMoeda())
       ];
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 4 } });
@@ -6546,7 +6555,7 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[2] = cell("SUBTOTAL", styCinza(true, esquerda));
-      linha[8] = cell(Number(brutoSEI.toFixed(2)), styCinzaMoeda(true));
+      linha[8] = cell(brl(brutoSEI), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 7 } });
     }
@@ -6560,7 +6569,7 @@ function PageMedicao({
       linha[5] = cell("GLOSA SLA (%)", styCinza(true));
       linha[6] = cell(resultado.pct + "%", styNormal(centro));
       linha[8] = cell("VALOR DA GLOSA (R$)", styCinza(true));
-      linha[9] = cell(Number(glosaSEI.toFixed(2)), styMoeda());
+      linha[9] = cell(brl(glosaSEI), styMoeda());
       addRow(linha);
     }
     {
@@ -6605,11 +6614,11 @@ function PageMedicao({
         cell(comarcaNome, styNormal(esquerda)),
         cell(edificacao, styNormal(esquerda)),
         cell(o.servico || o.tipo || "", styNormal(esquerda)),
-        cell(Number(vuAtend.toFixed(2)), styMoeda()),
-        cell(Number(materiaisOS.toFixed(2)), styMoeda()),
-        cell(Number(valorDeslocOS.toFixed(2)), styMoeda()),
-        cell(Number(valorDiariaOS.toFixed(2)), styMoeda()),
-        cell(Number(totalOS.toFixed(2)), styMoeda(true)),
+        cell(brl(vuAtend), styMoeda()),
+        cell(brl(materiaisOS), styMoeda()),
+        cell(brl(valorDeslocOS), styMoeda()),
+        cell(brl(valorDiariaOS), styMoeda()),
+        cell(brl(totalOS), styMoeda(true)),
         cell("", styNormal()), cell("", styNormal())
       ]);
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
@@ -6617,11 +6626,11 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[0] = cell("TOTAL", styCinza(true));
-      linha[4] = cell(Number(totAtend.toFixed(2)), styCinzaMoeda(true));
-      linha[5] = cell(Number(totRSD.toFixed(2)), styCinzaMoeda(true));
-      linha[6] = cell(Number(valorKmAutoritativo.toFixed(2)), styCinzaMoeda(true));
-      linha[7] = cell(Number(valorDiariaAutoritativo.toFixed(2)), styCinzaMoeda(true));
-      linha[8] = cell(Number((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo).toFixed(2)), styCinzaMoeda(true));
+      linha[4] = cell(brl(totAtend), styCinzaMoeda(true));
+      linha[5] = cell(brl(totRSD), styCinzaMoeda(true));
+      linha[6] = cell(brl(valorKmAutoritativo), styCinzaMoeda(true));
+      linha[7] = cell(brl(valorDiariaAutoritativo), styCinzaMoeda(true));
+      linha[8] = cell(brl((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo)), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
@@ -6658,8 +6667,8 @@ function PageMedicao({
           cell(servicoLabel, styNormal(esquerda)), cell("", styNormal()),
           cell(p.desc, styNormal(esquerda)), cell("", styNormal()),
           cell(qtd, styNormal(centro)), cell("", styNormal()),
-          cell(Number(vu.toFixed(2)), styMoeda()),
-          cell(Number(total.toFixed(2)), styMoeda())
+          cell(brl(vu), styMoeda()),
+          cell(brl(total), styMoeda())
         ]);
         merges.push({ s: { r: R - 1, c: 3 }, e: { r: R - 1, c: 4 } });
         merges.push({ s: { r: R - 1, c: 5 }, e: { r: R - 1, c: 6 } });
@@ -6669,7 +6678,7 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[0] = cell("TOTAL RECURSOS SOB DEMANDA", styCinza(true));
-      linha[10] = cell(Number(totRSD2.toFixed(2)), styCinzaMoeda(true));
+      linha[10] = cell(brl(totRSD2), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 9 } });
     }
@@ -6735,11 +6744,11 @@ function PageMedicao({
         cell(item, styNormal(centro, true)),
         cell(descItem4[item], styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
         cell(qtdContratada, styNormal(centro)),
-        cell(Number((qtdContratada * vu).toFixed(2)), styMoeda()),
+        cell(brl((qtdContratada * vu)), styMoeda()),
         cell(qtdUsada, styNormal(centro)),
-        cell(Number((qtdUsada * vu).toFixed(2)), styVerdeMoeda()),
+        cell(brl((qtdUsada * vu)), styVerdeMoeda()),
         cell(qtdRestante, styNormal(centro)), cell("", styNormal()),
-        cell(Number((qtdRestante * vu).toFixed(2)), styMoeda(true))
+        cell(brl((qtdRestante * vu)), styMoeda(true))
       ];
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
@@ -6774,11 +6783,11 @@ function PageMedicao({
         cell(cod, styNormal(centro, true)),
         cell(ANEXO_V_DESC[cod] || "", styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
         cell(qtdContratada, styNormal(centro)),
-        cell(Number(valorContratado.toFixed(2)), styMoeda()),
+        cell(brl(valorContratado), styMoeda()),
         cell(qtdUsada, styNormal(centro)),
-        cell(Number(valorUsado.toFixed(2)), styVerdeMoeda()),
+        cell(brl(valorUsado), styVerdeMoeda()),
         cell(qtdRestante, styNormal(centro)), cell("", styNormal()),
-        cell(Number(valorRestante.toFixed(2)), styMoeda(qtdRestante < 0))
+        cell(brl(valorRestante), styMoeda(qtdRestante < 0))
       ];
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
@@ -6787,9 +6796,9 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[1] = cell("TOTAL", styCinza(true));
-      linha[5] = cell(Number(totContratadoV.toFixed(2)), styCinzaMoeda(true));
-      linha[7] = cell(Number(totUsadoV.toFixed(2)), styCinzaMoeda(true));
-      linha[10] = cell(Number(totRestanteV.toFixed(2)), styCinzaMoeda(true));
+      linha[5] = cell(brl(totContratadoV), styCinzaMoeda(true));
+      linha[7] = cell(brl(totUsadoV), styCinzaMoeda(true));
+      linha[10] = cell(brl(totRestanteV), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 4 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
@@ -7396,25 +7405,33 @@ function PageMedicao({
   }, "📄 Gerar Planilha SEI"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => {
+      const brlExp = v => {
+        v = Number(v) || 0;
+        const neg = v < 0; v = Math.abs(v);
+        const fixed = v.toFixed(2);
+        const partes = fixed.split(".");
+        const comPontos = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return (neg ? "-" : "") + "R$ " + comPontos + "," + partes[1];
+      };
       // ---- Aba 1: Resumo ----
       const linhasResumo = [
         ["MEDIÇÃO — " + resultado.label],
         [],
         ["Dotação", "Valor (R$)"],
-        ["1 - Serviços (atendimento/diária/km)", resultado.brutoServicos],
-        ["2 - Materiais/Equipamentos (peças substituídas)", resultado.brutoMateriais],
-        ["Total bruto (soma das duas dotações)", resultado.bruto],
-        ["Glosa SLA (" + resultado.pct + "%)", -resultado.glosa],
-        ["Total líquido", resultado.liq],
+        ["1 - Serviços (atendimento/diária/km)", brlExp(resultado.brutoServicos)],
+        ["2 - Materiais/Equipamentos (peças substituídas)", brlExp(resultado.brutoMateriais)],
+        ["Total bruto (soma das duas dotações)", brlExp(resultado.bruto)],
+        ["Glosa SLA (" + resultado.pct + "%)", brlExp(-resultado.glosa)],
+        ["Total líquido", brlExp(resultado.liq)],
         [],
         ["Quantidade de OS no período", resultado.osMes?.length || 0],
         ["Km total percorrido", resultado.totalKm],
         ["Total de frações de diária", resultado.totalDiarias],
         [],
         ["📦 Aplicação de Recursos Sob Demanda (Anexo V) — acumulado de todo o contrato"],
-        ["Total já consumido (R$)", materiaisAcumulados !== null ? Number(materiaisAcumulados.toFixed(4)) : "—"],
-        ["Teto do contrato (R$)", CONTRATO_VALOR_ANEXO_V_181],
-        ["Saldo restante (R$)", materiaisAcumulados !== null ? Number((CONTRATO_VALOR_ANEXO_V_181 - materiaisAcumulados).toFixed(4)) : "—"],
+        ["Total já consumido (R$)", materiaisAcumulados !== null ? brlExp(materiaisAcumulados) : "—"],
+        ["Teto do contrato (R$)", brlExp(CONTRATO_VALOR_ANEXO_V_181)],
+        ["Saldo restante (R$)", materiaisAcumulados !== null ? brlExp(CONTRATO_VALOR_ANEXO_V_181 - materiaisAcumulados) : "—"],
         ["% consumido do teto", materiaisAcumulados !== null ? Number((materiaisAcumulados / CONTRATO_VALOR_ANEXO_V_181 * 100).toFixed(4)) + "%" : "—"]
       ];
       const wsResumo = XLSX.utils.aoa_to_sheet(linhasResumo);
@@ -7433,9 +7450,9 @@ function PageMedicao({
           : it.id === "diaria"
           ? Number((qtds.diaria || 0).toFixed(1)) * vuDiariaExp
           : Number((qArred * it.vu).toFixed(2));
-        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, it.vu, Number(subtotalExp.toFixed(2))]);
+        linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, brlExp(it.vu), brlExp(subtotalExp)]);
       });
-      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", Number(resultado.brutoServicos.toFixed(2))]);
+      linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", brlExp(resultado.brutoServicos)]);
       const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
       wsAnexoIV["!cols"] = [{ wch: 8 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 16 }];
 
