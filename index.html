@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787825773 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787829262 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6415,7 +6415,7 @@ function PageMedicao({
       toast("Erro ao buscar OS: " + e.message, "error");
     }
   };
-  const gerarPlanilhaSEI = () => {
+  const gerarPlanilhaSEI = async () => {
     if (!resultado) return;
     if (!window.XLSXStyle) { toast("Biblioteca de estilo ainda não carregou, tente novamente em alguns segundos.", "erro"); return; }
     const XS = window.XLSXStyle;
@@ -6435,7 +6435,7 @@ function PageMedicao({
     const centro = { horizontal: "center", vertical: "center", wrapText: true };
     const esquerda = { horizontal: "left", vertical: "center", wrapText: true };
     const direita = { horizontal: "right", vertical: "center" };
-    const fmtMoeda = '#,##0.00;(#,##0.00)';
+    const fmtMoeda = '"R$" [$-416]#,##0.00;[RED]-"R$" [$-416]#,##0.00';
 
     const cell = (v, sty) => ({ v, s: sty || {} });
     const styNavy = (bold, sz, align) => ({ font: { name: "Calibri", sz: sz || 10, bold: !!bold, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: corNavy } }, alignment: align || centro, border: bordaFina });
@@ -6662,6 +6662,127 @@ function PageMedicao({
       linha[10] = cell(Number(totRSD2.toFixed(2)), styCinza(true, direita));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 9 } });
+    }
+    addRow(new Array(11).fill(cell("", { border: undefined })));
+    addRow(new Array(11).fill(cell("", { border: undefined })));
+
+    // ---- Busca o consumo acumulado de TODO o contrato (não só o período atual) para as seções 4 e 5 ----
+    let usoAprovadoIVAll = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
+    let usoAprovadoVAll = {};
+    let mesesRemotoAll = 0;
+    try {
+      const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
+      const periodosMedidos = new Set();
+      (rowsAll || []).forEach(o => {
+        let r = {};
+        try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+        const s = (o.servico || o.tipo || "").toLowerCase();
+        const isCorrecaoOS = o.tipo === "Correção";
+        const mun = (o.comarca || "").split(" - ")[0];
+        const isColarOS = COLAR_181.has(mun);
+        const kmOS = parseFloat(r.km || 0) || 0;
+        const isRaioServ = s.includes("raio") || s.includes("scanner");
+        const isPortalServ = s.includes("portal") || s.includes("detector");
+        const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
+        usoAprovadoIVAll[itemAtend]++;
+        usoAprovadoIVAll.km += kmOS;
+        const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
+        const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
+        usoAprovadoIVAll.diaria += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
+        (r.pecas || []).filter(p => p.desc && p.cod).forEach(p => {
+          usoAprovadoVAll[p.cod] = (usoAprovadoVAll[p.cod] || 0) + (parseFloat(p.qtd) || 1);
+        });
+        if (o.data_conclusao) {
+          const dt = new Date(o.data_conclusao + "T12:00");
+          let anoP = dt.getFullYear(), mesP = dt.getMonth();
+          if (dt.getDate() < 20) { mesP -= 1; if (mesP < 0) { mesP = 11; anoP -= 1; } }
+          periodosMedidos.add(anoP + "-" + mesP);
+        }
+      });
+      mesesRemotoAll = periodosMedidos.size;
+    } catch (e) {
+      toast("Aviso: não consegui buscar o consumo acumulado do contrato para as seções 4 e 5 (" + e.message + ")", "erro");
+    }
+
+    // ---- Item 4: Controle de Ativos — Anexo IV (Serviços/Atendimento), consumo acumulado de todo o contrato ----
+    addRow([cell("4 — CONTROLE DE ATIVOS — ANEXO IV (SERVIÇOS/ATENDIMENTO) — CONSUMO ACUMULADO DE TODO O CONTRATO", styNavy(true))]);
+    merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 10 } });
+    for (let c = 1; c <= 10; c++) aoa[R - 1][c] = cell("", styNavy(true));
+
+    const headersItem4 = ["Item", "Descrição", "", "", "Qtd. contratada", "Vlr. contratado (R$)", "Qtd. já usada", "Vlr. já usado (R$)", "Qtd. restante", "", "Vlr. restante (R$)"];
+    addRow(headersItem4.map(h => cell(h, styNavy(true))));
+    merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
+    merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
+
+    const descItem4 = { rem: "Atendimento remoto (mensal)", pres: "Atend. Alarme/CFTV/Controle de Acesso", portal: "Atend. Portal detector de metais", raio: "Atend. Scanner Raio-X", km: "Deslocamento", diaria: "Diária" };
+    Object.keys(ANEXO_IV_QTD_CONTRATADA).forEach(item => {
+      const qtdContratada = ANEXO_IV_QTD_CONTRATADA[item];
+      const vu = ANEXO_IV.find(a => a.id === item).vu;
+      const qtdUsada = item === "rem" ? mesesRemotoAll : (item === "diaria" ? Number(usoAprovadoIVAll.diaria.toFixed(1)) : Number((usoAprovadoIVAll[item] || 0).toFixed(2)));
+      const qtdRestante = Number((qtdContratada - qtdUsada).toFixed(item === "diaria" ? 1 : 2));
+      const linha = [
+        cell(item, styNormal(centro, true)),
+        cell(descItem4[item], styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
+        cell(qtdContratada, styNormal(centro)),
+        cell(Number((qtdContratada * vu).toFixed(2)), styMoeda()),
+        cell(qtdUsada, styNormal(centro)),
+        cell(Number((qtdUsada * vu).toFixed(2)), styVerdeMoeda()),
+        cell(qtdRestante, styNormal(centro)), cell("", styNormal()),
+        cell(Number((qtdRestante * vu).toFixed(2)), styMoeda(true))
+      ];
+      addRow(linha);
+      merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
+      merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
+    });
+    addRow(new Array(11).fill(cell("", { border: undefined })));
+    addRow(new Array(11).fill(cell("", { border: undefined })));
+
+    // ---- Item 5: Controle de Ativos — Anexo V (Aplicação de Recursos Sob Demanda), consumo acumulado de todo o contrato ----
+    addRow([cell("5 — CONTROLE DE ATIVOS — ANEXO V (APLICAÇÃO DE RECURSOS SOB DEMANDA) — CONSUMO ACUMULADO DE TODO O CONTRATO", styNavy(true))]);
+    merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 10 } });
+    for (let c = 1; c <= 10; c++) aoa[R - 1][c] = cell("", styNavy(true));
+
+    const headersItem5 = ["Item", "Descrição", "", "", "Qtd. contratada", "Vlr. contratado (R$)", "Qtd. já usada", "Vlr. já usado (R$)", "Qtd. restante", "", "Vlr. restante (R$)"];
+    addRow(headersItem5.map(h => cell(h, styNavy(true))));
+    merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
+    merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
+
+    let totContratadoV = 0, totUsadoV = 0, totRestanteV = 0;
+    Object.keys(ANEXO_V_QTD_CONTRATADA).sort((a, b) => {
+      const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); }
+      return 0;
+    }).forEach(cod => {
+      const qtdContratada = ANEXO_V_QTD_CONTRATADA[cod];
+      const vu = PRECO_ANEXO_V[cod] || 0;
+      const qtdUsada = usoAprovadoVAll[cod] || 0;
+      const qtdRestante = qtdContratada - qtdUsada;
+      const valorContratado = qtdContratada * vu, valorUsado = qtdUsada * vu, valorRestante = qtdRestante * vu;
+      totContratadoV += valorContratado; totUsadoV += valorUsado; totRestanteV += valorRestante;
+      const linha = [
+        cell(cod, styNormal(centro, true)),
+        cell(ANEXO_V_DESC[cod] || "", styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
+        cell(qtdContratada, styNormal(centro)),
+        cell(Number(valorContratado.toFixed(2)), styMoeda()),
+        cell(qtdUsada, styNormal(centro)),
+        cell(Number(valorUsado.toFixed(2)), styVerdeMoeda()),
+        cell(qtdRestante, styNormal(centro)), cell("", styNormal()),
+        cell(Number(valorRestante.toFixed(2)), styMoeda(qtdRestante < 0))
+      ];
+      addRow(linha);
+      merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
+      merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
+    });
+    {
+      const linha = new Array(11).fill(cell("", styCinza(true)));
+      linha[1] = cell("TOTAL", styCinza(true));
+      linha[5] = cell(Number(totContratadoV.toFixed(2)), styCinza(true, direita));
+      linha[7] = cell(Number(totUsadoV.toFixed(2)), styCinza(true, direita));
+      linha[10] = cell(Number(totRestanteV.toFixed(2)), styCinza(true, direita));
+      addRow(linha);
+      merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 4 } });
+      merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
     }
 
     const ws = XS.utils.aoa_to_sheet(aoa.map(row => row.map(c => c)));
