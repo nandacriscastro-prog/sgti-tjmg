@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787833233 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787833710 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6738,8 +6738,8 @@ function PageMedicao({
     Object.keys(ANEXO_IV_QTD_CONTRATADA).forEach(item => {
       const qtdContratada = ANEXO_IV_QTD_CONTRATADA[item];
       const vu = ANEXO_IV.find(a => a.id === item).vu;
-      const qtdUsada = item === "rem" ? mesesRemotoAll : (item === "diaria" ? Number(usoAprovadoIVAll.diaria.toFixed(1)) : Number((usoAprovadoIVAll[item] || 0).toFixed(2)));
-      const qtdRestante = Number((qtdContratada - qtdUsada).toFixed(item === "diaria" ? 1 : 2));
+      const qtdUsada = item === "rem" ? mesesRemotoAll : Number((usoAprovadoIVAll[item] || 0).toFixed(item === "km" ? 2 : 4));
+      const qtdRestante = Number((qtdContratada - qtdUsada).toFixed(item === "km" ? 2 : 4));
       const linha = [
         cell(item, styNormal(centro, true)),
         cell(descItem4[item], styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
