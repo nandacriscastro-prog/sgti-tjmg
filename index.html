@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787829262 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787829929 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6422,8 +6422,8 @@ function PageMedicao({
 
     const numeroMedicao = String((hist.length || 0) + 1).padStart(2, "0");
     const dataMedicaoStr = new Date().toLocaleDateString("pt-BR");
-    const fiscalAtual = FISCAIS.find(f => f.nome === (getSession()?.fiscal?.nome)) || FISCAIS[0];
-    const suporteTecnico = FISCAIS.filter(f => f.setor === "COTESI").map(f => f.nome + " (Mat. " + f.matricula + ")").join(", ");
+    const fiscalResponsavelTexto = "Gilselena Belizário Rigo (Mat. 85365)";
+    const suporteTecnico = "Aguilar Ozanan de Souza (Mat. P0012862), Fernanda Cristine Leão Castro (Mat. P0168250), André Luiz de Oliveira (Mat. P0169809)";
 
     // ---- Estilos reutilizáveis ----
     const corNavy = "1F3864", corCinza = "F2F2F2", corVerdeClaro = "E2EFDA", corAmarelo = "FFF2CC";
@@ -6435,11 +6435,12 @@ function PageMedicao({
     const centro = { horizontal: "center", vertical: "center", wrapText: true };
     const esquerda = { horizontal: "left", vertical: "center", wrapText: true };
     const direita = { horizontal: "right", vertical: "center" };
-    const fmtMoeda = '"R$" [$-416]#,##0.00;[RED]-"R$" [$-416]#,##0.00';
+    const fmtMoeda = '"R$"\\ #,##0.00;[RED]\\-"R$"\\ #,##0.00';
 
     const cell = (v, sty) => ({ v, s: sty || {} });
     const styNavy = (bold, sz, align) => ({ font: { name: "Calibri", sz: sz || 10, bold: !!bold, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: corNavy } }, alignment: align || centro, border: bordaFina });
     const styCinza = (bold, align) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, fill: { fgColor: { rgb: corCinza } }, alignment: align || centro, border: bordaFina });
+    const styCinzaMoeda = (bold) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, fill: { fgColor: { rgb: corCinza } }, alignment: direita, border: bordaFina, numFmt: fmtMoeda });
     const styNormal = (align, bold) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, alignment: align || esquerda, border: bordaFina });
     const styMoeda = (bold, corFundo) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, alignment: direita, border: bordaFina, numFmt: fmtMoeda, fill: corFundo ? { fgColor: { rgb: corFundo } } : undefined });
     const styVerdeMoeda = (bold) => styMoeda(bold, corVerdeClaro);
@@ -6477,7 +6478,7 @@ function PageMedicao({
     infoRow("CONTRATO", "181/2026", 1, 10);
     infoRow("CONTRATADA", "ALVO SEGURANÇA LTDA", 1, 10);
     infoRow("OBJETO", "SERVIÇO CONTÍNUO DE MANUTENÇÃO E INSTALAÇÃO EM SISTEMAS DE SEGURANÇA ELETRÔNICA E DE CONTROLE DE ACESSO", 1, 10);
-    infoRow("FISCAL RESPONSÁVEL", fiscalAtual.nome + " — Mat. " + fiscalAtual.matricula, 1, 10);
+    infoRow("FISCAL RESPONSÁVEL", fiscalResponsavelTexto, 1, 10);
     infoRow("SUPORTE TÉCNICO", suporteTecnico, 1, 10);
     infoRow("PERIODICIDADE", "MENSAL", 1, 3);
     {
@@ -6495,7 +6496,7 @@ function PageMedicao({
     addRow(new Array(11).fill(cell("", { border: undefined })));
 
     // ---- Tabela 1: Dotações contratuais ----
-    const headersDotacao = ["Item", "Dotação", "Descrição", "", "", "Qtd. anual contratada", "Vlr. unit. (R$)", "Vlr. total contratado (R$)", "Vlr. medição presente (R$)", "Vlr. medições anteriores (R$)", "Saldo contratual (R$)"];
+    const headersDotacao = ["Item", "Dotação", "Descrição", "", "", "Qtd. anual contratada", "Vlr Total Contratado por Dotação", "Vlr. total contratado (R$)", "Vlr. medição presente (R$)", "Vlr. medições anteriores (R$)", "Saldo contratual (R$)"];
     addRow(headersDotacao.map(h => cell(h, styNavy(true))));
     merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 4 } });
 
@@ -6510,21 +6511,24 @@ function PageMedicao({
     const liqSEI = brutoSEI - glosaSEI;
     const itensDotacao = [
       { item: "1", dotacao: "39.21", desc: "ATENDIMENTO REMOTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.rem, vu: ANEXO_IV.find(a => a.id === "rem").vu, medPresente: ANEXO_IV.find(a => a.id === "rem").vu },
-      { item: "2.1", dotacao: "", desc: "ATENDIMENTO SISTEMA DE ALARME, VIDEOMONITORAMENTO E CONTROLE DE ACESSO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.pres, vu: ANEXO_IV.find(a => a.id === "pres").vu, medPresente: resultado.qtdAlarme * ANEXO_IV.find(a => a.id === "pres").vu },
-      { item: "2.2", dotacao: "", desc: "ATENDIMENTO PORTAL DETECTOR DE METAIS", qtdAnual: ANEXO_IV_QTD_CONTRATADA.portal, vu: ANEXO_IV.find(a => a.id === "portal").vu, medPresente: resultado.qtdPortal * ANEXO_IV.find(a => a.id === "portal").vu },
-      { item: "2.3", dotacao: "", desc: "ATENDIMENTO SCANNER DE RAIO X", qtdAnual: ANEXO_IV_QTD_CONTRATADA.raio, vu: ANEXO_IV.find(a => a.id === "raio").vu, medPresente: resultado.qtdRaio * ANEXO_IV.find(a => a.id === "raio").vu },
-      { item: "2.4", dotacao: "", desc: "DESLOCAMENTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.km, vu: ANEXO_IV.find(a => a.id === "km").vu, medPresente: valorKmAutoritativo },
-      { item: "2.5", dotacao: "", desc: "DIÁRIA", qtdAnual: ANEXO_IV_QTD_CONTRATADA.diaria, vu: ANEXO_IV.find(a => a.id === "diaria").vu, medPresente: valorDiariaAutoritativo },
+      { item: "2.1", dotacao: "39.21", desc: "ATENDIMENTO SISTEMA DE ALARME, VIDEOMONITORAMENTO E CONTROLE DE ACESSO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.pres, vu: ANEXO_IV.find(a => a.id === "pres").vu, medPresente: resultado.qtdAlarme * ANEXO_IV.find(a => a.id === "pres").vu },
+      { item: "2.2", dotacao: "39.21", desc: "ATENDIMENTO PORTAL DETECTOR DE METAIS", qtdAnual: ANEXO_IV_QTD_CONTRATADA.portal, vu: ANEXO_IV.find(a => a.id === "portal").vu, medPresente: resultado.qtdPortal * ANEXO_IV.find(a => a.id === "portal").vu },
+      { item: "2.3", dotacao: "39.21", desc: "ATENDIMENTO SCANNER DE RAIO X", qtdAnual: ANEXO_IV_QTD_CONTRATADA.raio, vu: ANEXO_IV.find(a => a.id === "raio").vu, medPresente: resultado.qtdRaio * ANEXO_IV.find(a => a.id === "raio").vu },
+      { item: "2.4", dotacao: "39.21", desc: "DESLOCAMENTO", qtdAnual: ANEXO_IV_QTD_CONTRATADA.km, vu: ANEXO_IV.find(a => a.id === "km").vu, medPresente: valorKmAutoritativo },
+      { item: "2.5", dotacao: "39.21", desc: "DIÁRIA", qtdAnual: ANEXO_IV_QTD_CONTRATADA.diaria, vu: ANEXO_IV.find(a => a.id === "diaria").vu, medPresente: valorDiariaAutoritativo },
       { item: "3", dotacao: "51.13", desc: "APLICAÇÃO DE RECURSOS SOB DEMANDA", qtdAnual: 1, vu: CONTRATO_VALOR_ANEXO_V_181, medPresente: resultado.brutoMateriais }
     ];
-    itensDotacao.forEach(it => {
+    // Soma o Valor Total Contratado por grupo de Dotação (39.21 = itens 1 a 2.5; 51.13 = item 3)
+    const totalPorDotacao = {};
+    itensDotacao.forEach(it => { totalPorDotacao[it.dotacao] = (totalPorDotacao[it.dotacao] || 0) + it.qtdAnual * it.vu; });
+    itensDotacao.forEach((it, idx) => {
       const valorTotalContratado = it.qtdAnual * it.vu;
       const linha = [
         cell(it.item, styNormal(centro, true)),
         cell(it.dotacao, styNormal(centro)),
         cell(it.desc, styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
         cell(it.qtdAnual, styNormal(centro)),
-        cell(Number(it.vu.toFixed(2)), styMoeda()),
+        cell(idx === 0 || it.dotacao !== itensDotacao[idx - 1].dotacao ? Number(totalPorDotacao[it.dotacao].toFixed(2)) : "", styMoeda()),
         cell(Number(valorTotalContratado.toFixed(2)), styMoeda()),
         cell(Number(it.medPresente.toFixed(2)), styVerdeMoeda(true)),
         cell(0, styMoeda()),
@@ -6532,11 +6536,17 @@ function PageMedicao({
       ];
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 4 } });
+      // Mescla verticalmente a coluna "Vlr Total Contratado por Dotação" ao longo de todo o grupo
+      const fimDoGrupo = idx === itensDotacao.length - 1 || itensDotacao[idx + 1].dotacao !== it.dotacao;
+      if (fimDoGrupo) {
+        const inicioGrupoRow = R - 1 - (itensDotacao.filter((x, i) => i <= idx && x.dotacao === it.dotacao).length - 1);
+        if (inicioGrupoRow < R - 1) merges.push({ s: { r: inicioGrupoRow, c: 6 }, e: { r: R - 1, c: 6 } });
+      }
     });
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[2] = cell("SUBTOTAL", styCinza(true, esquerda));
-      linha[8] = cell(Number(brutoSEI.toFixed(2)), styCinza(true, direita));
+      linha[8] = cell(Number(brutoSEI.toFixed(2)), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 2 }, e: { r: R - 1, c: 7 } });
     }
@@ -6607,11 +6617,11 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[0] = cell("TOTAL", styCinza(true));
-      linha[4] = cell(Number(totAtend.toFixed(2)), styCinza(true, direita));
-      linha[5] = cell(Number(totRSD.toFixed(2)), styCinza(true, direita));
-      linha[6] = cell(Number(valorKmAutoritativo.toFixed(2)), styCinza(true, direita));
-      linha[7] = cell(Number(valorDiariaAutoritativo.toFixed(2)), styCinza(true, direita));
-      linha[8] = cell(Number((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo).toFixed(2)), styCinza(true, direita));
+      linha[4] = cell(Number(totAtend.toFixed(2)), styCinzaMoeda(true));
+      linha[5] = cell(Number(totRSD.toFixed(2)), styCinzaMoeda(true));
+      linha[6] = cell(Number(valorKmAutoritativo.toFixed(2)), styCinzaMoeda(true));
+      linha[7] = cell(Number(valorDiariaAutoritativo.toFixed(2)), styCinzaMoeda(true));
+      linha[8] = cell(Number((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo).toFixed(2)), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
@@ -6659,7 +6669,7 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[0] = cell("TOTAL RECURSOS SOB DEMANDA", styCinza(true));
-      linha[10] = cell(Number(totRSD2.toFixed(2)), styCinza(true, direita));
+      linha[10] = cell(Number(totRSD2.toFixed(2)), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 9 } });
     }
@@ -6777,9 +6787,9 @@ function PageMedicao({
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[1] = cell("TOTAL", styCinza(true));
-      linha[5] = cell(Number(totContratadoV.toFixed(2)), styCinza(true, direita));
-      linha[7] = cell(Number(totUsadoV.toFixed(2)), styCinza(true, direita));
-      linha[10] = cell(Number(totRestanteV.toFixed(2)), styCinza(true, direita));
+      linha[5] = cell(Number(totContratadoV.toFixed(2)), styCinzaMoeda(true));
+      linha[7] = cell(Number(totUsadoV.toFixed(2)), styCinzaMoeda(true));
+      linha[10] = cell(Number(totRestanteV.toFixed(2)), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 4 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
