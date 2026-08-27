@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787839466 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787857054 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -403,6 +403,7 @@ const CONTRATO_VALOR_IV = 2245534.86;
 const CONTRATO_VALOR_181 = 2222831.00;
 const CONTRATO_VALOR_ANEXO_V_181 = 1327474.62; // Aplicação de recursos sob demanda (materiais/equipamentos)
 const ANEXO_V_QTD_CONTRATADA = {"3.1.1":80,"3.1.2":15,"3.1.3":15,"3.1.4":15,"3.1.5":15,"3.1.6":45,"3.1.7":90,"3.1.8":15,"3.1.9":15,"3.1.10":24,"3.1.11":15,"3.1.12":10,"3.1.13":10,"3.2.1":10,"3.2.2":30,"3.2.3":300,"3.2.4":40,"3.2.5":40,"3.2.6":20,"3.3.1":3,"3.3.2":2,"3.4":1000,"3.5.1":18,"3.5.2":35,"3.5.3":15,"3.5.4":12,"3.5.5":15,"3.5.6":15,"3.5.7":12,"3.5.8":12,"3.6.1":9,"3.6.2":2,"3.6.3":2,"3.6.4":700,"3.7.1":120,"3.7.2":120,"3.7.3":80,"3.7.4":80,"3.8.1":80,"3.8.2":150,"3.8.3":30,"3.8.4":12,"3.8.5":10,"3.8.6":10,"3.8.7":2,"3.9.1":2,"3.9.2":2,"3.9.3":2,"3.9.4":2,"3.9.5":6,"3.9.6":6,"3.9.7":4,"3.9.8":8,"3.10":10,"3.11":150};
+const ANEXO_V_VALOR_TOTAL_CONTRATADO = {"3.1.1":11496.13,"3.1.2":3178.94,"3.1.3":11980.91,"3.1.4":6798.5,"3.1.5":1726.62,"3.1.6":33219.41,"3.1.7":7475.53,"3.1.8":1319.85,"3.1.9":2675.56,"3.1.10":1900.67,"3.1.11":5391.01,"3.1.12":1192.06,"3.1.13":5021.14,"3.2.1":6908.66,"3.2.2":40802.36,"3.2.3":35066.61,"3.2.4":6583.44,"3.2.5":7238.76,"3.2.6":3116.06,"3.3.1":8701.58,"3.3.2":9398.99,"3.4":50893.31,"3.5.1":14192.65,"3.5.2":18863.83,"3.5.3":3910.68,"3.5.4":19591.92,"3.5.5":63755.58,"3.5.6":65321.17,"3.5.7":106480.42,"3.5.8":81167.32,"3.6.1":20310.97,"3.6.2":2306.64,"3.6.3":2519.46,"3.6.4":3270.49,"3.7.1":16286.84,"3.7.2":185430.73,"3.7.3":11302.9,"3.7.4":125281.47,"3.8.1":55256.57,"3.8.2":60243.07,"3.8.3":87272.76,"3.8.4":5662.62,"3.8.5":15763.63,"3.8.6":12328.82,"3.8.7":15191.09,"3.9.1":1046.41,"3.9.2":1360.94,"3.9.3":1794.56,"3.9.4":2508.26,"3.9.5":6116.2,"3.9.6":6282.05,"3.9.7":12462.52,"3.9.8":1626.73,"3.10":34989.76,"3.11":5489.46};
 const ANEXO_IV_QTD_CONTRATADA = {"rem":12,"pres":500,"portal":90,"raio":15,"km":120000,"diaria":1200};
 const SLA_CRITERIOS = [{
   id: "comum_col",
@@ -6777,7 +6778,7 @@ function PageMedicao({
       const vu = PRECO_ANEXO_V[cod] || 0;
       const qtdUsada = usoAprovadoVAll[cod] || 0;
       const qtdRestante = qtdContratada - qtdUsada;
-      const valorContratado = qtdContratada * vu, valorUsado = qtdUsada * vu, valorRestante = qtdRestante * vu;
+      const valorContratado = ANEXO_V_VALOR_TOTAL_CONTRATADO[cod] ?? (qtdContratada * vu), valorUsado = qtdUsada * vu, valorRestante = valorContratado - valorUsado;
       totContratadoV += valorContratado; totUsadoV += valorUsado; totRestanteV += valorRestante;
       const linha = [
         cell(cod, styNormal(centro, true)),
@@ -10163,15 +10164,16 @@ function PageControleAtivos() {
   const linhas = codigos.map(cod => {
     const qtdContratada = ANEXO_V_QTD_CONTRATADA[cod] || 0;
     const vu = PRECO_ANEXO_V[cod] || 0;
+    const valorContratadoOficial = ANEXO_V_VALOR_TOTAL_CONTRATADO[cod] ?? (qtdContratada * vu);
     const qtdUsada = usoAprovado[cod] || 0;
     const qtdReservada = usoReservado[cod] || 0;
     const qtdRestante = qtdContratada - qtdUsada - qtdReservada;
     return {
       cod, desc: ANEXO_V_DESC[cod] || "", vu,
-      qtdContratada, valorContratado: qtdContratada * vu,
+      qtdContratada, valorContratado: valorContratadoOficial,
       qtdUsada, valorUsado: qtdUsada * vu,
       qtdReservada, valorReservado: qtdReservada * vu,
-      qtdRestante, valorRestante: qtdRestante * vu
+      qtdRestante, valorRestante: valorContratadoOficial - (qtdUsada * vu) - (qtdReservada * vu)
     };
   });
 
