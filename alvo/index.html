@@ -202,7 +202,7 @@ async function carregarMedicao(){
     const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-19`;
     const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
 
-    let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0;
+    let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, valorKmSomaPorOS=0;
     const pecasDetalhe = [];
     osMes.forEach(o=>{
       const s=(o.servico||o.tipo||"").toLowerCase();
@@ -214,6 +214,7 @@ async function carregarMedicao(){
       let r={}; try{ r=JSON.parse(o.retorno_campo||"{}"); }catch(e){}
       const kmOS = parseFloat(r.km||0)||0;
       totalKm += kmOS;
+      valorKmSomaPorOS += Number((kmOS*ANEXO_IV.find(a=>a.id==="km").vu).toFixed(2));
       const mun=(o.comarca||"").split(" - ")[0];
       const isColar = COLAR_181.has(mun);
       // Recalcula a fração do zero (não usa mais o valor arredondado de 3 casas salvo em retorno_campo) — mesma precisão do sistema principal
@@ -232,11 +233,12 @@ async function carregarMedicao(){
     });
     const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
     // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela) — bate com a soma manual das linhas mostradas, igual ao sistema principal
-    const brutoServicos = ANEXO_IV.reduce((a,it)=>{
+    // Km somado por OS individual (arredondando cada linha antes de somar); Diária usa a fração TOTAL agregada arredondada em 1 casa decimal — igual ao sistema principal
+    const brutoServicos = ANEXO_IV.filter(it=>it.id!=="km"&&it.id!=="diaria").reduce((a,it)=>{
       const q = qtds[it.id]||0;
       const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
       return a + Number((qArred*it.vu).toFixed(2));
-    },0);
+    },0) + Number(valorKmSomaPorOS.toFixed(2)) + Number((Number(totalDiarias.toFixed(1))*ANEXO_IV.find(a=>a.id==="diaria").vu).toFixed(2));
     const bruto = brutoServicos + brutoMateriais;
 
     let linhasAnexo = "";
@@ -244,7 +246,8 @@ async function carregarMedicao(){
       const q = qtds[it.id]||0;
       const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
       const qFmt = Number.isInteger(q) ? q : q.toFixed(2);
-      linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(qArred*it.vu)}</td></tr>`;
+      const subtotalLinha = it.id==="km" ? valorKmSomaPorOS : it.id==="diaria" ? Number(totalDiarias.toFixed(1))*it.vu : qArred*it.vu;
+      linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(subtotalLinha)}</td></tr>`;
     });
 
     let linhasPecas = pecasDetalhe.length ? pecasDetalhe.map(p=>`<tr><td>${p.numero}</td><td>${p.comarca}</td><td>${p.desc}</td><td style="text-align:center">${p.qtd}</td><td style="text-align:right">${fmtR(p.vUnit)}</td><td style="text-align:right;font-weight:700">${fmtR(p.total)}</td></tr>`).join("") : `<tr><td colspan="6" class="muted" style="text-align:center;padding:16px">Nenhuma peça substituída neste mês</td></tr>`;
