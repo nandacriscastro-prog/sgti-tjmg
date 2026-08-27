@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787772490 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787825773 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6720,7 +6720,45 @@ function PageMedicao({
       toast("Medição aprovada, mas houve erro ao atualizar a Nota Fiscal: " + e.message, "erro");
     }
   };
-  const totalMedido = hist.reduce((a, h) => a + h.liq, 0);
+  // Calcula o total medido AO VIVO direto dos dados do banco (mesma lógica do Dashboard) — não depende de já ter clicado "Aprovar Medição"
+  const totalMedido = (() => {
+    const vuRemD = ANEXO_IV.find(a => a.id === "rem").vu;
+    const vuPresD = ANEXO_IV.find(a => a.id === "pres").vu;
+    const vuPortalD = ANEXO_IV.find(a => a.id === "portal").vu;
+    const vuRaioD = ANEXO_IV.find(a => a.id === "raio").vu;
+    const vuKmD = ANEXO_IV.find(a => a.id === "km").vu;
+    const vuDiariaD = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const porPeriodo = {};
+    os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto" && o.status === "Concluída" && o.avaliacao === "satisfatorio").forEach(o => {
+      const dt = new Date((o.data_conclusao || "") + "T12:00");
+      if (isNaN(dt)) return;
+      let anoP = dt.getFullYear(), mesP = dt.getMonth();
+      if (dt.getDate() < 20) { mesP -= 1; if (mesP < 0) { mesP = 11; anoP -= 1; } }
+      const chave = anoP + "-" + mesP;
+      if (!porPeriodo[chave]) porPeriodo[chave] = { qtdAlarme: 0, qtdPortal: 0, qtdRaio: 0, totalDiarias: 0, valorKm: 0, brutoMateriais: 0 };
+      const p = porPeriodo[chave];
+      let r = {};
+      try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+      const s = (o.servico || o.tipo || "").toLowerCase();
+      const isCorrecaoOS = o.tipo === "Correção";
+      const mun = (o.comarca || "").split(" - ")[0];
+      const isColarOS = COLAR_181.has(mun);
+      const kmOS = parseFloat(r.km || 0) || 0;
+      const isRaioServ = s.includes("raio") || s.includes("scanner");
+      const isPortalServ = s.includes("portal") || s.includes("detector");
+      if (isRaioServ) p.qtdRaio++; else if (isPortalServ) p.qtdPortal++; else p.qtdAlarme++;
+      const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
+      const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
+      const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
+      p.totalDiarias += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
+      p.valorKm += Number((kmOS * vuKmD).toFixed(2));
+      p.brutoMateriais += (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((PRECO_ANEXO_V[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
+    });
+    return Object.values(porPeriodo).reduce((total, p) => {
+      const brutoServicos = vuRemD + Number((p.qtdAlarme * vuPresD).toFixed(2)) + Number((p.qtdPortal * vuPortalD).toFixed(2)) + Number((p.qtdRaio * vuRaioD).toFixed(2)) + Number(p.valorKm.toFixed(2)) + Number((Number(p.totalDiarias.toFixed(1)) * vuDiariaD).toFixed(2));
+      return total + brutoServicos + p.brutoMateriais;
+    }, 0);
+  })();
   const saldo = (CONTRATO_VALOR_181||CONTRATO_VALOR_IV) - totalMedido;
   const pct = Math.min(100, totalMedido / (CONTRATO_VALOR_181||CONTRATO_VALOR_IV) * 100);
   const colsMed = [{
