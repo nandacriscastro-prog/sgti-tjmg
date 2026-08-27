@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787838454 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787839170 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -12078,7 +12078,7 @@ function PageDemandasInner({
     className: "kpi-lbl"
   }, k.label)))),
   (() => {
-    const padraoAberturaOS = /abrir\s*os\s*presencial|os\s*rem\s*aberta/i;
+    const padraoAberturaOS = /abrir\s*os\s*presencial/i;
     const pendentesAbertura = DEMANDAS.filter(d => !IGNORAR.has(d.status) && padraoAberturaOS.test(d.comentarios || ""));
     if (!pendentesAbertura.length) return null;
     const classifica = d => {
