@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787931835 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787931994 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6454,6 +6454,15 @@ function PageMedicao({
   };
   const gerarAtestado = (dotacaoFoco) => {
     if (!resultado) return;
+    const brl = v => {
+      v = Number(v) || 0;
+      const neg = v < 0;
+      v = Math.abs(v);
+      const fixed = v.toFixed(2);
+      const partes = fixed.split(".");
+      const comPontos = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return (neg ? "-" : "") + "R$ " + comPontos + "," + partes[1];
+    };
     const vuKmAt = ANEXO_IV.find(a => a.id === "km").vu, vuDiariaAt = ANEXO_IV.find(a => a.id === "diaria").vu;
     const dd = resultado.diariaDetalhe || [];
     const linhasOS = resultado.osMes.map(o => {
