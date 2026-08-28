@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929536 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929896 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6506,59 +6506,81 @@ function PageMedicao({
     const totalGeral = totalD3921 + totalD5113;
     const dataMedicaoStr = new Date().toLocaleDateString("pt-BR");
     const valorFoco = dotacaoFoco === "39.21" ? totalD3921 : totalD5113;
-    const numeroExtenso = ""; // preenchido manualmente pelo fiscal, se necessário
+    if (!window.XLSXStyle) { toast("Biblioteca de estilo ainda não carregou, tente novamente em alguns segundos.", "erro"); return; }
+    const XS = window.XLSXStyle;
+    const fNormal = { name: "Calibri", sz: 10 };
+    const fNegrito = { name: "Calibri", sz: 10, bold: true };
+    const bordaFina = { top: { style: "thin", color: { rgb: "999999" } }, bottom: { style: "thin", color: { rgb: "999999" } }, left: { style: "thin", color: { rgb: "999999" } }, right: { style: "thin", color: { rgb: "999999" } } };
+    const centro = { horizontal: "center", vertical: "center", wrapText: true };
+    const esquerda = { horizontal: "left", vertical: "center", wrapText: true };
+    const direita = { horizontal: "right", vertical: "center" };
+    const cellA = (v, s) => ({ v, s: s || {} });
+    const styTexto = (align, bold) => ({ font: { name: "Calibri", sz: 10, bold: !!bold }, alignment: align || esquerda, border: bordaFina });
+    const styCabecalho = { font: { name: "Calibri", sz: 10, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1F3864" } }, alignment: centro, border: bordaFina };
+    const styTotal = { font: { name: "Calibri", sz: 10, bold: true }, fill: { fgColor: { rgb: "F2F2F2" } }, alignment: direita, border: bordaFina };
+    const styTotalCentro = { font: { name: "Calibri", sz: 10, bold: true }, fill: { fgColor: { rgb: "F2F2F2" } }, alignment: centro, border: bordaFina };
+    const styParagrafo = { font: { name: "Calibri", sz: 11 }, alignment: { horizontal: "left", vertical: "top", wrapText: true } };
+    const styParagrafoNegrito = { font: { name: "Calibri", sz: 11, bold: true }, alignment: { horizontal: "left", vertical: "top", wrapText: true } };
 
-    const linhasHTML = grupos.map(g => g.itens.map((it, idx) => `
-      <tr>
-        ${idx === 0 ? `<td rowspan="${g.itens.length}" style="border:1px solid #999;padding:6px;font-size:11px;">00 - Sem relação direta com iniciativa Estratégica</td>` : ""}
-        ${idx === 0 ? `<td rowspan="${g.itens.length}" style="border:1px solid #999;padding:6px;font-size:11px;">${g.comarca}</td>` : ""}
-        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:center;">${it.numeroPedido || "—"}</td>
-        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:center;">${it.numeroOS}</td>
-        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.dotacao3921)}</td>
-        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.dotacao5113)}</td>
-        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.total)}</td>
-      </tr>`).join("")).join("");
+    const aoa = [];
+    const merges = [];
+    let R = 0;
+    const addRow = row => { aoa.push(row); return R++; };
+    const paragrafo = (texto, negrito) => {
+      addRow([cellA(texto, negrito ? styParagrafoNegrito : styParagrafo), cellA("", {}), cellA("", {}), cellA("", {}), cellA("", {}), cellA("", {}), cellA("", {})]);
+      merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 6 } });
+    };
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Atestado — Dotação ${dotacaoFoco}</title>
-<style>
-  body{font-family:Calibri,Arial,sans-serif;font-size:13px;color:#111;margin:30px;}
-  table{border-collapse:collapse;width:100%;margin-top:14px;}
-  th{background:#1F3864;color:#fff;border:1px solid #999;padding:6px;font-size:11px;text-align:center;}
-  td{vertical-align:middle;}
-  .tot td{font-weight:700;background:#f2f2f2;}
-  p{margin:4px 0;}
-  b{font-weight:700;}
-  @media print{ body{margin:10px;} }
-</style></head><body>
-<p>Atestamos que os serviços/materiais foram prestados/entregues em condições satisfatórias para o serviço público e os valores unitários e totais da planilha de medição conforme abaixo discriminado, se encontram em conformidade com as condições preestabelecidas na contratação. Todos os dados do documento fiscal serão conferidos e aprovados pela GEFIN.</p>
-<p>&nbsp;</p>
-<p><b>Contrato n\u00ba:</b>&nbsp; 181/2026 (SIAD 9518771).</p>
-<p><b>Objeto:</b> Presta\u00e7\u00e3o de servi\u00e7os comuns de engenharia, cont\u00ednuos e especializados de manuten\u00e7\u00e3o e instala\u00e7\u00e3o de sistemas de seguran\u00e7a eletr\u00f4nica, nas edifica\u00e7\u00f5es ocupadas pelo Tribunal de Justi\u00e7a do Estado de Minas Gerais.</p>
-<p><b>Empresa executora:</b> ALVO SEGURAN\u00c7A LTDA.</p>
-<p><b>Refer\u00eancia:</b> ${(hist.length || 0) + 1}\u00aa Medi\u00e7\u00e3o.</p>
-<p><b>Data da medi\u00e7\u00e3o:</b> ${dataMedicaoStr}.</p>
-<p><b>Per\u00edodo:</b> ${resultado.label}.</p>
-<p><b>Valor da Medi\u00e7\u00e3o:</b> ${brl(totalGeral)}.</p>
-<p><b>Valor desta dota\u00e7\u00e3o ${dotacaoFoco}:</b> ${brl(valorFoco)}.</p>
-<p>Conforme art. 117, inciso IV, da IN 2.110/2022, a base de c\u00e1lculo para reten\u00e7\u00e3o do INSS \u00e9 de 50% do valor total da nota fiscal.</p>
-<table>
-  <thead><tr>
-    <th>Iniciativa</th><th>Cidades</th><th>N\u00ba do Pedido</th><th>OS</th><th>Dota\u00e7\u00e3o 39.21</th><th>Dota\u00e7\u00e3o 51.13</th><th>Total (R$)</th>
-  </tr></thead>
-  <tbody>
-    ${linhasHTML}
-    <tr class="tot"><td colspan="4" style="border:1px solid #999;padding:6px;text-align:center;">TOTAL</td>
-      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalD3921)}</td>
-      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalD5113)}</td>
-      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalGeral)}</td>
-    </tr>
-  </tbody>
-</table>
-</body></html>`;
+    paragrafo("Atestamos que os serviços/materiais foram prestados/entregues em condições satisfatórias para o serviço público e os valores unitários e totais da planilha de medição conforme abaixo discriminado, se encontram em conformidade com as condições preestabelecidas na contratação. Todos os dados do documento fiscal serão conferidos e aprovados pela GEFIN.");
+    addRow(new Array(7).fill(cellA("", {})));
+    paragrafo("Contrato nº: 181/2026 (SIAD 9518771).", true);
+    paragrafo("Objeto: Prestação de serviços comuns de engenharia, contínuos e especializados de manutenção e instalação de sistemas de segurança eletrônica, nas edificações ocupadas pelo Tribunal de Justiça do Estado de Minas Gerais.");
+    paragrafo("Empresa executora: ALVO SEGURANÇA LTDA.", true);
+    paragrafo("Referência: " + ((hist.length || 0) + 1) + "ª Medição.", true);
+    paragrafo("Data da medição: " + dataMedicaoStr + ".", true);
+    paragrafo("Período: " + resultado.label + ".", true);
+    paragrafo("Valor da Medição: " + brl(totalGeral) + ".", true);
+    paragrafo("Valor desta dotação " + dotacaoFoco + ": " + brl(valorFoco) + ".", true);
+    paragrafo("Conforme art. 117, inciso IV, da IN 2.110/2022, a base de cálculo para retenção do INSS é de 50% do valor total da nota fiscal.");
+    addRow(new Array(7).fill(cellA("", {})));
 
-    const w = window.open("", "_blank");
-    w.document.write(html);
-    w.document.close();
+    addRow(["Iniciativa", "Cidades", "Nº do Pedido", "OS", "Dotação 39.21", "Dotação 51.13", "Total (R$)"].map(h => cellA(h, styCabecalho)));
+
+    grupos.forEach(g => {
+      g.itens.forEach((it, idx) => {
+        const linha = [
+          idx === 0 ? cellA("00 - Sem relação direta com iniciativa Estratégica", styTexto(esquerda)) : cellA("", styTexto()),
+          idx === 0 ? cellA(g.comarca, styTexto(esquerda)) : cellA("", styTexto()),
+          cellA(it.numeroPedido || "—", styTexto(centro)),
+          cellA(it.numeroOS, styTexto(centro)),
+          cellA(brl(it.dotacao3921), styTexto(direita)),
+          cellA(brl(it.dotacao5113), styTexto(direita)),
+          cellA(brl(it.total), styTexto(direita, true))
+        ];
+        addRow(linha);
+      });
+      if (g.itens.length > 1) {
+        merges.push({ s: { r: R - g.itens.length, c: 0 }, e: { r: R - 1, c: 0 } });
+        merges.push({ s: { r: R - g.itens.length, c: 1 }, e: { r: R - 1, c: 1 } });
+      }
+    });
+
+    {
+      const linha = [
+        cellA("TOTAL", styTotalCentro), cellA("", styTotal), cellA("", styTotal), cellA("", styTotal),
+        cellA(brl(totalD3921), styTotal), cellA(brl(totalD5113), styTotal), cellA(brl(totalGeral), styTotal)
+      ];
+      addRow(linha);
+      merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
+    }
+
+    const ws = XS.utils.aoa_to_sheet(aoa);
+    ws["!merges"] = merges;
+    ws["!cols"] = [{ wch: 34 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    const wb = XS.utils.book_new();
+    XS.utils.book_append_sheet(wb, ws, "Atestado " + dotacaoFoco);
+    XS.writeFile(wb, `Atestado_Dotacao_${dotacaoFoco}_${resultado.label.replace(/[\/\s]/g, "_")}.xlsx`);
+    toast("✓ Atestado gerado!", "ok");
   };
 
   const gerarPlanilhaSEI = async () => {
