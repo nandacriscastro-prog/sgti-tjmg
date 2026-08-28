@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929896 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787931055 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6469,6 +6469,7 @@ function PageMedicao({
       const valorDeslocOS = Number((kmOS * vuKmAt).toFixed(2));
       const valorDiariaOS = Number(((item ? item.fracaoTotal : 0) * vuDiariaAt).toFixed(2));
       return {
+        comarcaCompleta: o.comarca || "",
         comarca: (o.comarca || "").split(" - ")[0],
         numeroPedido: o.numero_pedido || "",
         numeroOS: (o.numero || "").replace(/^181-/, ""),
@@ -6494,11 +6495,22 @@ function PageMedicao({
       l.dotacao5113 = l.materiaisOS;
       l.total = l.dotacao3921 + l.dotacao5113;
     });
-    // Agrupa por comarca (mantendo a ordem de aparição)
+    // Atendimento Remoto entra como Recurso sob Demanda (Dotação 51.13), sempre agrupado em Belo Horizonte
+    const vuRemAt = ANEXO_IV.find(a => a.id === "rem").vu;
+    linhasOS.push({
+      comarcaCompleta: "Belo Horizonte — Atendimento Remoto",
+      comarca: "Belo Horizonte",
+      numeroPedido: "",
+      numeroOS: "REMOTO",
+      dotacao3921: 0,
+      dotacao5113: vuRemAt,
+      total: vuRemAt
+    });
+    // Agrupa por comarca COMPLETA (cidade + edificação) — comarcas diferentes na mesma cidade (ex: Ipatinga - Fórum x Ipatinga - JESP) não são unificadas
     const grupos = [];
     linhasOS.forEach(l => {
-      let g = grupos.find(x => x.comarca === l.comarca);
-      if (!g) { g = { comarca: l.comarca, itens: [] }; grupos.push(g); }
+      let g = grupos.find(x => x.comarcaCompleta === l.comarcaCompleta);
+      if (!g) { g = { comarcaCompleta: l.comarcaCompleta, comarca: l.comarca, itens: [] }; grupos.push(g); }
       g.itens.push(l);
     });
     const totalD3921 = linhasOS.reduce((a, l) => a + l.dotacao3921, 0);
@@ -7609,13 +7621,16 @@ function PageMedicao({
   }, "\u2713 Aprovar e registrar"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: gerarPlanilhaSEI
-  }, "📄 Gerar Planilha SEI"), /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    onClick: () => gerarAtestado("39.21")
-  }, "📝 Atestado Dotação 39.21"), /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    onClick: () => gerarAtestado("51.13")
-  }, "📝 Atestado Dotação 51.13"), /*#__PURE__*/React.createElement("button", {
+  }, "📄 Gerar Planilha SEI"), getSession()?.fiscal?.email === "fernanda.leao@tjmg.jus.br" && /*#__PURE__*/React.createElement(React.Fragment, null,
+    React.createElement("button", {
+      className: "btn",
+      onClick: () => gerarAtestado("39.21")
+    }, "📝 Atestado Dotação 39.21"),
+    React.createElement("button", {
+      className: "btn",
+      onClick: () => gerarAtestado("51.13")
+    }, "📝 Atestado Dotação 51.13")
+  ), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => {
       const brlExp = v => {
