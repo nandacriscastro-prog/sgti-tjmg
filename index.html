@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787917741 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787917888 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6588,12 +6588,12 @@ function PageMedicao({
     merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 10 } });
     for (let c = 1; c <= 10; c++) aoa[R - 1][c] = cell("", styNavy(true));
 
-    const headersGlobal = ["Nº OS", "Comarca", "Edificação", "Tipo de atendimento", "Vlr. atendimento (R$)", "Recursos sob demanda (R$)", "Deslocamento (R$)", "Diária (R$)", "Total por OS (R$)", "", ""];
+    const headersGlobal = ["Nº OS", "Comarca", "Edificação", "Tipo de atendimento", "Dotação 39.21", "Dotação 51.13", "Vlr. atendimento (R$)", "Recursos sob demanda (R$)", "Deslocamento (R$)", "Diária (R$)", "Total por OS (R$)"];
     addRow(headersGlobal.map(h => cell(h, styNavy(true))));
-    merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
 
-    let totAtend = 0, totRSD = 0, totDesloc = 0, totDiariaVal = 0, totGeralOS = 0;
+    let totAtend = 0, totRSD = 0, totDesloc = 0, totDiariaVal = 0, totGeralOS = 0, totDotacao3921 = 0, totDotacao5113 = 0;
     const vuKm = ANEXO_IV.find(a => a.id === "km").vu, vuDiaria = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const vuRemGlobal = ANEXO_IV.find(a => a.id === "rem").vu;
     // Monta os dados de cada OS primeiro (sem desenhar ainda), pra poder ajustar a diária da última linha
     // e garantir que a SOMA das linhas feche exatamente com o valor autoritativo (mesmo usado no total e na aba de Serviços)
     const linhasOSDados = resultado.osMes.map(o => {
@@ -6626,33 +6626,54 @@ function PageMedicao({
     }
 
     linhasOSDados.forEach(({ o, comarcaNome, edificacao, vuAtend, materiaisOS, valorDeslocOS, valorDiariaOS }) => {
-      const totalOS = vuAtend + materiaisOS + valorDeslocOS + valorDiariaOS;
+      const dotacao3921 = vuAtend + valorDeslocOS + valorDiariaOS;
+      const dotacao5113 = materiaisOS;
+      const totalOS = dotacao3921 + dotacao5113;
       totAtend += vuAtend; totRSD += materiaisOS; totDesloc += valorDeslocOS; totDiariaVal += valorDiariaOS; totGeralOS += totalOS;
+      totDotacao3921 += dotacao3921; totDotacao5113 += dotacao5113;
       addRow([
         cell(o.numero, styNormal(centro)),
         cell(comarcaNome, styNormal(esquerda)),
         cell(edificacao, styNormal(esquerda)),
         cell(o.servico || o.tipo || "", styNormal(esquerda)),
+        cell(brl(dotacao3921), styMoeda()),
+        cell(brl(dotacao5113), styMoeda()),
         cell(brl(vuAtend), styMoeda()),
         cell(brl(materiaisOS), styMoeda()),
         cell(brl(valorDeslocOS), styMoeda()),
         cell(brl(valorDiariaOS), styMoeda()),
-        cell(brl(totalOS), styMoeda(true)),
-        cell("", styNormal()), cell("", styNormal())
+        cell(brl(totalOS), styMoeda(true))
       ]);
-      merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
     });
+    // Linha do Atendimento Remoto (fixo mensal, sem OS própria — cobrado uma vez por período)
+    {
+      totAtend += vuRemGlobal; totGeralOS += vuRemGlobal; totDotacao3921 += vuRemGlobal;
+      addRow([
+        cell("181-REMOTO", styNormal(centro)),
+        cell("Belo Horizonte", styNormal(esquerda)),
+        cell("—", styNormal(esquerda)),
+        cell("Atendimento Remoto", styNormal(esquerda)),
+        cell(brl(vuRemGlobal), styMoeda()),
+        cell(brl(0), styMoeda()),
+        cell(brl(vuRemGlobal), styMoeda()),
+        cell(brl(0), styMoeda()),
+        cell(brl(0), styMoeda()),
+        cell(brl(0), styMoeda()),
+        cell(brl(vuRemGlobal), styMoeda(true))
+      ]);
+    }
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[0] = cell("TOTAL", styCinza(true));
-      linha[4] = cell(brl(totAtend), styCinzaMoeda(true));
-      linha[5] = cell(brl(totRSD), styCinzaMoeda(true));
-      linha[6] = cell(brl(totDesloc), styCinzaMoeda(true));
-      linha[7] = cell(brl(totDiariaVal), styCinzaMoeda(true));
-      linha[8] = cell(brl(totGeralOS), styCinzaMoeda(true));
+      linha[4] = cell(brl(totDotacao3921), styCinzaMoeda(true));
+      linha[5] = cell(brl(totDotacao5113), styCinzaMoeda(true));
+      linha[6] = cell(brl(totAtend), styCinzaMoeda(true));
+      linha[7] = cell(brl(totRSD), styCinzaMoeda(true));
+      linha[8] = cell(brl(totDesloc), styCinzaMoeda(true));
+      linha[9] = cell(brl(totDiariaVal), styCinzaMoeda(true));
+      linha[10] = cell(brl(totGeralOS), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
-      merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
     }
     addRow(new Array(11).fill(cell("", { border: undefined })));
     addRow(new Array(11).fill(cell("", { border: undefined })));
