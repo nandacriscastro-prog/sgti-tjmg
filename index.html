@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787857054 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787917741 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6594,7 +6594,9 @@ function PageMedicao({
 
     let totAtend = 0, totRSD = 0, totDesloc = 0, totDiariaVal = 0, totGeralOS = 0;
     const vuKm = ANEXO_IV.find(a => a.id === "km").vu, vuDiaria = ANEXO_IV.find(a => a.id === "diaria").vu;
-    resultado.osMes.forEach(o => {
+    // Monta os dados de cada OS primeiro (sem desenhar ainda), pra poder ajustar a diária da última linha
+    // e garantir que a SOMA das linhas feche exatamente com o valor autoritativo (mesmo usado no total e na aba de Serviços)
+    const linhasOSDados = resultado.osMes.map(o => {
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
@@ -6604,12 +6606,28 @@ function PageMedicao({
       const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
-      const valorDeslocOS = kmOS * vuKm;
-      const valorDiariaOS = (dd ? dd.fracaoTotal : 0) * vuDiaria;
-      const totalOS = vuAtend + materiaisOS + valorDeslocOS + valorDiariaOS;
-      totAtend += vuAtend; totRSD += materiaisOS; totDesloc += valorDeslocOS; totDiariaVal += valorDiariaOS; totGeralOS += totalOS;
+      const valorDeslocOS = Number((kmOS * vuKm).toFixed(2));
+      const valorDiariaOS = Number(((dd ? dd.fracaoTotal : 0) * vuDiaria).toFixed(2));
       const edificacao = (o.comarca || "").includes(" - ") ? o.comarca.split(" - ").slice(1).join(" - ") : "Fórum";
       const comarcaNome = (o.comarca || "").split(" - ")[0];
+      return { o, comarcaNome, edificacao, vuAtend, materiaisOS, valorDeslocOS, valorDiariaOS };
+    });
+    // Reconcilia a coluna Diária: a soma das linhas tem que bater exatamente com valorDiariaAutoritativo (usado na Dotação 39.21/Total)
+    const somaDiariaLinhas = linhasOSDados.reduce((a, l) => a + l.valorDiariaOS, 0);
+    const ajusteDiaria = Number((valorDiariaAutoritativo - somaDiariaLinhas).toFixed(2));
+    if (linhasOSDados.length && ajusteDiaria !== 0) {
+      linhasOSDados[linhasOSDados.length - 1].valorDiariaOS = Number((linhasOSDados[linhasOSDados.length - 1].valorDiariaOS + ajusteDiaria).toFixed(2));
+    }
+    // Reconcilia a coluna Deslocamento da mesma forma, por segurança (normalmente já bate, mas evita qualquer resíduo de centavo)
+    const somaDeslocLinhas = linhasOSDados.reduce((a, l) => a + l.valorDeslocOS, 0);
+    const ajusteDesloc = Number((valorKmAutoritativo - somaDeslocLinhas).toFixed(2));
+    if (linhasOSDados.length && ajusteDesloc !== 0) {
+      linhasOSDados[linhasOSDados.length - 1].valorDeslocOS = Number((linhasOSDados[linhasOSDados.length - 1].valorDeslocOS + ajusteDesloc).toFixed(2));
+    }
+
+    linhasOSDados.forEach(({ o, comarcaNome, edificacao, vuAtend, materiaisOS, valorDeslocOS, valorDiariaOS }) => {
+      const totalOS = vuAtend + materiaisOS + valorDeslocOS + valorDiariaOS;
+      totAtend += vuAtend; totRSD += materiaisOS; totDesloc += valorDeslocOS; totDiariaVal += valorDiariaOS; totGeralOS += totalOS;
       addRow([
         cell(o.numero, styNormal(centro)),
         cell(comarcaNome, styNormal(esquerda)),
@@ -6629,9 +6647,9 @@ function PageMedicao({
       linha[0] = cell("TOTAL", styCinza(true));
       linha[4] = cell(brl(totAtend), styCinzaMoeda(true));
       linha[5] = cell(brl(totRSD), styCinzaMoeda(true));
-      linha[6] = cell(brl(valorKmAutoritativo), styCinzaMoeda(true));
-      linha[7] = cell(brl(valorDiariaAutoritativo), styCinzaMoeda(true));
-      linha[8] = cell(brl((totAtend + totRSD + valorKmAutoritativo + valorDiariaAutoritativo)), styCinzaMoeda(true));
+      linha[6] = cell(brl(totDesloc), styCinzaMoeda(true));
+      linha[7] = cell(brl(totDiariaVal), styCinzaMoeda(true));
+      linha[8] = cell(brl(totGeralOS), styCinzaMoeda(true));
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 0 }, e: { r: R - 1, c: 3 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 10 } });
