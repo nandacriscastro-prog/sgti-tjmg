@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929313 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929536 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6313,7 +6313,7 @@ function PageMedicao({
     const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
     const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
     try {
-      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes&limit=500`)) || [];
+      const osMes = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes,numero_pedido&limit=500`)) || [];
       let qtdAlarme = 0,
         qtdPortal = 0,
         qtdRaio = 0,
@@ -6452,6 +6452,115 @@ function PageMedicao({
       toast("Erro ao buscar OS: " + e.message, "error");
     }
   };
+  const gerarAtestado = (dotacaoFoco) => {
+    if (!resultado) return;
+    const vuKmAt = ANEXO_IV.find(a => a.id === "km").vu, vuDiariaAt = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const dd = resultado.diariaDetalhe || [];
+    const linhasOS = resultado.osMes.map(o => {
+      let r = {};
+      try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+      const s = (o.servico || o.tipo || "").toLowerCase();
+      const isRaio = s.includes("raio") || s.includes("scanner");
+      const isPortal = s.includes("portal") || s.includes("detector");
+      const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
+      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      const kmOS = parseFloat(r.km || 0) || 0;
+      const item = dd.find(d => d.numero === o.numero);
+      const valorDeslocOS = Number((kmOS * vuKmAt).toFixed(2));
+      const valorDiariaOS = Number(((item ? item.fracaoTotal : 0) * vuDiariaAt).toFixed(2));
+      return {
+        comarca: (o.comarca || "").split(" - ")[0],
+        numeroPedido: o.numero_pedido || "",
+        numeroOS: (o.numero || "").replace(/^181-/, ""),
+        vuAtend, valorDeslocOS, valorDiariaOS, materiaisOS
+      };
+    });
+    // Reconcilia diária/deslocamento igual à Planilha SEI: a soma das linhas tem que bater exatamente com o valor autoritativo
+    // (fração agregada arredondada em 1 casa p/ diária; soma por OS p/ km) — absorve a diferença de centavos na última linha
+    const valorDiariaAutoritativoAt = Number(resultado.totalDiarias.toFixed(1)) * vuDiariaAt;
+    const somaDiariaAt = linhasOS.reduce((a, l) => a + l.valorDiariaOS, 0);
+    const ajusteDiariaAt = Number((valorDiariaAutoritativoAt - somaDiariaAt).toFixed(2));
+    if (linhasOS.length && ajusteDiariaAt !== 0) {
+      linhasOS[linhasOS.length - 1].valorDiariaOS = Number((linhasOS[linhasOS.length - 1].valorDiariaOS + ajusteDiariaAt).toFixed(2));
+    }
+    const valorKmAutoritativoAt = (dd || []).reduce((a, d) => a + Number((d.kmOS * vuKmAt).toFixed(2)), 0);
+    const somaDeslocAt = linhasOS.reduce((a, l) => a + l.valorDeslocOS, 0);
+    const ajusteDeslocAt = Number((valorKmAutoritativoAt - somaDeslocAt).toFixed(2));
+    if (linhasOS.length && ajusteDeslocAt !== 0) {
+      linhasOS[linhasOS.length - 1].valorDeslocOS = Number((linhasOS[linhasOS.length - 1].valorDeslocOS + ajusteDeslocAt).toFixed(2));
+    }
+    linhasOS.forEach(l => {
+      l.dotacao3921 = l.vuAtend + l.valorDeslocOS + l.valorDiariaOS;
+      l.dotacao5113 = l.materiaisOS;
+      l.total = l.dotacao3921 + l.dotacao5113;
+    });
+    // Agrupa por comarca (mantendo a ordem de aparição)
+    const grupos = [];
+    linhasOS.forEach(l => {
+      let g = grupos.find(x => x.comarca === l.comarca);
+      if (!g) { g = { comarca: l.comarca, itens: [] }; grupos.push(g); }
+      g.itens.push(l);
+    });
+    const totalD3921 = linhasOS.reduce((a, l) => a + l.dotacao3921, 0);
+    const totalD5113 = linhasOS.reduce((a, l) => a + l.dotacao5113, 0);
+    const totalGeral = totalD3921 + totalD5113;
+    const dataMedicaoStr = new Date().toLocaleDateString("pt-BR");
+    const valorFoco = dotacaoFoco === "39.21" ? totalD3921 : totalD5113;
+    const numeroExtenso = ""; // preenchido manualmente pelo fiscal, se necessário
+
+    const linhasHTML = grupos.map(g => g.itens.map((it, idx) => `
+      <tr>
+        ${idx === 0 ? `<td rowspan="${g.itens.length}" style="border:1px solid #999;padding:6px;font-size:11px;">00 - Sem relação direta com iniciativa Estratégica</td>` : ""}
+        ${idx === 0 ? `<td rowspan="${g.itens.length}" style="border:1px solid #999;padding:6px;font-size:11px;">${g.comarca}</td>` : ""}
+        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:center;">${it.numeroPedido || "—"}</td>
+        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:center;">${it.numeroOS}</td>
+        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.dotacao3921)}</td>
+        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.dotacao5113)}</td>
+        <td style="border:1px solid #999;padding:6px;font-size:11px;text-align:right;">${brl(it.total)}</td>
+      </tr>`).join("")).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Atestado — Dotação ${dotacaoFoco}</title>
+<style>
+  body{font-family:Calibri,Arial,sans-serif;font-size:13px;color:#111;margin:30px;}
+  table{border-collapse:collapse;width:100%;margin-top:14px;}
+  th{background:#1F3864;color:#fff;border:1px solid #999;padding:6px;font-size:11px;text-align:center;}
+  td{vertical-align:middle;}
+  .tot td{font-weight:700;background:#f2f2f2;}
+  p{margin:4px 0;}
+  b{font-weight:700;}
+  @media print{ body{margin:10px;} }
+</style></head><body>
+<p>Atestamos que os serviços/materiais foram prestados/entregues em condições satisfatórias para o serviço público e os valores unitários e totais da planilha de medição conforme abaixo discriminado, se encontram em conformidade com as condições preestabelecidas na contratação. Todos os dados do documento fiscal serão conferidos e aprovados pela GEFIN.</p>
+<p>&nbsp;</p>
+<p><b>Contrato n\u00ba:</b>&nbsp; 181/2026 (SIAD 9518771).</p>
+<p><b>Objeto:</b> Presta\u00e7\u00e3o de servi\u00e7os comuns de engenharia, cont\u00ednuos e especializados de manuten\u00e7\u00e3o e instala\u00e7\u00e3o de sistemas de seguran\u00e7a eletr\u00f4nica, nas edifica\u00e7\u00f5es ocupadas pelo Tribunal de Justi\u00e7a do Estado de Minas Gerais.</p>
+<p><b>Empresa executora:</b> ALVO SEGURAN\u00c7A LTDA.</p>
+<p><b>Refer\u00eancia:</b> ${(hist.length || 0) + 1}\u00aa Medi\u00e7\u00e3o.</p>
+<p><b>Data da medi\u00e7\u00e3o:</b> ${dataMedicaoStr}.</p>
+<p><b>Per\u00edodo:</b> ${resultado.label}.</p>
+<p><b>Valor da Medi\u00e7\u00e3o:</b> ${brl(totalGeral)}.</p>
+<p><b>Valor desta dota\u00e7\u00e3o ${dotacaoFoco}:</b> ${brl(valorFoco)}.</p>
+<p>Conforme art. 117, inciso IV, da IN 2.110/2022, a base de c\u00e1lculo para reten\u00e7\u00e3o do INSS \u00e9 de 50% do valor total da nota fiscal.</p>
+<table>
+  <thead><tr>
+    <th>Iniciativa</th><th>Cidades</th><th>N\u00ba do Pedido</th><th>OS</th><th>Dota\u00e7\u00e3o 39.21</th><th>Dota\u00e7\u00e3o 51.13</th><th>Total (R$)</th>
+  </tr></thead>
+  <tbody>
+    ${linhasHTML}
+    <tr class="tot"><td colspan="4" style="border:1px solid #999;padding:6px;text-align:center;">TOTAL</td>
+      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalD3921)}</td>
+      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalD5113)}</td>
+      <td style="border:1px solid #999;padding:6px;text-align:right;">${brl(totalGeral)}</td>
+    </tr>
+  </tbody>
+</table>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    w.document.write(html);
+    w.document.close();
+  };
+
   const gerarPlanilhaSEI = async () => {
     if (!resultado) return;
     if (!window.XLSXStyle) { toast("Biblioteca de estilo ainda não carregou, tente novamente em alguns segundos.", "erro"); return; }
@@ -7479,6 +7588,12 @@ function PageMedicao({
     className: "btn",
     onClick: gerarPlanilhaSEI
   }, "📄 Gerar Planilha SEI"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => gerarAtestado("39.21")
+  }, "📝 Atestado Dotação 39.21"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => gerarAtestado("51.13")
+  }, "📝 Atestado Dotação 51.13"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: () => {
       const brlExp = v => {
