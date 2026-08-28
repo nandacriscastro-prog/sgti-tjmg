@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787932646 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787938189 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -11838,7 +11838,16 @@ async function loadUsuariosDinamicos() {
     (rows || []).forEach(r => {
       const emailNorm = (r.email || "").toLowerCase().trim();
       if (!emailNorm) return;
-      if (FISCAIS.some(f => f.email === emailNorm)) return; // já existe (evita duplicar)
+      const fiscalExistente = FISCAIS.find(f => f.email === emailNorm);
+      const usuarioExistente = USUARIOS.find(u => u.user === emailNorm);
+      if (fiscalExistente && usuarioExistente) {
+        // Já existe (fiscal fixo no código) — mas atualiza a senha/nome/matrícula com o que foi editado na tela de Usuários,
+        // senão a edição feita lá nunca teria efeito no login de verdade
+        usuarioExistente.senha = r.senha;
+        usuarioExistente.nome = r.nome || usuarioExistente.nome;
+        if (r.matricula) fiscalExistente.matricula = r.matricula;
+        return;
+      }
       const novoId = 1000 + r.id;
       const novoFiscal = {
         id: novoId,
