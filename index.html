@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787917888 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787929313 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3054,6 +3054,7 @@ function PageNovaOS({
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [arquivoUrl, setArquivoUrl] = useState("");
   const [obs, setObs] = useState(_prefill?.obs || "");
+  const [numeroPedido, setNumeroPedido] = useState("");
   const toggleSistema = s => setSistemas(sistemas.includes(s) ? sistemas.filter(x => x !== s) : [...sistemas, s]);
   const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
   const [prazo, setPrazo] = useState("");
@@ -3259,7 +3260,8 @@ function PageNovaOS({
           status: "Aberta",
           criado_por: fiscalSel.email,
           criado_em: new Date().toISOString(),
-          email_enviado: false
+          email_enviado: false,
+          numero_pedido: numeroPedido || null
         };
         try {
           await sbFetch("/ordens_servico", {
@@ -3584,6 +3586,13 @@ function PageNovaOS({
     key: f.id,
     value: String(f.id)
   }, f.nome, " \u2014 TJ ", f.matricula)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", null, "N\xFAmero do Pedido (SEI/atestado, opcional)"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: numeroPedido,
+    onChange: e => setNumeroPedido(e.target.value),
+    placeholder: "Ex: 468"
+  })), /*#__PURE__*/React.createElement("div", {
     className: "fg full"
   }, /*#__PURE__*/React.createElement("label", null, "Observa\xE7\xF5es"), /*#__PURE__*/React.createElement("textarea", {
     value: obs,
@@ -3757,6 +3766,25 @@ function PageHistorico({
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState(null);
   const [editandoExecucao, setEditandoExecucao] = useState(false);
+  const [editandoPedido, setEditandoPedido] = useState(false);
+  const [novoPedido, setNovoPedido] = useState("");
+  const [salvandoPedido, setSalvandoPedido] = useState(false);
+  const salvarNumeroPedido = async (osSel) => {
+    setSalvandoPedido(true);
+    try {
+      await sbFetch(`/ordens_servico?id=eq.${osSel.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ numero_pedido: novoPedido || null })
+      });
+      osSel.numero_pedido = novoPedido || null;
+      setEditandoPedido(false);
+      if (typeof reload === "function") reload();
+    } catch (e) {
+      toast("Erro ao salvar Nº do Pedido: " + e.message, "erro");
+    } finally {
+      setSalvandoPedido(false);
+    }
+  };
   const [execForm, setExecForm] = useState(null);
   const [editandoAvaliacao, setEditandoAvaliacao] = useState(false);
   const [salvandoHist, setSalvandoHist] = useState(false);
@@ -4413,13 +4441,21 @@ function PageHistorico({
         )
       );
     }
-    return /*#__PURE__*/React.createElement("div", {
-      style: {
-        borderTop: "1px solid var(--border)",
-        paddingTop: 14,
-        marginTop: 4
-      }
-    }, /*#__PURE__*/React.createElement("div", {
+    return /*#__PURE__*/React.createElement("div", { style: { borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 4 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, background: "var(--surface)", padding: "8px 12px", borderRadius: 8 } },
+        editandoPedido
+          ? React.createElement(React.Fragment, null,
+              React.createElement("label", { style: { fontSize: 12, fontWeight: 700 } }, "Nº do Pedido:"),
+              React.createElement("input", { type: "text", value: novoPedido, onChange: e => setNovoPedido(e.target.value), style: { width: 120 }, placeholder: "Ex: 468" }),
+              React.createElement("button", { className: "btn btn-sm btn-primary", disabled: salvandoPedido, onClick: () => salvarNumeroPedido(sel) }, salvandoPedido ? "Salvando..." : "Salvar"),
+              React.createElement("button", { className: "btn btn-sm", onClick: () => setEditandoPedido(false) }, "Cancelar")
+            )
+          : React.createElement(React.Fragment, null,
+              React.createElement("span", { style: { fontSize: 12 } }, "Nº do Pedido: ", React.createElement("strong", null, sel.numero_pedido || "— não informado")),
+              React.createElement("button", { className: "btn btn-sm", onClick: () => { setNovoPedido(sel.numero_pedido || ""); setEditandoPedido(true); } }, "✎ Editar")
+            )
+      ),
+      /*#__PURE__*/React.createElement("div", {
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }
     },
       /*#__PURE__*/React.createElement("div", {
