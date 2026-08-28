@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787931994 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787932646 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1013,7 +1013,7 @@ function Sidebar({
     className: "sb-brand-sub"
   }, "GEASI / COTESI"))), /*#__PURE__*/React.createElement("div", {
     className: "sb-scroll"
-  }, NAV.map(item => /*#__PURE__*/React.createElement(React.Fragment, {
+  }, NAV.filter(item => (item.id !== "usuarios" && item.id !== "tecnicos") || getSession()?.fiscal?.email === "fernanda.leao@tjmg.jus.br").map(item => /*#__PURE__*/React.createElement(React.Fragment, {
     key: item.id
   }, item.sec && /*#__PURE__*/React.createElement("div", {
     className: "sb-sec"
@@ -9324,6 +9324,14 @@ function PageUsuarios() {
     }
   };
 
+  if (getSession()?.fiscal?.email !== "fernanda.leao@tjmg.jus.br") {
+    return React.createElement("div", { className: "card", style: { maxWidth: 480, margin: "40px auto", textAlign: "center" } },
+      React.createElement("div", { style: { fontSize: 32, marginBottom: 10 } }, "🔒"),
+      React.createElement("div", { className: "card-title" }, "Acesso restrito"),
+      React.createElement("div", { style: { color: "var(--text3)", fontSize: 13 } }, "Essa área só está disponível para o administrador do sistema.")
+    );
+  }
+
   return React.createElement("div", null,
     React.createElement("div", { className: "ph-row" },
       React.createElement("div", null,
@@ -9778,6 +9786,13 @@ function PageTecnicos() {
 
   // Assinaturas dos fiscais
   const assinatura = f => `${f.nome}\nMatrícula: ${f.matricula}\nE-mail: ${f.email || "—"}\nEquipe: ${f.equipe} — ${f.setor}`;
+  if (getSession()?.fiscal?.email !== "fernanda.leao@tjmg.jus.br") {
+    return React.createElement("div", { className: "card", style: { maxWidth: 480, margin: "40px auto", textAlign: "center" } },
+      React.createElement("div", { style: { fontSize: 32, marginBottom: 10 } }, "🔒"),
+      React.createElement("div", { className: "card-title" }, "Acesso restrito"),
+      React.createElement("div", { style: { color: "var(--text3)", fontSize: 13 } }, "Essa área só está disponível para o administrador do sistema.")
+    );
+  }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
