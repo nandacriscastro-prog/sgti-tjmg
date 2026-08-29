@@ -470,7 +470,9 @@ function atualizarDadosPortal() {
   if (desc.length > 5) {
     const palavras = desc.split(/\s+/).filter(w => w.length > 3);
     const similares = CHAMADOS.filter(c => {
-      if (c.portal_id !== portal.id) return false;
+      // Sem coluna portal_id na tabela; chave é comarca + edificacao
+      if ((c.comarca || "").toLowerCase() !== (portal.comarca || "").toLowerCase()) return false;
+      if ((c.edificacao || "").toLowerCase() !== (portal.edificacao || "").toLowerCase()) return false;
       if (c.status === "Cancelado") return false;
       const cd = (c.descricao || "").toLowerCase();
       return palavras.some(w => cd.includes(w));
@@ -694,7 +696,11 @@ function abrirImprimir(registro, portal) {
 function abrirImprimirChamado(id) {
   const c = CHAMADOS.find(x => x.id === id);
   if (!c) return;
-  const portal = PORTAIS.find(p => p.id === c.portal_id) || {};
+  // Sem coluna portal_id na tabela; casar por comarca + edificacao
+  const portal = PORTAIS.find(p =>
+    (p.comarca || "").toLowerCase() === (c.comarca || "").toLowerCase() &&
+    (p.edificacao || "").toLowerCase() === (c.edificacao || "").toLowerCase()
+  ) || {};
   abrirImprimir(c, portal);
 }
 
