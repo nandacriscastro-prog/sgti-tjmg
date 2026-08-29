@@ -524,15 +524,10 @@ async function abrirChamado(ev) {
         status: "Aberto",
         descricao,
         observacoes: obs || null,
-        portal_id: portalId,
-        contrato: portal.contrato || "225/2026",
         criado_por: sess ? (sess.nome + " <" + sess.usuario + ">") : null
       })
     });
     if (registros && registros[0]) {
-      const id = registros[0].id;
-      // Tenta atualizar com numero e portal_id (se coluna existir) — não falha se não tiver
-      try { await sbFetch("/chamados_portal?id=eq." + id, { method: "PATCH", body: JSON.stringify({ portal_id: portalId, contrato: portal.contrato || "225/2026" }) }); } catch (e) {}
       toast("✓ Chamado " + numero + " aberto", "ok");
       document.getElementById("fNumeroPrev").value = numero;
       limparForm();
