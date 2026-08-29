@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chamados de Garantia — Portais Magnetec | TJMG/GEASI</title>
+<style>
+  :root{
+    --navy:#0f1f3d;--navy2:#16305c;--accent:#2563eb;--bg:#f4f6fb;--border:#dde3ee;
+    --text:#1a2233;--text3:#6b7686;--green:#1b8a5a;--red:#c0392b;--amber:#b8860b;
+    --shadow:0 2px 12px rgba(15,31,61,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:var(--shadow)}
+  header .brand{font-weight:700;font-size:16px}
+  header .brand small{display:block;font-weight:400;font-size:11px;color:#b9c4dd;margin-top:2px}
+  header button{background:transparent;border:1px solid #fff;color:#fff;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600}
+  header button:hover{background:rgba(255,255,255,.1)}
+
+  #login{max-width:420px;margin:80px auto;background:#fff;border-radius:12px;padding:32px;box-shadow:var(--shadow)}
+  #login h2{margin-top:0;font-size:20px;color:var(--navy)}
+  #login p{color:var(--text3);font-size:13px;margin-bottom:18px}
+  #login input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px}
+  #login input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+  #login button.primary{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s}
+  #login button.primary:hover{background:#1d4ed8}
+  #login .err{color:var(--red);font-size:13px;margin-bottom:10px;display:none;padding:8px 12px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca}
+  #login .info{background:#eef6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px;padding:10px 12px;border-radius:6px;margin-top:14px}
+
+  main{max-width:1200px;margin:0 auto;padding:24px;display:none}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+  .kpi .val{font-size:24px;font-weight:800;color:var(--navy)}
+  .kpi .val.green{color:var(--green)}
+  .kpi .val.amber{color:var(--amber)}
+  .kpi .val.red{color:var(--red)}
+  .kpi .lbl{font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .kpi .sub{font-size:11px;color:var(--text3);margin-top:6px}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);font-weight:700}
+  .card .help{font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5}
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .row-full{grid-column:1 / -1}
+  .field{display:flex;flex-direction:column;margin-bottom:10px}
+  .field label{font-size:12px;font-weight:600;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+  .field label .req{color:var(--red);margin-left:2px}
+  .field input,.field select,.field textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;background:#fff}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+  .field textarea{resize:vertical;min-height:80px}
+  .field .hint{font-size:11px;color:var(--text3);margin-top:3px}
+  .field .auto{background:#f8fafc;color:var(--text3);font-weight:600;border-style:dashed}
+
+  .btn{padding:10px 18px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);transition:all .15s}
+  .btn:hover{background:var(--bg)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:#1d4ed8;border-color:#1d4ed8}
+  .btn.danger{background:var(--red);color:#fff;border-color:var(--red)}
+  .btn.danger:hover{background:#a93226;border-color:#a93226}
+  .btn.success{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn.success:hover{background:#157347;border-color:#157347}
+  .btn.warn{background:var(--amber);color:#fff;border-color:var(--amber)}
+  .btn.sm{padding:6px 12px;font-size:12px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+
+  .filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .filterbar input,.filterbar select{padding:8px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:13px}
+  .filterbar .search{flex:1;min-width:200px}
+  .filterbar .pill{padding:5px 11px;border-radius:99px;font-size:11px;font-weight:700;background:#eef2ff;color:#1e40af;border:none;cursor:pointer}
+  .filterbar .pill.active{background:var(--accent);color:#fff}
+  .filterbar .pill:hover:not(.active){background:#dbeafe}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#f1f5f9;color:var(--navy);text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;border-bottom:2px solid var(--border)}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:hover td{background:#f8fafc}
+  td.numero{font-family:'Courier New',monospace;font-weight:700;color:var(--navy)}
+  td.acoes{white-space:nowrap;text-align:right}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .badge.green{background:#dcfce7;color:#166534}
+  .badge.amber{background:#fef3c7;color:#92400e}
+  .badge.red{background:#fee2e2;color:#991b1b}
+  .badge.blue{background:#dbeafe;color:#1e40af}
+  .badge.gray{background:#e5e7eb;color:#374151}
+
+  .alerta{margin:8px 0;padding:10px 14px;border-radius:8px;font-size:13px;border-left:4px solid}
+  .alerta.amber{background:#fffbeb;border-color:var(--amber);color:#92400e}
+  .alerta.red{background:#fef2f2;border-color:var(--red);color:#991b1b}
+  .alerta.green{background:#f0fdf4;border-color:var(--green);color:#166534}
+  .alerta.blue{background:#eff6ff;border-color:var(--accent);color:#1e40af}
+
+  .sla-box{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700}
+  .sla-ok{background:#dcfce7;color:#166534}
+  .sla-atencao{background:#fef3c7;color:#92400e}
+  .sla-estourado{background:#fee2e2;color:#991b1b}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--text3)}
+  .empty-icon{font-size:42px;margin-bottom:10px;opacity:.4}
+  .empty-title{font-weight:700;margin-bottom:6px;font-size:15px}
+  .empty-desc{font-size:13px}
+
+  .toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);color:#fff;animation:slideIn .25s ease}
+  .toast.ok{background:var(--green)}
+  .toast.erro{background:var(--red)}
+  @keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,31,61,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .modal{background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .modal-title{font-size:16px;font-weight:700;color:var(--navy)}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);padding:4px 8px}
+  .modal-body{padding:20px}
+  .modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+
+  .stat-mini{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+  .stat-mini:last-child{border-bottom:none}
+  .stat-mini .lbl-mini{color:var(--text3)}
+  .stat-mini .val-mini{font-weight:700;color:var(--navy)}
+
+  .contador-3x{margin-top:10px;padding:10px 14px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;font-size:12px;color:#7c2d12}
+  .contador-3x strong{color:#9a3412}
+
+  @media (max-width:640px){
+    .row,.row-3{grid-template-columns:1fr}
+    header{padding:12px 16px}
+    main{padding:14px}
+    th,td{padding:7px 6px;font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h2>🔒 Portal de Chamados — Garantia Magnetec</h2>
+  <p>Acesso restrito para abertura e acompanhamento de chamados de assistência técnica em garantia dos portais detectores de metais instalados pela Magnetec.</p>
+  <div class="err" id="loginErr"></div>
+  <input type="text" id="usuario" placeholder="E-mail ou usuário" autocomplete="username">
+  <input type="password" id="senha" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
+  <button class="primary" onclick="fazerLogin()">Entrar</button>
+  <div class="info">
+    <b>Equipe autorizada:</b> fiscais GEASI/COTESI + preposto Magnetec.<br>
+    Em caso de dúvida sobre acesso, contate a GEASI.
+  </div>
+</div>
+
+<header id="header" style="display:none">
+  <div class="brand">
+    🔧 Chamados de Garantia — Portais Magnetec
+    <small>TJMG/GEASI • Contrato 225/2026 • ATA 133/2026</small>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <span id="userInfo" style="font-size:12px;opacity:.9"></span>
+    <button onclick="sair()">Sair</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="kpis">
+    <div class="kpi">
+      <div class="val" id="kpiAbertos">0</div>
+      <div class="lbl">Em aberto</div>
+      <div class="sub" id="kpiAbertosSub">aguardando atendimento</div>
+    </div>
+    <div class="kpi">
+      <div class="val amber" id="kpiAtencao">0</div>
+      <div class="lbl">Atenção SLA</div>
+      <div class="sub" id="kpiAtencaoSub">próximo do prazo</div>
+    </div>
+    <div class="kpi">
+      <div class="val red" id="kpiEstourados">0</div>
+      <div class="lbl">SLA estourado</div>
+      <div class="sub" id="kpiEstouradosSub">fora do prazo</div>
+    </div>
+    <div class="kpi">
+      <div class="val green" id="kpiConcluidos30">0</div>
+      <div class="lbl">Concluídos (30d)</div>
+      <div class="sub" id="kpiConcluidosSub">últimos 30 dias</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📋 Regras do SLA — Magnetec (Contrato 225/2026)</h3>
+    <div class="help">
+      <b>• Reparo:</b> até 18h do 2º dia útil após a abertura do chamado.<br>
+      <b>• Substituição:</b> se o reparo ultrapassar 10 dias úteis.<br>
+      <b>• Troca definitiva:</b> obrigatória em até 30 dias corridos se o mesmo equipamento gerar 3 chamados pela mesma falha.<br>
+      <b>• Garantia:</b> 36 meses a partir do Termo de Recebimento Provisório.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>➕ Abrir novo chamado de assistência técnica</h3>
+    <div class="help">Selecione o portal em garantia. O sistema calcula automaticamente o prazo do SLA e atribui o número sequencial MAG-NNN/AAAA.</div>
+    <form id="formChamado" onsubmit="abrirChamado(event)">
+      <div class="row">
+        <div class="field">
+          <label>Portal em garantia <span class="req">*</span></label>
+          <select id="fPortal" required onchange="atualizarDadosPortal()">
+            <option value="">Selecione um portal em garantia...</option>
+          </select>
+          <div class="hint" id="portalInfo"></div>
+        </div>
+        <div class="field">
+          <label>Tipo de serviço <span class="req">*</span></label>
+          <select id="fServico" required>
+            <option value="">Selecione...</option>
+            <option value="Manutenção">Manutenção (reparo)</option>
+            <option value="Substituição">Substituição de peça/componente</option>
+            <option value="Instalação">Instalação</option>
+          </select>
+        </div>
+      </div>
+      <div class="row-3">
+        <div class="field">
+          <label>Data de abertura <span class="req">*</span></label>
+          <input type="date" id="fDataAbertura" required>
+        </div>
+        <div class="field">
+          <label>Prazo SLA (calculado)</label>
+          <input type="text" id="fDataPrazo" readonly class="auto" placeholder="Calculado automaticamente">
+        </div>
+        <div class="field">
+          <label>Nº do chamado (previsto)</label>
+          <input type="text" id="fNumeroPrev" readonly class="auto" placeholder="Calculado após abrir">
+        </div>
+      </div>
+      <div class="field">
+        <label>Descrição do problema <span class="req">*</span></label>
+        <textarea id="fDescricao" required placeholder="Descreva o problema relatado (falsos alarmes, não liga, bipes contínuos, display apagado, etc.)"></textarea>
+      </div>
+      <div class="field">
+        <label>Observações internas (opcional)</label>
+        <textarea id="fObs" placeholder="Anotações que ficarão registradas internamente — número do SEI, quem reportou, etc."></textarea>
+      </div>
+      <div id="alerta3x" style="display:none" class="contador-3x"></div>
+      <div id="alertaForaGarantia" style="display:none" class="alerta red"></div>
+      <div class="actions">
+        <button type="submit" class="btn primary" id="btnAbrir">✓ Abrir chamado</button>
+        <button type="button" class="btn" onclick="limparForm()">Limpar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>📑 Chamados registrados</h3>
+    <div class="filterbar">
+      <input type="text" class="search" id="busca" placeholder="🔎 Buscar por comarca, número, descrição..." oninput="renderLista()">
+      <select id="filtroStatus" onchange="renderLista()">
+        <option value="">Todos os status</option>
+        <option value="Aberto">Em aberto</option>
+        <option value="Concluído">Concluídos</option>
+        <option value="Cancelado">Cancelados</option>
+      </select>
+      <select id="filtroServico" onchange="renderLista()">
+        <option value="">Todos os serviços</option>
+        <option value="Manutenção">Manutenção</option>
+        <option value="Substituição">Substituição</option>
+        <option value="Instalação">Instalação</option>
+      </select>
+      <button class="pill" onclick="carregar(true)">🔄 Atualizar</button>
+    </div>
+    <div id="listaChamados"></div>
+  </div>
+</main>
+
+<script>
+const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
+
+// Senha compartilhada do preposto Magnetec + fiscais GEASI (mesma usada no Alvo)
+// Trocar por auth Supabase se Fernanda quiser restringir por usuário real
+const USUARIOS_AUTORIZADOS = {
+  "fernanda.leao@tjmg.jus.br": { nome: "Fernanda Leão", perfil: "Fiscal GEASI", senha: "geasi-magnetec-2026" },
+  "gilselena@tjmg.jus.br":     { nome: "Gilselena Belizário", perfil: "Fiscal GEASI", senha: "geasi-magnetec-2026" },
+  "aguilar@tjmg.jus.br":       { nome: "Aguilar", perfil: "Fiscal GEASI", senha: "geasi-magnetec-2026" },
+  "andre@tjmg.jus.br":          { nome: "André", perfil: "Fiscal GEASI", senha: "geasi-magnetec-2026" },
+  "felipe@tjmg.jus.br":         { nome: "Felipe", perfil: "Fiscal GEASI", senha: "geasi-magnetec-2026" },
+  "preposto.magnetec":          { nome: "Preposto Magnetec", perfil: "Magnetec",   senha: "Magnetec-2026!" }
+};
+
+// ── HELPERS ────────────────────────────────────────────────
+async function sbFetch(path, opts = {}) {
+  const r = await fetch(SB_URL + "/rest/v1" + path, {
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(opts.headers || {})
+    },
+    ...opts
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const ct = r.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return r.json();
+  return [];
+}
+
+function fmtR(v) { return "R$ " + (v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtData(d) { return d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—"; }
+function hojeISO() { return new Date().toISOString().slice(0, 10); }
+
+function toast(msg, tipo = "ok") {
+  const t = document.createElement("div");
+  t.className = "toast " + (tipo === "ok" ? "ok" : "erro");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── LOGIN ──────────────────────────────────────────────────
+function fazerLogin() {
+  const usuario = (document.getElementById("usuario").value || "").trim().toLowerCase();
+  const senha = document.getElementById("senha").value;
+  const u = USUARIOS_AUTORIZADOS[usuario];
+  const errEl = document.getElementById("loginErr");
+  if (!u || u.senha !== senha) {
+    errEl.textContent = "Usuário ou senha incorretos.";
+    errEl.style.display = "block";
+    return;
+  }
+  sessionStorage.setItem("cg_session", JSON.stringify({ usuario, nome: u.nome, perfil: u.perfil, ts: Date.now() }));
+  mostrarApp();
+}
+function sair() {
+  sessionStorage.removeItem("cg_session");
+  location.reload();
+}
+function getSession() {
+  try { return JSON.parse(sessionStorage.getItem("cg_session") || "null"); }
+  catch (e) { return null; }
+}
+
+function mostrarApp() {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("header").style.display = "flex";
+  document.getElementById("main").style.display = "block";
+  const s = getSession();
+  if (s) document.getElementById("userInfo").textContent = s.nome + " • " + s.perfil;
+  document.getElementById("fDataAbertura").value = hojeISO();
+  calcularPrazo();
+  carregar();
+}
+if (getSession()) mostrarApp();
+
+// ── CÁLCULOS DE SLA ────────────────────────────────────────
+function addDiasUteis(dataISO, n) {
+  if (!dataISO) return "";
+  const d = new Date(dataISO + "T12:00");
+  let uteis = 0;
+  while (uteis < n) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) uteis++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+function diasUteisEntre(inicioISO, fimISO) {
+  if (!inicioISO) return 0;
+  const ini = new Date(inicioISO + "T12:00");
+  const fim = fimISO ? new Date(fimISO + "T12:00") : new Date();
+  if (fim <= ini) return 0;
+  let u = 0;
+  const cur = new Date(ini);
+  cur.setDate(cur.getDate() + 1);
+  while (cur <= fim) {
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) u++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return u;
+}
+function diasCorridosEntre(inicioISO, fimISO) {
+  if (!inicioISO) return 0;
+  const ini = new Date(inicioISO + "T12:00");
+  const fim = fimISO ? new Date(fimISO + "T12:00") : new Date();
+  if (fim <= ini) return 0;
+  return Math.round((fim - ini) / 86400000);
+}
+function calcularPrazo() {
+  const abertura = document.getElementById("fDataAbertura").value;
+  const prazoEl = document.getElementById("fDataPrazo");
+  if (!abertura) { prazoEl.value = ""; return; }
+  const prazo = addDiasUteis(abertura, 2);
+  prazoEl.value = prazo ? (fmtData(prazo) + " (18h)") : "";
+}
+
+// ── DADOS ──────────────────────────────────────────────────
+let PORTAIS = [];
+let CHAMADOS = [];
+
+async function carregar(silencioso) {
+  try {
+    const [portais, chamados] = await Promise.all([
+      sbFetch("/portais_garantia?select=*&order=comarca.asc"),
+      sbFetch("/chamados_portal?select=*&order=id.desc")
+    ]);
+    PORTAIS = portais || [];
+    CHAMADOS = chamados || [];
+    popularSelectPortais();
+    renderLista();
+    renderKpis();
+    if (!silencioso) toast("✓ Dados atualizados");
+  } catch (e) {
+    toast("Erro ao carregar: " + e.message, "erro");
+  }
+}
+
+function statusGarantia(portal) {
+  if (!portal?.data_recebimento_definitivo) return { txt: "Sem data", cor: "gray" };
+  const hoje = new Date();
+  const venc = new Date(portal.data_recebimento_definitivo + "T12:00");
+  const dias = Math.round((venc - hoje) / 86400000);
+  if (dias < 0) return { txt: "Garantia vencida há " + Math.abs(dias) + "d", cor: "red", dias };
+  if (dias <= 90) return { txt: "Vence em " + dias + "d", cor: "amber", dias };
+  return { txt: "Em garantia (" + dias + "d restantes)", cor: "green", dias };
+}
+
+function popularSelectPortais() {
+  const sel = document.getElementById("fPortal");
+  const valorAtual = sel.value;
+  sel.innerHTML = '<option value="">Selecione um portal em garantia...</option>';
+  // Ordena: em garantia primeiro, depois vencendo, depois vencida
+  const ordenados = [...PORTAIS].sort((a, b) => {
+    const sa = statusGarantia(a).dias ?? 99999;
+    const sb = statusGarantia(b).dias ?? 99999;
+    return sa - sb;
+  });
+  ordenados.forEach(p => {
+    const st = statusGarantia(p);
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${p.comarca} — ${p.edificacao || "Fórum"} (${p.contrato || "—"}) [${st.txt}]`;
+    sel.appendChild(opt);
+  });
+  sel.value = valorAtual;
+  atualizarDadosPortal();
+}
+
+function atualizarDadosPortal() {
+  const id = parseInt(document.getElementById("fPortal").value, 10);
+  const portal = PORTAIS.find(p => p.id === id);
+  const infoEl = document.getElementById("portalInfo");
+  const alertaGarantia = document.getElementById("alertaForaGarantia");
+  const alerta3x = document.getElementById("alerta3x");
+  if (!portal) {
+    infoEl.textContent = "";
+    alertaGarantia.style.display = "none";
+    alerta3x.style.display = "none";
+    return;
+  }
+  const st = statusGarantia(portal);
+  infoEl.innerHTML = `<b>${portal.marca_modelo || "—"}</b> • Garantia até ${fmtData(portal.data_recebimento_definitivo)} • ${st.txt}`;
+  infoEl.style.color = st.cor === "red" ? "#991b1b" : st.cor === "amber" ? "#92400e" : "#166534";
+
+  if (st.cor === "red") {
+    alertaGarantia.style.display = "block";
+    alertaGarantia.innerHTML = `⚠️ <b>Atenção:</b> a garantia deste portal venceu em ${fmtData(portal.data_recebimento_definitivo)} (há ${Math.abs(st.dias)} dias). Acionar a Magnetec por garantia pode não ser aplicável — verifique se a manutenção é mesmo contratual (Alvo / contrato 181) ou administrativa.`;
+  } else {
+    alertaGarantia.style.display = "none";
+  }
+
+  // Contador 3x — mesma descrição no mesmo portal
+  const desc = (document.getElementById("fDescricao").value || "").toLowerCase().trim();
+  if (desc.length > 5) {
+    const palavras = desc.split(/\s+/).filter(w => w.length > 3);
+    const similares = CHAMADOS.filter(c => {
+      if (c.portal_id !== portal.id) return false;
+      if (c.status === "Cancelado") return false;
+      const cd = (c.descricao || "").toLowerCase();
+      return palavras.some(w => cd.includes(w));
+    });
+    if (similares.length >= 2) {
+      alerta3x.style.display = "block";
+      alerta3x.innerHTML = `🚨 <strong>Alerta de troca definitiva (regra 3x):</strong> este portal já tem <strong>${similares.length + 1} chamados</strong> com descrição semelhante. Conforme cláusula contratual, a Magnetec deve substituir definitivamente o equipamento em até 30 dias corridos.`;
+    } else {
+      alerta3x.style.display = "none";
+    }
+  } else {
+    alerta3x.style.display = "none";
+  }
+}
+
+async function abrirChamado(ev) {
+  ev.preventDefault();
+  const portalId = parseInt(document.getElementById("fPortal").value, 10);
+  if (!portalId) { toast("Selecione um portal", "erro"); return; }
+  const portal = PORTAIS.find(p => p.id === portalId);
+  if (!portal) { toast("Portal não encontrado", "erro"); return; }
+
+  const servico = document.getElementById("fServico").value;
+  const dataAbertura = document.getElementById("fDataAbertura").value;
+  const descricao = document.getElementById("fDescricao").value.trim();
+  const obs = document.getElementById("fObs").value.trim();
+  if (!servico || !dataAbertura || !descricao) { toast("Preencha todos os campos obrigatórios", "erro"); return; }
+
+  // Gera número MAG-NNN/AAAA
+  const ano = new Date(dataAbertura + "T12:00").getFullYear();
+  const maxSeq = CHAMADOS
+    .map(c => { const m = /MAG-(\d+)\/(\d+)/.exec(c.numero || ""); return m ? parseInt(m[1], 10) : 0; })
+    .reduce((a, b) => Math.max(a, b), 0);
+  const numero = "MAG-" + String(maxSeq + 1).padStart(3, "0") + "/" + ano;
+
+  const prazo = addDiasUteis(dataAbertura, 2);
+  const sess = getSession();
+
+  const btn = document.getElementById("btnAbrir");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const registros = await sbFetch("/chamados_portal", {
+      method: "POST",
+      body: JSON.stringify({
+        numero,
+        comarca: portal.comarca,
+        edificacao: portal.edificacao || "Fórum",
+        servico,
+        data_abertura: dataAbertura,
+        data_prazo: prazo,
+        status: "Aberto",
+        descricao,
+        observacoes: obs || null,
+        portal_id: portalId,
+        contrato: portal.contrato || "225/2026",
+        criado_por: sess ? (sess.nome + " <" + sess.usuario + ">") : null
+      })
+    });
+    if (registros && registros[0]) {
+      const id = registros[0].id;
+      // Tenta atualizar com numero e portal_id (se coluna existir) — não falha se não tiver
+      try { await sbFetch("/chamados_portal?id=eq." + id, { method: "PATCH", body: JSON.stringify({ portal_id: portalId, contrato: portal.contrato || "225/2026" }) }); } catch (e) {}
+      toast("✓ Chamado " + numero + " aberto", "ok");
+      document.getElementById("fNumeroPrev").value = numero;
+      limparForm();
+      carregar(true);
+      // abre modal de impressão
+      setTimeout(() => abrirImprimir(registros[0], portal), 400);
+    }
+  } catch (e) {
+    toast("Erro ao abrir: " + e.message, "erro");
+  } finally {
+    btn.disabled = false; btn.textContent = "✓ Abrir chamado";
+  }
+}
+
+function limparForm() {
+  document.getElementById("fPortal").value = "";
+  document.getElementById("fServico").value = "";
+  document.getElementById("fDataAbertura").value = hojeISO();
+  document.getElementById("fDataPrazo").value = "";
+  document.getElementById("fDescricao").value = "";
+  document.getElementById("fObs").value = "";
+  document.getElementById("portalInfo").textContent = "";
+  document.getElementById("alertaForaGarantia").style.display = "none";
+  document.getElementById("alerta3x").style.display = "none";
+  document.getElementById("fNumeroPrev").value = "";
+  calcularPrazo();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const fDesc = document.getElementById("fDescricao");
+  if (fDesc) fDesc.addEventListener("input", atualizarDadosPortal);
+  const fData = document.getElementById("fDataAbertura");
+  if (fData) fData.addEventListener("change", calcularPrazo);
+});
+
+// ── RENDERIZAÇÃO ──────────────────────────────────────────
+function badgeStatus(ch) {
+  if (ch.status === "Aberto") {
+    const uteis = diasUteisEntre(ch.data_abertura, ch.data_conclusao);
+    const uteisHoje = diasUteisEntre(ch.data_abertura, null);
+    if (uteisHoje > 10) return '<span class="badge red">SLA estourado</span>';
+    if (uteisHoje >= 2) return '<span class="badge amber">Atenção SLA</span>';
+    return '<span class="badge blue">Em aberto</span>';
+  }
+  if (ch.status === "Concluído") return '<span class="badge green">Concluído</span>';
+  if (ch.status === "Cancelado") return '<span class="badge gray">Cancelado</span>';
+  return '<span class="badge gray">' + (ch.status || "—") + '</span>';
+}
+
+function slaMini(ch) {
+  if (ch.status !== "Aberto") return "—";
+  const uteis = diasUteisEntre(ch.data_abertura, null);
+  if (uteis > 10) return '<span class="sla-box sla-estourado">' + uteis + 'u úteis</span>';
+  if (uteis >= 2) return '<span class="sla-box sla-atencao">' + uteis + 'u / 10u</span>';
+  return '<span class="sla-box sla-ok">' + uteis + 'u / 10u</span>';
+}
+
+function renderKpis() {
+  const abertos = CHAMADOS.filter(c => c.status === "Aberto");
+  const hoje = new Date();
+  const trintaDiasAtras = new Date(); trintaDiasAtras.setDate(hoje.getDate() - 30);
+  const concluidos30 = CHAMADOS.filter(c => c.status === "Concluído" && c.data_conclusao && new Date(c.data_conclusao + "T12:00") >= trintaDiasAtras);
+  let atencao = 0, estourados = 0;
+  abertos.forEach(c => {
+    const u = diasUteisEntre(c.data_abertura, null);
+    if (u > 10) estourados++;
+    else if (u >= 2) atencao++;
+  });
+  document.getElementById("kpiAbertos").textContent = abertos.length;
+  document.getElementById("kpiAbertosSub").textContent = abertos.length === 0 ? "tudo certo 🎉" : "aguardando atendimento";
+  document.getElementById("kpiAtencao").textContent = atencao;
+  document.getElementById("kpiEstourados").textContent = estourados;
+  document.getElementById("kpiConcluidos30").textContent = concluidos30.length;
+  document.getElementById("kpiEstouradosSub").textContent = estourados === 0 ? "sem pendências" : "vencidos > 10u";
+  document.getElementById("kpiAtencaoSub").textContent = atencao === 0 ? "dentro do prazo" : "2u a 10u";
+}
+
+function renderLista() {
+  const el = document.getElementById("listaChamados");
+  const busca = (document.getElementById("busca").value || "").toLowerCase().trim();
+  const fStatus = document.getElementById("filtroStatus").value;
+  const fServ = document.getElementById("filtroServico").value;
+  const lista = CHAMADOS.filter(c => {
+    if (fStatus && c.status !== fStatus) return false;
+    if (fServ && c.servico !== fServ) return false;
+    if (busca) {
+      const blob = ((c.numero || "") + " " + (c.comarca || "") + " " + (c.descricao || "") + " " + (c.observacoes || "")).toLowerCase();
+      if (!blob.includes(busca)) return false;
+    }
+    return true;
+  });
+  if (lista.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Nenhum chamado encontrado</div><div class="empty-desc">Ajuste os filtros ou abra um novo chamado acima.</div></div>';
+    return;
+  }
+  let html = '<div style="overflow-x:auto"><table><thead><tr>';
+  html += '<th>Nº</th><th>Comarca</th><th>Serviço</th><th>Descrição</th><th>Abertura</th><th>Prazo SLA</th><th>Conclusão</th><th>SLA</th><th>Status</th><th class="acoes">Ações</th>';
+  html += '</tr></thead><tbody>';
+  lista.forEach(c => {
+    html += '<tr>';
+    html += '<td class="numero">' + (c.numero || "—") + '</td>';
+    html += '<td><b>' + (c.comarca || "—") + '</b><br><span style="color:var(--text3);font-size:11px">' + (c.edificacao || "") + '</span></td>';
+    html += '<td><span class="badge blue">' + (c.servico || "—") + '</span></td>';
+    const desc = c.descricao && c.descricao.length > 60 ? c.descricao.slice(0, 60) + "…" : (c.descricao || "—");
+    html += '<td title="' + (c.descricao || "").replace(/"/g, "&quot;") + '">' + desc + '</td>';
+    html += '<td>' + fmtData(c.data_abertura) + '</td>';
+    html += '<td>' + (c.data_prazo ? fmtData(c.data_prazo) + " <span style=\"color:var(--text3);font-size:10px\">(18h)</span>" : "—") + '</td>';
+    html += '<td>' + (c.data_conclusao ? fmtData(c.data_conclusao) : '<span style="color:var(--text3)">—</span>') + '</td>';
+    html += '<td>' + slaMini(c) + '</td>';
+    html += '<td>' + badgeStatus(c) + '</td>';
+    html += '<td class="acoes">';
+    if (c.status === "Aberto") {
+      html += '<button class="btn sm success" onclick="concluirChamado(' + c.id + ')">✓ Concluir</button> ';
+      html += '<button class="btn sm warn" onclick="cancelarChamado(' + c.id + ')">Cancelar</button> ';
+    }
+    html += '<button class="btn sm" onclick="abrirImprimirChamado(' + c.id + ')">🖨</button>';
+    html += '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+async function concluirChamado(id) {
+  const data = prompt("Data de conclusão (AAAA-MM-DD):", hojeISO());
+  if (!data) return;
+  const solucao = prompt("Solução aplicada (opcional):", "");
+  if (solucao === null) return;
+  try {
+    const body = { status: "Concluído", data_conclusao: data };
+    if (solucao) body.observacoes = ((CHAMADOS.find(c => c.id === id)?.observacoes || "") + "\n[" + data + "] " + solucao).trim();
+    await sbFetch("/chamados_portal?id=eq." + id, { method: "PATCH", body: JSON.stringify(body) });
+    toast("✓ Chamado concluído", "ok");
+    carregar(true);
+  } catch (e) {
+    toast("Erro: " + e.message, "erro");
+  }
+}
+async function cancelarChamado(id) {
+  if (!confirm("Cancelar este chamado? Essa ação não pode ser desfeita.")) return;
+  const motivo = prompt("Motivo do cancelamento:", "");
+  if (motivo === null) return;
+  try {
+    const body = { status: "Cancelado" };
+    if (motivo) body.observacoes = ((CHAMADOS.find(c => c.id === id)?.observacoes || "") + "\n[" + hojeISO() + "] CANCELADO: " + motivo).trim();
+    await sbFetch("/chamados_portal?id=eq." + id, { method: "PATCH", body: JSON.stringify(body) });
+    toast("Chamado cancelado", "ok");
+    carregar(true);
+  } catch (e) {
+    toast("Erro: " + e.message, "erro");
+  }
+}
+
+// ── IMPRESSÃO / PDF DO CHAMADO ─────────────────────────────
+function abrirImprimir(registro, portal) {
+  const c = registro;
+  const html = imprimirHTML(c, portal);
+  const w = window.open("", "_blank", "width=800,height=900");
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) {} }, 500);
+}
+function abrirImprimirChamado(id) {
+  const c = CHAMADOS.find(x => x.id === id);
+  if (!c) return;
+  const portal = PORTAIS.find(p => p.id === c.portal_id) || {};
+  abrirImprimir(c, portal);
+}
+
+function imprimirHTML(c, portal) {
+  const sla = diasUteisEntre(c.data_abertura, c.data_conclusao);
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chamado ${c.numero || ""}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#1a2233;max-width:780px;margin:24px auto;padding:0 20px;font-size:13px}
+  h1{color:#0f1f3d;font-size:20px;margin:0 0 6px}
+  h2{color:#0f1f3d;font-size:14px;margin:18px 0 6px;border-bottom:2px solid #dde3ee;padding-bottom:4px}
+  .sub{color:#6b7686;font-size:12px;margin-bottom:18px}
+  .box{border:1px solid #dde3ee;border-radius:8px;padding:14px;margin-bottom:14px;background:#f8fafc}
+  .linha{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+  .linha .lbl{color:#6b7686;font-weight:600}
+  .linha .val{color:#1a2233;font-weight:700}
+  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase}
+  .badge.green{background:#dcfce7;color:#166534}
+  .badge.amber{background:#fef3c7;color:#92400e}
+  .badge.red{background:#fee2e2;color:#991b1b}
+  .badge.blue{background:#dbeafe;color:#1e40af}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  th,td{padding:6px 8px;border:1px solid #dde3ee;text-align:left}
+  th{background:#0f1f3d;color:#fff}
+  .regra{background:#fffbeb;border-left:4px solid #b8860b;padding:8px 12px;font-size:11px;margin:8px 0}
+  .regra strong{color:#92400e}
+  .assinaturas{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:30px;font-size:11px}
+  .assinatura{border-top:1px solid #1a2233;padding-top:6px;text-align:center}
+  .footer{margin-top:30px;font-size:10px;color:#6b7686;text-align:center;border-top:1px solid #dde3ee;padding-top:8px}
+  @media print { .no-print{display:none} body{margin:0} }
+</style></head><body>
+<h1>Chamado de Assistência Técnica em Garantia</h1>
+<div class="sub">Portais Detectores de Metal — Magnetec | TJMG/GEASI</div>
+
+<div class="box">
+  <div class="linha"><span class="lbl">Nº do chamado:</span><span class="val">${c.numero || "—"}</span></div>
+  <div class="linha"><span class="lbl">Status:</span><span class="val">${c.status || "—"}</span></div>
+  <div class="linha"><span class="lbl">Data de abertura:</span><span class="val">${fmtData(c.data_abertura)}</span></div>
+  <div class="linha"><span class="lbl">Prazo SLA (2º dia útil):</span><span class="val">${fmtData(c.data_prazo)} às 18h</span></div>
+  ${c.data_conclusao ? `<div class="linha"><span class="lbl">Data de conclusão:</span><span class="val">${fmtData(c.data_conclusao)}</span></div>` : ""}
+  ${c.criado_por ? `<div class="linha"><span class="lbl">Solicitante:</span><span class="val">${c.criado_por}</span></div>` : ""}
+</div>
+
+<h2>🏛️ Local</h2>
+<table>
+  <tr><th>Comarca</th><td>${c.comarca || "—"}</td></tr>
+  <tr><th>Edificação</th><td>${c.edificacao || "—"}</td></tr>
+  <tr><th>Marca/Modelo</th><td>${portal.marca_modelo || "—"}</td></tr>
+  <tr><th>Contrato</th><td>${c.contrato || portal.contrato || "—"}</td></tr>
+  <tr><th>Garantia até</th><td>${fmtData(portal.data_recebimento_definitivo)}</td></tr>
+  ${portal.numero_serie ? `<tr><th>Nº de série</th><td>${portal.numero_serie}</td></tr>` : ""}
+  ${portal.patrimonio ? `<tr><th>Patrimônio</th><td>${portal.patrimonio}</td></tr>` : ""}
+</table>
+
+<h2>🔧 Serviço solicitado</h2>
+<table>
+  <tr><th>Tipo</th><td>${c.servico || "—"}</td></tr>
+  <tr><th>Descrição do problema</th><td>${(c.descricao || "—").replace(/\n/g, "<br>")}</td></tr>
+  ${c.observacoes ? `<tr><th>Observações</th><td>${(c.observacoes || "").replace(/\n/g, "<br>")}</td></tr>` : ""}
+</table>
+
+<div class="regra">
+  <strong>📋 SLA Contratual (Contrato 225/2026):</strong><br>
+  • Reparo: até 18h do 2º dia útil após a abertura.<br>
+  • Se ultrapassar 10 dias úteis do reparo: substituição definitiva do equipamento.<br>
+  • 3 chamados pela mesma falha no mesmo equipamento: troca obrigatória em até 30 dias corridos.
+</div>
+
+<div class="assinaturas">
+  <div class="assinatura">
+    <div>________________________________</div>
+    <div>GEASI / TJMG</div>
+  </div>
+  <div class="assinatura">
+    <div>________________________________</div>
+    <div>Preposto Magnetec</div>
+  </div>
+</div>
+
+<div class="footer">
+  Documento gerado em ${new Date().toLocaleString("pt-BR")} — SGTI-TJMG
+</div>
+</body></html>`;
+}
+</script>
+</body>
+</html>
