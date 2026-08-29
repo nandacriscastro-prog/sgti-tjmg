@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1787947320 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788032639 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10717,6 +10717,7 @@ function PagePortais() {
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn btn-sm", onClick: carregar }, "🔄 Atualizar"),
+        React.createElement("button", { className: "btn", style: { background: "#b8860b", color: "white", fontWeight: 700 }, onClick: () => window.open("./chamados-garantia/", "_blank") }, "📞 Chamados de Garantia"),
         React.createElement("button", { className: "btn btn-primary", onClick: () => setPainelNovoAberto(!painelNovoAberto) }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado")
       )
     ),
