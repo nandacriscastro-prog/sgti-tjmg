@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788183069 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788186520 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10647,6 +10647,7 @@ function PagePortais() {
   const [painelNovoAberto, setPainelNovoAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [iframeAberto, setIframeAberto] = useState(false);
+  const [detalheAberto, setDetalheAberto] = useState(null);
   const vazio = { comarca: "", edificacao: "Fórum", marca_modelo: "MAGNETEC", contrato: "", quantidade: 1, data_recebimento_provisorio: "", data_recebimento_definitivo: "", numero_serie: "", patrimonio: "", observacoes: "" };
   const [form, setForm] = useState(vazio);
 
@@ -10800,30 +10801,54 @@ function PagePortais() {
         type: "text", placeholder: "🔎 Buscar por comarca ou contrato...", value: busca, onChange: e => setBusca(e.target.value),
         style: { width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)", fontSize: 14 }
       }),
-      React.createElement("div", { className: "card", style: { overflowX: "auto" } },
-        React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
-          React.createElement("thead", null, React.createElement("tr", { style: { borderBottom: "2px solid var(--border)" } },
-            ["Comarca", "Edificação", "Marca/Modelo", "Contrato", "Qtd", "Recebimento Provisório", "Recebimento Definitivo", "Status", ""].map(h =>
-              React.createElement("th", { key: h, style: { textAlign: "left", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
-            )
-          )),
-          React.createElement("tbody", null, listaFiltrada.map(p => React.createElement("tr", {
-            key: p.id,
-            style: { borderBottom: "1px solid var(--border)", background: p.statusReal === "Vencida" ? "#fdecea" : p.statusReal === "Vencendo em breve" ? "#fff8e1" : "transparent" }
-          },
-            React.createElement("td", { style: { padding: "5px 8px", fontWeight: 600 } }, p.comarca),
-            React.createElement("td", { style: { padding: "5px 8px" } }, p.edificacao),
-            React.createElement("td", { style: { padding: "5px 8px" } }, p.marca_modelo),
-            React.createElement("td", { style: { padding: "5px 8px" } }, p.contrato),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "center" } }, p.quantidade),
-            React.createElement("td", { style: { padding: "5px 8px" } }, fmtDate(p.data_recebimento_provisorio)),
-            React.createElement("td", { style: { padding: "5px 8px" } }, fmtDate(p.data_recebimento_definitivo)),
-            React.createElement("td", { style: { padding: "5px 8px" } },
-              React.createElement("span", { style: { padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white" } }, p.statusReal)
-            ),
-            React.createElement("td", { style: { padding: "5px 8px" } }, React.createElement("button", { className: "btn btn-sm", onClick: () => excluir(p.id) }, "🗑"))
-          )))
-        )
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 } },
+        listaFiltrada.map(p => React.createElement("div", {
+          key: p.id,
+          className: "card",
+          onClick: () => setDetalheAberto(p),
+          style: {
+            cursor: "pointer",
+            borderLeft: "4px solid " + (p.statusReal === "Vencida" ? "var(--red, #c0392b)" : p.statusReal === "Vencendo em breve" ? "var(--amber, #b8860b)" : "var(--green)")
+          }
+        },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 } },
+            React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, p.comarca),
+            React.createElement("span", { style: { padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap" } }, p.statusReal)
+          ),
+          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, p.edificacao || "—"),
+          React.createElement("div", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 3 } },
+            React.createElement("div", null, "🏷️ ", p.marca_modelo || "—", " · Contrato ", p.contrato || "—"),
+            React.createElement("div", null, "📦 Qtd: ", p.quantidade),
+            React.createElement("div", null, "📅 Garantia até: ", React.createElement("strong", null, fmtDate(p.data_recebimento_definitivo)))
+          )
+        ))
+      ),
+      listaFiltrada.length === 0 && React.createElement("div", { className: "card" }, "Nenhum portal encontrado.")
+    ),
+    detalheAberto && React.createElement("div", { onClick: () => setDetalheAberto(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } },
+      React.createElement("div", { onClick: e => e.stopPropagation(), className: "card", style: { maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 } },
+          React.createElement("div", { className: "card-title" }, detalheAberto.comarca),
+          React.createElement("button", { className: "btn btn-sm", onClick: () => setDetalheAberto(null) }, "✕")
+        ),
+        React.createElement("span", { style: { padding: "3px 10px", borderRadius: 10, fontSize: 11, fontWeight: 700, background: detalheAberto.statusReal === "Vencida" ? "#c0392b" : detalheAberto.statusReal === "Vencendo em breve" ? "#b8860b" : detalheAberto.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white" } }, detalheAberto.statusReal),
+        React.createElement("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 10, fontSize: 13 } },
+          [
+            ["Edificação", detalheAberto.edificacao],
+            ["Marca/Modelo", detalheAberto.marca_modelo],
+            ["Contrato", detalheAberto.contrato],
+            ["Quantidade", detalheAberto.quantidade],
+            ["Data Termo de Recebimento Provisório", fmtDate(detalheAberto.data_recebimento_provisorio)],
+            ["Data Termo de Recebimento Definitivo", fmtDate(detalheAberto.data_recebimento_definitivo)],
+            ["Nº de Série", detalheAberto.numero_serie || "—"],
+            ["Patrimônio", detalheAberto.patrimonio || "—"],
+            ["Observações", detalheAberto.observacoes || "—"]
+          ].map(([label, valor]) => React.createElement("div", { key: label, style: { borderBottom: "1px solid var(--border)", paddingBottom: 8 } },
+            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".04em" } }, label),
+            React.createElement("div", { style: { fontWeight: 600 } }, valor)
+          ))
+        ),
+        React.createElement("button", { className: "btn", style: { marginTop: 14, width: "100%", color: "var(--red, #c0392b)" }, onClick: () => { excluir(detalheAberto.id); setDetalheAberto(null); } }, "🗑 Excluir este registro")
       )
     ),
     iframeAberto && React.createElement("div", { onClick: () => setIframeAberto(false), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", flexDirection: "column" } },
