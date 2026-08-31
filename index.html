@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788186520 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788186796 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10801,26 +10801,30 @@ function PagePortais() {
         type: "text", placeholder: "🔎 Buscar por comarca ou contrato...", value: busca, onChange: e => setBusca(e.target.value),
         style: { width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)", fontSize: 14 }
       }),
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 } },
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         listaFiltrada.map(p => React.createElement("div", {
           key: p.id,
           className: "card",
           onClick: () => setDetalheAberto(p),
           style: {
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 14,
+            flexWrap: "wrap",
+            padding: "12px 16px",
             borderLeft: "4px solid " + (p.statusReal === "Vencida" ? "var(--red, #c0392b)" : p.statusReal === "Vencendo em breve" ? "var(--amber, #b8860b)" : "var(--green)")
           }
         },
-          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 } },
+          React.createElement("div", { style: { minWidth: 160, flex: "1 1 200px" } },
             React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, p.comarca),
-            React.createElement("span", { style: { padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap" } }, p.statusReal)
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, p.edificacao || "—")
           ),
-          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, p.edificacao || "—"),
-          React.createElement("div", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 3 } },
-            React.createElement("div", null, "🏷️ ", p.marca_modelo || "—", " · Contrato ", p.contrato || "—"),
-            React.createElement("div", null, "📦 Qtd: ", p.quantidade),
-            React.createElement("div", null, "📅 Garantia até: ", React.createElement("strong", null, fmtDate(p.data_recebimento_definitivo)))
-          )
+          React.createElement("div", { style: { fontSize: 12, flex: "1 1 180px", color: "var(--text3)" } }, "🏷️ ", p.marca_modelo || "—", " · Contrato ", p.contrato || "—"),
+          React.createElement("div", { style: { fontSize: 12, whiteSpace: "nowrap" } }, "📦 Qtd: ", React.createElement("strong", null, p.quantidade)),
+          React.createElement("div", { style: { fontSize: 12, whiteSpace: "nowrap" } }, "📅 Garantia até: ", React.createElement("strong", null, fmtDate(p.data_recebimento_definitivo))),
+          React.createElement("span", { style: { padding: "3px 10px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap" } }, p.statusReal)
         ))
       ),
       listaFiltrada.length === 0 && React.createElement("div", { className: "card" }, "Nenhum portal encontrado.")
