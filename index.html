@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788174907 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788181311 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6919,9 +6919,10 @@ function PageMedicao({
     addRow(new Array(11).fill(cell("", { border: undefined })));
 
     // ---- Busca o consumo acumulado de TODO o contrato (não só o período atual) para as seções 4 e 5 ----
-    let usoAprovadoIVAll = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
+    let usoAprovadoIVAll = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0, kmValor: 0 };
     let usoAprovadoVAll = {};
     let mesesRemotoAll = 0;
+    const vuKmSEI4 = ANEXO_IV.find(a => a.id === "km").vu;
     try {
       const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
       const periodosMedidos = new Set();
@@ -6938,6 +6939,7 @@ function PageMedicao({
         const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
         usoAprovadoIVAll[itemAtend]++;
         usoAprovadoIVAll.km += kmOS;
+        usoAprovadoIVAll.kmValor += Number((kmOS * vuKmSEI4).toFixed(2));
         const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
         const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -6973,15 +6975,17 @@ function PageMedicao({
       const vu = ANEXO_IV.find(a => a.id === item).vu;
       const qtdUsada = item === "rem" ? mesesRemotoAll : Number((usoAprovadoIVAll[item] || 0).toFixed(item === "km" ? 2 : 4));
       const qtdRestante = Number((qtdContratada - qtdUsada).toFixed(item === "km" ? 2 : 4));
+      const valorContratadoItem4 = qtdContratada * vu;
+      const valorUsadoItem4 = item === "km" ? (usoAprovadoIVAll.kmValor || 0) : qtdUsada * vu;
       const linha = [
         cell(item, styNormal(centro, true)),
         cell(descItem4[item], styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
         cell(qtdContratada, styNormal(centro)),
-        cell(brl((qtdContratada * vu)), styMoeda()),
+        cell(brl(valorContratadoItem4), styMoeda()),
         cell(qtdUsada, styNormal(centro)),
-        cell(brl((qtdUsada * vu)), styVerdeMoeda()),
+        cell(brl(valorUsadoItem4), styVerdeMoeda()),
         cell(qtdRestante, styNormal(centro)), cell("", styNormal()),
-        cell(brl((qtdRestante * vu)), styMoeda(true))
+        cell(brl(valorContratadoItem4 - valorUsadoItem4), styMoeda(true))
       ];
       addRow(linha);
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
@@ -10358,9 +10362,10 @@ function PageControleAtivos() {
       const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
       const aprovado = {};
       const reservado = {};
-      const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
-      const reservadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0 };
+      const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0, kmValor: 0 };
+      const reservadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0, kmValor: 0 };
       const periodosMedidos = new Set(); // um período (ciclo 20-19) conta como "1 mês de remoto usado"
+      const vuKmD = ANEXO_IV.find(a => a.id === "km").vu;
       (rows || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -10382,6 +10387,7 @@ function PageControleAtivos() {
           pecas.forEach(p => { aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
           aprovadoIV[itemAtend]++;
           aprovadoIV.km += kmOS;
+          aprovadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           aprovadoIV.diaria += fracaoTotal;
           if (o.data_conclusao) {
             // Ciclo do contrato: dia 20 de um mês até dia 19 do mês seguinte
@@ -10394,6 +10400,7 @@ function PageControleAtivos() {
           pecas.forEach(p => { reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
           reservadoIV[itemAtend]++;
           reservadoIV.km += kmOS;
+          reservadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           reservadoIV.diaria += fracaoTotal;
         }
       });
@@ -10445,12 +10452,15 @@ function PageControleAtivos() {
     const qtdUsada = item === "rem" ? mesesRemoto : (Number((usoAprovadoIV[item] || 0).toFixed(item === "km" ? 2 : 4)));
     const qtdReservada = item === "rem" ? 0 : (Number((usoReservadoIV[item] || 0).toFixed(item === "km" ? 2 : 4)));
     const qtdRestante = Number((qtdContratada - qtdUsada - qtdReservada).toFixed(item === "km" ? 2 : 4));
+    const valorUsado = item === "km" ? (usoAprovadoIV.kmValor || 0) : qtdUsada * vu;
+    const valorReservado = item === "km" ? (usoReservadoIV.kmValor || 0) : qtdReservada * vu;
+    const valorContratado = qtdContratada * vu;
     return {
       cod: item, desc: ANEXO_IV_DESC[item], vu,
-      qtdContratada, valorContratado: qtdContratada * vu,
-      qtdUsada, valorUsado: qtdUsada * vu,
-      qtdReservada, valorReservado: qtdReservada * vu,
-      qtdRestante, valorRestante: qtdRestante * vu
+      qtdContratada, valorContratado,
+      qtdUsada, valorUsado,
+      qtdReservada, valorReservado,
+      qtdRestante, valorRestante: valorContratado - valorUsado - valorReservado
     };
   });
 
