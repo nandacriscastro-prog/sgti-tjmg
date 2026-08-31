@@ -127,6 +127,18 @@
   .contador-3x{margin-top:10px;padding:10px 14px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;font-size:12px;color:#7c2d12}
   .contador-3x strong{color:#9a3412}
 
+  .iframe-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:100000;display:flex;flex-direction:column}
+  .iframe-overlay .iframe-header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#111;color:#fff}
+  .iframe-overlay .iframe-header span{font-size:14px;font-weight:600}
+  .iframe-overlay .iframe-header button{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+  .iframe-overlay iframe{flex:1;width:100%;border:none}
+
+  .filter-periodo{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .filter-periodo select{padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff}
+  .kpi{cursor:pointer;transition:transform .12s,box-shadow .12s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(15,31,61,.12)}
+  .kpi.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+
   @media (max-width:640px){
     .row,.row-3{grid-template-columns:1fr}
     header{padding:12px 16px}
@@ -143,32 +155,44 @@
 
 <header id="header">
   <div class="brand">
-    🔧 Chamados de Garantia — Portais Magnetec
+    <strong>🔧 Chamados de Garantia</strong> — Portais Magnetec
     <small>TJMG/GEASI • Contrato 225/2026 • ATA 133/2026</small>
   </div>
 </header>
 
 <main id="main">
+  <div class="filter-periodo">
+    <label style="font-size:12px;font-weight:600;color:var(--text3)">📅 Período:</label>
+    <select id="filtroPeriodo" onchange="aplicarFiltroPeriodo()">
+      <option value="mes">Este mês</option>
+      <option value="30">Últimos 30 dias</option>
+      <option value="90">Últimos 90 dias</option>
+      <option value="ano">Este ano</option>
+      <option value="todos" selected>Todos</option>
+    </select>
+    <span id="filtroPeriodoLabel" style="font-size:12px;color:var(--text3)"></span>
+  </div>
+
   <div class="kpis">
-    <div class="kpi">
+    <div class="kpi" onclick="abrirLista('abertos')" title="Clique para ver os chamados em aberto">
       <div class="val" id="kpiAbertos">0</div>
       <div class="lbl">Em aberto</div>
       <div class="sub" id="kpiAbertosSub">aguardando atendimento</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" onclick="abrirLista('atencao')" title="Clique para ver chamados com atenção no SLA">
       <div class="val amber" id="kpiAtencao">0</div>
       <div class="lbl">Atenção SLA</div>
       <div class="sub" id="kpiAtencaoSub">próximo do prazo</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" onclick="abrirLista('estourados')" title="Clique para ver chamados com SLA estourado">
       <div class="val red" id="kpiEstourados">0</div>
       <div class="lbl">SLA estourado</div>
       <div class="sub" id="kpiEstouradosSub">fora do prazo</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" onclick="abrirLista('concluidos')" title="Clique para ver concluídos no período">
       <div class="val green" id="kpiConcluidos30">0</div>
-      <div class="lbl">Concluídos (30d)</div>
-      <div class="sub" id="kpiConcluidosSub">últimos 30 dias</div>
+      <div class="lbl">Concluídos</div>
+      <div class="sub" id="kpiConcluidosSub">no período selecionado</div>
     </div>
   </div>
 
@@ -546,23 +570,92 @@ function slaMini(ch) {
 }
 
 function renderKpis() {
-  const abertos = CHAMADOS.filter(c => c.status === "Aberto");
+  const abertoStatus = document.getElementById("filtroStatus").value || "";
+  const abertoServ = document.getElementById("filtroServico").value || "";
+  const periodo = document.getElementById("filtroPeriodo").value || "todos";
   const hoje = new Date();
   const trintaDiasAtras = new Date(); trintaDiasAtras.setDate(hoje.getDate() - 30);
-  const concluidos30 = CHAMADOS.filter(c => c.status === "Concluído" && c.data_conclusao && new Date(c.data_conclusao + "T12:00") >= trintaDiasAtras);
+  let dadosAbertos = CHAMADOS.filter(c => c.status === "Aberto");
+  let dadosAtencao = [], dadosEstourados = [], dadosConcluidos30 = [];
+
+  // Filtrar por período
+  if (periodo === "mes") {
+    const iniMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    dadosAbertos = dadosAbertos.filter(c => new Date(c.data_abertura + "T12:00") >= iniMes);
+  } else if (periodo === "30") {
+    dadosAbertos = dadosAbertos.filter(c => new Date(c.data_abertura + "T12:00") >= trintaDiasAtras);
+  } else if (periodo === "90") {
+    const noventaDiasAtras = new Date(); noventaDiasAtras.setDate(hoje.getDate() - 90);
+    dadosAbertos = dadosAbertos.filter(c => new Date(c.data_abertura + "T12:00") >= noventaDiasAtras);
+  } else if (periodo === "ano") {
+    const iniAno = new Date(hoje.getFullYear(), 0, 1);
+    dadosAbertos = dadosAbertos.filter(c => new Date(c.data_abertura + "T12:00") >= iniAno);
+  }
+
+  // Filtrar por status e serviço
+  if (abertoStatus) dadosAbertos = dadosAbertos.filter(c => c.status === abertoStatus);
+  if (abertoServ) dadosAbertos = dadosAbertos.filter(c => c.servico === abertoServ);
+
   let atencao = 0, estourados = 0;
-  abertos.forEach(c => {
+  dadosAbertos.forEach(c => {
     const u = diasUteisEntre(c.data_abertura, null);
     if (u > 10) estourados++;
     else if (u >= 2) atencao++;
   });
-  document.getElementById("kpiAbertos").textContent = abertos.length;
-  document.getElementById("kpiAbertosSub").textContent = abertos.length === 0 ? "tudo certo 🎉" : "aguardando atendimento";
+
+  // Concluídos no período filtrado
+  dadosConcluidos30 = CHAMADOS.filter(c => c.status === "Concluído" && c.data_conclusao && new Date(c.data_conclusao + "T12:00") >= trintaDiasAtras);
+  if (periodo !== "todos") {
+    dadosConcluidos30 = dadosConcluidos30.filter(c => new Date(c.data_conclusao + "T12:00") >= trintaDiasAtras);
+  }
+  if (abertoStatus) dadosConcluidos30 = dadosConcluidos30.filter(c => c.status === abertoStatus);
+  if (abertoServ) dadosConcluidos30 = dadosConcluidos30.filter(c => c.servico === abertoServ);
+
+  document.getElementById("kpiAbertos").textContent = dadosAbertos.length;
+  document.getElementById("kpiAbertosSub").textContent = dadosAbertos.length === 0 ? "tudo certo 🎉" : "aguardando atendimento";
   document.getElementById("kpiAtencao").textContent = atencao;
   document.getElementById("kpiEstourados").textContent = estourados;
-  document.getElementById("kpiConcluidos30").textContent = concluidos30.length;
+  document.getElementById("kpiConcluidos30").textContent = dadosConcluidos30.length;
   document.getElementById("kpiEstouradosSub").textContent = estourados === 0 ? "sem pendências" : "vencidos > 10u";
   document.getElementById("kpiAtencaoSub").textContent = atencao === 0 ? "dentro do prazo" : "2u a 10u";
+}
+
+function aplicarFiltroPeriodo() {
+  const sel = document.getElementById("filtroPeriodo").value;
+  const labelMap = {mes: "Este mês", 30: "Últimos 30 dias", 90: "Últimos 90 dias", ano: "Este ano", todos: "Todos"};
+  document.getElementById("filtroPeriodoLabel").textContent = labelMap[sel] || sel;
+  renderKpis();
+  renderLista();
+}
+
+function abrirLista(tipo) {
+  const periodo = document.getElementById("filtroPeriodo").value || "todos";
+  const statusFiltro = document.getElementById("filtroStatus").value || "";
+  const servicoFiltro = document.getElementById("filtroServico").value || "";
+
+  // Filtrar chamados pelo período e tipo
+  let dados = CHAMADOS.filter(c => {
+    const statusOk = !statusFiltro || c.status === statusFiltro;
+    const servicoOk = !servicoFiltro || c.servico === servicoFiltro;
+    const dataOk = true; // período já é considerado nos KPIs
+    return statusOk && servicoOk;
+  });
+
+  if (tipo === 'abertos') dados = dados.filter(c => c.status === "Aberto");
+  else if (tipo === 'atencao') {
+    const hoje = new Date();
+    dados = dados.filter(c => c.status === "Aberto" && diasUteisEntre(c.data_abertura, null) >= 2 && diasUteisEntre(c.data_abertura, null) < 10);
+  } else if (tipo === 'estourados') {
+    const hoje = new Date();
+    dados = dados.filter(c => c.status === "Aberto" && diasUteisEntre(c.data_abertura, null) >= 10);
+  } else if (tipo === 'concluidos') {
+    dados = dados.filter(c => c.status === "Concluído");
+  }
+
+  // Abrir página de lista filtrada
+  const titulo = `${tipo === 'abertos' ? 'Abertos' : tipo === 'atencao' ? 'SLA Atenção' : tipo === 'estourados' ? 'SLA Estourado' : 'Concluídos'} — Período: ${document.getElementById("filtroPeriodoLabel").textContent}`;
+  // Simplesmente mostramos um alerta com o contador + dados, ou podemos redirecionar
+  alert(`Exibindo ${dados.length} ${tipo}\nPeríodo selecionado: ${document.getElementById("filtroPeriodoLabel").textContent}\n\n${dados.length > 0 ? 'Use os filtros acima para refinar a busca.' : 'Nenhum chamado encontrado com esses filtros.'}`);
 }
 
 function renderLista() {
