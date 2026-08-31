@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788182917 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788183069 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10750,22 +10750,20 @@ function PagePortais() {
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn btn-sm", onClick: carregar }, "🔄 Atualizar"),
-        React.createElement("button", { className: "btn", style: { background: "#d35400", color: "white", fontWeight: 800, padding: "10px 16px" }, onClick: () => setIframeAberto(true) }, "🚪 ABRIR CHAMADOS GARANTIA"),
+        React.createElement("button", { className: "btn btn-sm", onClick: () => setIframeAberto(true) }, "🔧 Chamados de Garantia"),
         React.createElement("button", { className: "btn btn-primary", onClick: () => setPainelNovoAberto(!painelNovoAberto) }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado")
       )
     ),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
-      ataAtual && React.createElement("div", { className: "card", style: { marginBottom: 16, background: "var(--navy)", color: "white" } },
-        React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", opacity: .8, marginBottom: 8 } }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
-        React.createElement("div", { style: { display: "flex", gap: 30, flexWrap: "wrap" } },
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 24, fontWeight: 800 } }, ataAtual.quantidade_total), React.createElement("div", { style: { fontSize: 11, opacity: .8 } }, "Total na ATA")),
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 24, fontWeight: 800 } }, totalDemandado), React.createElement("div", { style: { fontSize: 11, opacity: .8 } }, "Já demandado (contratos)")),
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 24, fontWeight: 800, color: saldoAta <= 10 ? "#ffb4b4" : "#a8e6a3" } }, saldoAta), React.createElement("div", { style: { fontSize: 11, opacity: .8 } }, "Saldo disponível"))
-        ),
-        contratosDemanda.length > 0 && React.createElement("div", { style: { marginTop: 10, fontSize: 12, opacity: .9 } },
-          contratosDemanda.map(c => React.createElement("div", { key: c.id }, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)))
-        )
+      ataAtual && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 } }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
+      ataAtual && React.createElement("div", { className: "kpis", style: { marginBottom: 10 } },
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, ataAtual.quantidade_total), React.createElement("div", { className: "lbl" }, "Total na ATA")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, totalDemandado), React.createElement("div", { className: "lbl" }, "Já demandado (contratos)")),
+        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: saldoAta <= 10 ? "var(--red, #c0392b)" : "var(--green)" } }, saldoAta), React.createElement("div", { className: "lbl" }, "Saldo disponível"))
+      ),
+      ataAtual && contratosDemanda.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, fontSize: 12, color: "var(--text3)" } },
+        contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { padding: "3px 0" } }, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)))
       ),
       React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },
         React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") },
