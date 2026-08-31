@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788186796 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788202982 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10648,6 +10648,7 @@ function PagePortais() {
   const [salvando, setSalvando] = useState(false);
   const [iframeAberto, setIframeAberto] = useState(false);
   const [detalheAberto, setDetalheAberto] = useState(null);
+  const [editandoId, setEditandoId] = useState(null);
   const vazio = { comarca: "", edificacao: "Fórum", marca_modelo: "MAGNETEC", contrato: "", quantidade: 1, data_recebimento_provisorio: "", data_recebimento_definitivo: "", numero_serie: "", patrimonio: "", observacoes: "" };
   const [form, setForm] = useState(vazio);
 
@@ -10703,13 +10704,23 @@ function PagePortais() {
     if (!form.comarca.trim()) { toast("Preencha a comarca", "erro"); return; }
     setSalvando(true);
     try {
-      await sbFetch("/portais_garantia", {
-        method: "POST",
-        body: JSON.stringify({ ...form, criado_por: getSession()?.fiscal?.email || null })
-      });
+      if (editandoId) {
+        await sbFetch(`/portais_garantia?id=eq.${editandoId}`, {
+          method: "PATCH",
+          body: JSON.stringify(form)
+        });
+        toast("✓ Portal atualizado!", "ok");
+      } else {
+        await sbFetch("/portais_garantia", {
+          method: "POST",
+          body: JSON.stringify({ ...form, criado_por: getSession()?.fiscal?.email || null })
+        });
+        toast("✓ Portal cadastrado!", "ok");
+      }
       setForm(vazio);
+      setEditandoId(null);
       setPainelNovoAberto(false);
-      toast("✓ Portal cadastrado!", "ok");
+      setDetalheAberto(null);
       carregar();
     } catch (e) {
       toast("Erro ao salvar: " + e.message, "erro");
@@ -10726,6 +10737,24 @@ function PagePortais() {
     } catch (e) {
       toast("Erro ao excluir: " + e.message, "erro");
     }
+  };
+
+  const editarPortal = p => {
+    setForm({
+      comarca: p.comarca || "",
+      edificacao: p.edificacao || "Fórum",
+      marca_modelo: p.marca_modelo || "MAGNETEC",
+      contrato: p.contrato || "",
+      quantidade: p.quantidade || 1,
+      data_recebimento_provisorio: p.data_recebimento_provisorio || "",
+      data_recebimento_definitivo: p.data_recebimento_definitivo || "",
+      numero_serie: p.numero_serie || "",
+      patrimonio: p.patrimonio || "",
+      observacoes: p.observacoes || ""
+    });
+    setEditandoId(p.id);
+    setDetalheAberto(null);
+    setPainelNovoAberto(true);
   };
 
   // Calcula automaticamente a data de recebimento definitivo (+36 meses) quando o provisório é preenchido
@@ -10752,7 +10781,7 @@ function PagePortais() {
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn btn-sm", onClick: carregar }, "🔄 Atualizar"),
         React.createElement("button", { className: "btn btn-sm", onClick: () => setIframeAberto(true) }, "🔧 Chamados de Garantia"),
-        React.createElement("button", { className: "btn btn-primary", onClick: () => setPainelNovoAberto(!painelNovoAberto) }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado")
+        React.createElement("button", { className: "btn btn-primary", onClick: () => { if (painelNovoAberto) { setEditandoId(null); setForm(vazio); } setPainelNovoAberto(!painelNovoAberto); } }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado")
       )
     ),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
@@ -10782,7 +10811,7 @@ function PagePortais() {
         ))
       ),
       painelNovoAberto && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
-        React.createElement("div", { className: "card-title" }, "Cadastrar portal instalado"),
+        React.createElement("div", { className: "card-title" }, editandoId ? "Editar portal instalado" : "Cadastrar portal instalado"),
         React.createElement("div", { className: "form-grid" },
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Comarca"), React.createElement("input", { value: form.comarca, onChange: e => setForm(f => ({ ...f, comarca: e.target.value })) })),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Edificação"), React.createElement("input", { value: form.edificacao, onChange: e => setForm(f => ({ ...f, edificacao: e.target.value })) })),
@@ -10795,7 +10824,7 @@ function PagePortais() {
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Patrimônio"), React.createElement("input", { value: form.patrimonio, onChange: e => setForm(f => ({ ...f, patrimonio: e.target.value })) })),
           React.createElement("div", { className: "fg full" }, React.createElement("label", null, "Observações"), React.createElement("textarea", { value: form.observacoes, onChange: e => setForm(f => ({ ...f, observacoes: e.target.value })) }))
         ),
-        React.createElement("button", { className: "btn btn-primary", disabled: salvando, onClick: salvar, style: { marginTop: 10 } }, salvando ? "Salvando..." : "Salvar portal")
+        React.createElement("button", { className: "btn btn-primary", disabled: salvando, onClick: salvar, style: { marginTop: 10 } }, salvando ? "Salvando..." : editandoId ? "💾 Salvar alterações" : "Salvar portal")
       ),
       React.createElement("input", {
         type: "text", placeholder: "🔎 Buscar por comarca ou contrato...", value: busca, onChange: e => setBusca(e.target.value),
@@ -10852,7 +10881,10 @@ function PagePortais() {
             React.createElement("div", { style: { fontWeight: 600 } }, valor)
           ))
         ),
-        React.createElement("button", { className: "btn", style: { marginTop: 14, width: "100%", color: "var(--red, #c0392b)" }, onClick: () => { excluir(detalheAberto.id); setDetalheAberto(null); } }, "🗑 Excluir este registro")
+        React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
+          React.createElement("button", { className: "btn btn-primary", style: { flex: 1 }, onClick: () => editarPortal(detalheAberto) }, "✎ Editar"),
+          React.createElement("button", { className: "btn", style: { flex: 1, color: "var(--red, #c0392b)" }, onClick: () => { excluir(detalheAberto.id); setDetalheAberto(null); } }, "🗑 Excluir")
+        )
       )
     ),
     iframeAberto && React.createElement("div", { onClick: () => setIframeAberto(false), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", flexDirection: "column" } },
