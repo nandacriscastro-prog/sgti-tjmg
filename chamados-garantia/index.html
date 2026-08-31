@@ -382,13 +382,14 @@ function popularSelectPortais() {
   const sel = document.getElementById("fPortal");
   const valorAtual = sel.value;
   sel.innerHTML = '<option value="">Selecione um portal em garantia...</option>';
-  // Ordena: em garantia primeiro, depois vencendo, depois vencida
-  const ordenados = [...PORTAIS].sort((a, b) => {
-    const sa = statusGarantia(a).dias ?? 99999;
-    const sb = statusGarantia(b).dias ?? 99999;
-    return sa - sb;
+  // Filtra SÓ portais com garantia VIGENTE (dias > 0 = não vencida)
+  const emGarantia = [...PORTAIS].filter(p => {
+    const st = statusGarantia(p);
+    return st.dias !== undefined && st.dias > 0;
   });
-  ordenados.forEach(p => {
+  // Ordena: vence primeiro (menos dias) -> mais dias
+  emGarantia.sort((a, b) => (statusGarantia(a).dias ?? 99999) - (statusGarantia(b).dias ?? 99999));
+  emGarantia.forEach(p => {
     const st = statusGarantia(p);
     const opt = document.createElement("option");
     opt.value = p.id;
