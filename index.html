@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788203651 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788204002 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3812,6 +3812,36 @@ function PageHistorico({
       setSalvandoPedido(false);
     }
   };
+  const [editandoOSBasico, setEditandoOSBasico] = useState(false);
+  const [formOSBasico, setFormOSBasico] = useState({});
+  const [salvandoOSBasico, setSalvandoOSBasico] = useState(false);
+  const abrirEdicaoOSBasico = (osSel) => {
+    setFormOSBasico({
+      comarca: osSel.comarca || "",
+      tipo: osSel.tipo || "",
+      prioridade: osSel.prioridade || "",
+      servico: osSel.servico || "",
+      observacoes: osSel.observacoes || ""
+    });
+    setEditandoOSBasico(true);
+  };
+  const salvarOSBasico = async (osSel) => {
+    setSalvandoOSBasico(true);
+    try {
+      await sbFetch(`/ordens_servico?id=eq.${osSel.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(formOSBasico)
+      });
+      Object.assign(osSel, formOSBasico);
+      setEditandoOSBasico(false);
+      toast("✓ OS atualizada!", "ok");
+      if (typeof reload === "function") reload();
+    } catch (e) {
+      toast("Erro ao salvar OS: " + e.message, "erro");
+    } finally {
+      setSalvandoOSBasico(false);
+    }
+  };
   const [execForm, setExecForm] = useState(null);
   const [editandoAvaliacao, setEditandoAvaliacao] = useState(false);
   const [salvandoHist, setSalvandoHist] = useState(false);
@@ -4482,6 +4512,42 @@ function PageHistorico({
               React.createElement("span", { style: { fontSize: 12 } }, "Nº do Pedido: ", React.createElement("strong", null, sel.numero_pedido || "— não informado")),
               React.createElement("button", { className: "btn btn-sm", onClick: () => { setNovoPedido(sel.numero_pedido || ""); setEditandoPedido(true); } }, "✎ Editar")
             )
+      ),
+      sel.status !== "Concluída" && (editandoOSBasico
+        ? React.createElement("div", { className: "card", style: { marginBottom: 14, background: "var(--surface)" } },
+            React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 10 } }, "✎ Editar dados da OS"),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 10 } },
+              React.createElement("div", { className: "fg" },
+                React.createElement("label", null, "Comarca"),
+                React.createElement("input", { type: "text", value: formOSBasico.comarca, onChange: e => setFormOSBasico(f => ({ ...f, comarca: e.target.value })) })
+              ),
+              React.createElement("div", { className: "fg" },
+                React.createElement("label", null, "Tipo"),
+                React.createElement("select", { value: formOSBasico.tipo, onChange: e => setFormOSBasico(f => ({ ...f, tipo: e.target.value })) },
+                  ["Programado", "Emergencial", "Correção"].map(t => React.createElement("option", { key: t, value: t }, t))
+                )
+              ),
+              React.createElement("div", { className: "fg" },
+                React.createElement("label", null, "Prioridade"),
+                React.createElement("input", { type: "text", value: formOSBasico.prioridade, onChange: e => setFormOSBasico(f => ({ ...f, prioridade: e.target.value })) })
+              ),
+              React.createElement("div", { className: "fg" },
+                React.createElement("label", null, "Serviço"),
+                React.createElement("input", { type: "text", value: formOSBasico.servico, onChange: e => setFormOSBasico(f => ({ ...f, servico: e.target.value })) })
+              )
+            ),
+            React.createElement("div", { className: "fg full", style: { marginBottom: 10 } },
+              React.createElement("label", null, "Observações"),
+              React.createElement("textarea", { value: formOSBasico.observacoes, onChange: e => setFormOSBasico(f => ({ ...f, observacoes: e.target.value })), style: { minHeight: 50 } })
+            ),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+              React.createElement("button", { className: "btn", onClick: () => setEditandoOSBasico(false), disabled: salvandoOSBasico }, "Cancelar"),
+              React.createElement("button", { className: "btn btn-primary", onClick: () => salvarOSBasico(sel), disabled: salvandoOSBasico }, salvandoOSBasico ? "Salvando..." : "💾 Salvar")
+            )
+          )
+        : React.createElement("div", { style: { marginBottom: 14 } },
+            React.createElement("button", { className: "btn btn-sm", onClick: () => abrirEdicaoOSBasico(sel) }, "✎ Editar dados da OS (comarca, tipo, prioridade...)")
+          )
       ),
       /*#__PURE__*/React.createElement("div", {
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }
