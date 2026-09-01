@@ -760,11 +760,11 @@ function imprimirHTML(c, portal) {
   const statusClasse = c.status === "Concluído" ? "green" : c.status === "Atrasado" ? "red" : "blue";
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chamado ${c.numero || ""}</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
   body{font-family:"Calibri","Segoe UI",Arial,Helvetica,sans-serif;color:#1a2233;max-width:800px;margin:0 auto;padding:0 0 30px;font-size:13px;background:#f4f6f9}
-  .topo{background:linear-gradient(135deg,#0f1f3d,#1a3466);color:#fff;padding:28px 30px 22px;margin-bottom:0}
-  .topo h1{font-size:20px;margin:0 0 4px;font-weight:700}
-  .topo .sub{color:#b8c4dc;font-size:12px;margin:0}
+  .topo{background:#0f1f3d;color:#fff;padding:28px 30px 22px;margin-bottom:0}
+  .topo h1{font-size:20px;margin:0 0 4px;font-weight:700;color:#fff}
+  .topo .sub{color:#cdd8ee;font-size:12px;margin:0}
   .topo .numero{position:absolute;top:28px;right:30px;text-align:right}
   .wrap{padding:0 30px}
   .info-top{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(15,31,61,.08);margin-top:-14px;padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px}
@@ -772,11 +772,11 @@ function imprimirHTML(c, portal) {
   .info-top .linha:last-child,.info-top .linha:nth-last-child(2){border-bottom:none}
   .lbl{color:#6b7686;font-weight:600}
   .val{color:#1a2233;font-weight:700;text-align:right}
-  .badge{display:inline-block;padding:3px 11px;border-radius:99px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-  .badge.green{background:#dcfce7;color:#166534}
-  .badge.amber{background:#fef3c7;color:#92400e}
-  .badge.red{background:#fee2e2;color:#991b1b}
-  .badge.blue{background:#dbeafe;color:#1e40af}
+  .badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+  .badge.green{background:#16a34a;color:#fff}
+  .badge.amber{background:#d97706;color:#fff}
+  .badge.red{background:#dc2626;color:#fff}
+  .badge.blue{background:#2563eb;color:#fff}
   h2{color:#0f1f3d;font-size:13.5px;margin:22px 0 10px;display:flex;align-items:center;gap:8px;font-weight:700}
   h2 .linha-h2{flex:1;height:1px;background:#dde3ee}
   .card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(15,31,61,.06);overflow:hidden}
@@ -793,7 +793,7 @@ function imprimirHTML(c, portal) {
   .assinaturas{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px;font-size:11.5px}
   .assinatura{border-top:1px solid #1a2233;padding-top:8px;text-align:center;color:#3a4457;font-weight:600}
   .footer{margin-top:26px;font-size:10px;color:#9aa4b5;text-align:center;padding-top:10px}
-  @media print { .no-print{display:none} body{margin:0;background:#fff} .topo{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+  @media print { .no-print{display:none} body{margin:0;background:#fff} }
 </style></head><body>
 <div class="topo" style="position:relative">
   <h1>Chamado de Assistência Técnica em Garantia</h1>
