@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788263890 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788271956 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10630,7 +10630,7 @@ function PageControleAtivos() {
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "📶 Anexo IV — Serviços/Atendimento"),
-      React.createElement("div", { className: "kpis", style: { marginBottom: 12 } },
+      React.createElement("div", { className: "kpi-grid", style: { marginBottom: 12 } },
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totaisIV.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totaisIV.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totaisIV.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
@@ -10660,7 +10660,7 @@ function PageControleAtivos() {
         )
       ),
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "🔧 Anexo V — Aplicação de Recursos Sob Demanda (peças)"),
-      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },
+      React.createElement("div", { className: "kpi-grid", style: { marginBottom: 16 } },
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, fmtR(totaisV.valorContratado)), React.createElement("div", { className: "lbl" }, "Total contratado")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--green)" } }, fmtR(totaisV.valorUsado)), React.createElement("div", { className: "lbl" }, "Já usado (aprovado)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, fmtR(totaisV.valorReservado)), React.createElement("div", { className: "lbl" }, "Reservado (aguarda avaliação)")),
@@ -10860,7 +10860,7 @@ function PagePortais() {
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
       ataAtual && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 } }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
-      ataAtual && React.createElement("div", { className: "kpis", style: { marginBottom: 10 } },
+      ataAtual && React.createElement("div", { className: "kpi-grid", style: { marginBottom: 10 } },
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, ataAtual.quantidade_total), React.createElement("div", { className: "lbl" }, "Total na ATA")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, totalDemandado), React.createElement("div", { className: "lbl" }, "Já demandado (contratos)")),
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: saldoAta <= 10 ? "var(--red, #c0392b)" : "var(--green)" } }, saldoAta), React.createElement("div", { className: "lbl" }, "Saldo disponível"))
@@ -10868,7 +10868,7 @@ function PagePortais() {
       ataAtual && contratosDemanda.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, fontSize: 12, color: "var(--text3)" } },
         contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { padding: "3px 0" } }, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)))
       ),
-      React.createElement("div", { className: "kpis", style: { marginBottom: 16 } },
+      React.createElement("div", { className: "kpi-grid", style: { marginBottom: 16 } },
         React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") },
           React.createElement("div", { className: "val", style: { color: "var(--green)" } }, emGarantia.length), React.createElement("div", { className: "lbl" }, "Em garantia")),
         React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Vencendo em breve" ? "" : "Vencendo em breve") },
