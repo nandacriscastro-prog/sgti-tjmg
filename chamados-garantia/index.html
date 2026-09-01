@@ -220,7 +220,7 @@
         </div>
         <div class="field">
           <label>Tipo de serviço <span class="req">*</span></label>
-          <select id="fServico" required>
+          <select id="fServico" required onchange="popularSelectPortais()">
             <option value="">Selecione...</option>
             <option value="Manutenção">Manutenção (reparo)</option>
             <option value="Substituição">Substituição de peça/componente</option>
@@ -406,19 +406,32 @@ function statusGarantia(portal) {
 function popularSelectPortais() {
   const sel = document.getElementById("fPortal");
   const valorAtual = sel.value;
-  sel.innerHTML = '<option value="">Selecione um portal em garantia...</option>';
-  // Filtra SÓ portais com garantia VIGENTE (dias > 0 = não vencida)
-  const emGarantia = [...PORTAIS].filter(p => {
-    const st = statusGarantia(p);
-    return st.dias !== undefined && st.dias > 0;
-  });
-  // Ordena: vence primeiro (menos dias) -> mais dias
-  emGarantia.sort((a, b) => (statusGarantia(a).dias ?? 99999) - (statusGarantia(b).dias ?? 99999));
-  emGarantia.forEach(p => {
+  const servico = document.getElementById("fServico")?.value || "";
+  const ehInstalacao = servico === "Instalação";
+
+  let listaPortais;
+  if (ehInstalacao) {
+    // Instalação: mostra TODAS as comarcas cadastradas (pode ser um portal novo, mesmo sem garantia vigente)
+    sel.innerHTML = '<option value="">Selecione a comarca...</option>';
+    listaPortais = [...PORTAIS].sort((a, b) => (a.comarca || "").localeCompare(b.comarca || "", "pt-BR"));
+  } else {
+    // Manutenção/Substituição: só portais com garantia VIGENTE (dias > 0 = não vencida)
+    sel.innerHTML = '<option value="">Selecione um portal em garantia...</option>';
+    listaPortais = [...PORTAIS].filter(p => {
+      const st = statusGarantia(p);
+      return st.dias !== undefined && st.dias > 0;
+    });
+    // Ordena: vence primeiro (menos dias) -> mais dias
+    listaPortais.sort((a, b) => (statusGarantia(a).dias ?? 99999) - (statusGarantia(b).dias ?? 99999));
+  }
+
+  listaPortais.forEach(p => {
     const st = statusGarantia(p);
     const opt = document.createElement("option");
     opt.value = p.id;
-    opt.textContent = `${p.comarca} — ${p.edificacao || "Fórum"} (${p.contrato || "—"}) [${st.txt}]`;
+    opt.textContent = ehInstalacao
+      ? `${p.comarca} — ${p.edificacao || "Fórum"} (${p.contrato || "—"})`
+      : `${p.comarca} — ${p.edificacao || "Fórum"} (${p.contrato || "—"}) [${st.txt}]`;
     sel.appendChild(opt);
   });
   sel.value = valorAtual;
@@ -438,10 +451,13 @@ function atualizarDadosPortal() {
     return;
   }
   const st = statusGarantia(portal);
-  infoEl.innerHTML = `<b>${portal.marca_modelo || "—"}</b> • Garantia até ${fmtData(portal.data_recebimento_definitivo)} • ${st.txt}`;
-  infoEl.style.color = st.cor === "red" ? "#991b1b" : st.cor === "amber" ? "#92400e" : "#166534";
+  const ehInstalacao = document.getElementById("fServico")?.value === "Instalação";
+  infoEl.innerHTML = ehInstalacao
+    ? `<b>${portal.marca_modelo || "—"}</b> • Contrato ${portal.contrato || "—"}`
+    : `<b>${portal.marca_modelo || "—"}</b> • Garantia até ${fmtData(portal.data_recebimento_definitivo)} • ${st.txt}`;
+  infoEl.style.color = ehInstalacao ? "#1a2233" : (st.cor === "red" ? "#991b1b" : st.cor === "amber" ? "#92400e" : "#166534");
 
-  if (st.cor === "red") {
+  if (st.cor === "red" && !ehInstalacao) {
     alertaGarantia.style.display = "block";
     alertaGarantia.innerHTML = `⚠️ <b>Atenção:</b> a garantia deste portal venceu em ${fmtData(portal.data_recebimento_definitivo)} (há ${Math.abs(st.dias)} dias). Acionar a Magnetec por garantia pode não ser aplicável — verifique se a manutenção é mesmo contratual (Alvo / contrato 181) ou administrativa.`;
   } else {
