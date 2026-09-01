@@ -757,81 +757,94 @@ function abrirImprimirChamado(id) {
 
 function imprimirHTML(c, portal) {
   const sla = diasUteisEntre(c.data_abertura, c.data_conclusao);
+  const statusClasse = c.status === "Concluído" ? "green" : c.status === "Atrasado" ? "red" : "blue";
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chamado ${c.numero || ""}</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#1a2233;max-width:780px;margin:24px auto;padding:0 20px;font-size:13px}
-  h1{color:#0f1f3d;font-size:20px;margin:0 0 6px}
-  h2{color:#0f1f3d;font-size:14px;margin:18px 0 6px;border-bottom:2px solid #dde3ee;padding-bottom:4px}
-  .sub{color:#6b7686;font-size:12px;margin-bottom:18px}
-  .box{border:1px solid #dde3ee;border-radius:8px;padding:14px;margin-bottom:14px;background:#f8fafc}
-  .linha{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
-  .linha .lbl{color:#6b7686;font-weight:600}
-  .linha .val{color:#1a2233;font-weight:700}
-  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase}
+  * { box-sizing: border-box; }
+  body{font-family:"Calibri","Segoe UI",Arial,Helvetica,sans-serif;color:#1a2233;max-width:800px;margin:0 auto;padding:0 0 30px;font-size:13px;background:#f4f6f9}
+  .topo{background:linear-gradient(135deg,#0f1f3d,#1a3466);color:#fff;padding:28px 30px 22px;margin-bottom:0}
+  .topo h1{font-size:20px;margin:0 0 4px;font-weight:700}
+  .topo .sub{color:#b8c4dc;font-size:12px;margin:0}
+  .topo .numero{position:absolute;top:28px;right:30px;text-align:right}
+  .wrap{padding:0 30px}
+  .info-top{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(15,31,61,.08);margin-top:-14px;padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px}
+  .info-top .linha{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eef1f6;font-size:12.5px}
+  .info-top .linha:last-child,.info-top .linha:nth-last-child(2){border-bottom:none}
+  .lbl{color:#6b7686;font-weight:600}
+  .val{color:#1a2233;font-weight:700;text-align:right}
+  .badge{display:inline-block;padding:3px 11px;border-radius:99px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
   .badge.green{background:#dcfce7;color:#166534}
   .badge.amber{background:#fef3c7;color:#92400e}
   .badge.red{background:#fee2e2;color:#991b1b}
   .badge.blue{background:#dbeafe;color:#1e40af}
-  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-  th,td{padding:6px 8px;border:1px solid #dde3ee;text-align:left}
-  th{background:#0f1f3d;color:#fff}
-  .regra{background:#fffbeb;border-left:4px solid #b8860b;padding:8px 12px;font-size:11px;margin:8px 0}
-  .regra strong{color:#92400e}
-  .assinaturas{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:30px;font-size:11px}
-  .assinatura{border-top:1px solid #1a2233;padding-top:6px;text-align:center}
-  .footer{margin-top:30px;font-size:10px;color:#6b7686;text-align:center;border-top:1px solid #dde3ee;padding-top:8px}
-  @media print { .no-print{display:none} body{margin:0} }
+  h2{color:#0f1f3d;font-size:13.5px;margin:22px 0 10px;display:flex;align-items:center;gap:8px;font-weight:700}
+  h2 .linha-h2{flex:1;height:1px;background:#dde3ee}
+  .card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(15,31,61,.06);overflow:hidden}
+  .grid-2col{display:grid;grid-template-columns:1fr 1fr}
+  .campo{padding:11px 16px;border-bottom:1px solid #eef1f6;border-right:1px solid #eef1f6}
+  .campo:nth-child(2n){border-right:none}
+  .campo .k{color:#6b7686;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;font-weight:600}
+  .campo .v{color:#1a2233;font-weight:700;font-size:13px}
+  .campo-full{padding:12px 16px;border-bottom:1px solid #eef1f6}
+  .campo-full .k{color:#6b7686;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:600}
+  .campo-full .v{color:#1a2233;font-weight:500;font-size:13px;line-height:1.5}
+  .regra{background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #b8860b;border-radius:0 8px 8px 0;padding:12px 16px;font-size:11.5px;margin:18px 0;line-height:1.7}
+  .regra strong{color:#92400e;display:block;margin-bottom:4px;font-size:12px}
+  .assinaturas{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px;font-size:11.5px}
+  .assinatura{border-top:1px solid #1a2233;padding-top:8px;text-align:center;color:#3a4457;font-weight:600}
+  .footer{margin-top:26px;font-size:10px;color:#9aa4b5;text-align:center;padding-top:10px}
+  @media print { .no-print{display:none} body{margin:0;background:#fff} .topo{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
 </style></head><body>
-<h1>Chamado de Assistência Técnica em Garantia</h1>
-<div class="sub">Portais Detectores de Metal — Magnetec | TJMG/GEASI</div>
-
-<div class="box">
-  <div class="linha"><span class="lbl">Nº do chamado:</span><span class="val">${c.numero || "—"}</span></div>
-  <div class="linha"><span class="lbl">Status:</span><span class="val">${c.status || "—"}</span></div>
-  <div class="linha"><span class="lbl">Data de abertura:</span><span class="val">${fmtData(c.data_abertura)}</span></div>
-  <div class="linha"><span class="lbl">Prazo SLA (2º dia útil):</span><span class="val">${fmtData(c.data_prazo)} às 18h</span></div>
-  ${c.data_conclusao ? `<div class="linha"><span class="lbl">Data de conclusão:</span><span class="val">${fmtData(c.data_conclusao)}</span></div>` : ""}
-  ${c.criado_por ? `<div class="linha"><span class="lbl">Solicitante:</span><span class="val">${c.criado_por}</span></div>` : ""}
-</div>
-
-<h2>🏛️ Local</h2>
-<table>
-  <tr><th>Comarca</th><td>${c.comarca || "—"}</td></tr>
-  <tr><th>Edificação</th><td>${c.edificacao || "—"}</td></tr>
-  <tr><th>Marca/Modelo</th><td>${portal.marca_modelo || "—"}</td></tr>
-  <tr><th>Contrato</th><td>${c.contrato || portal.contrato || "—"}</td></tr>
-  <tr><th>Garantia até</th><td>${fmtData(portal.data_recebimento_definitivo)}</td></tr>
-  ${portal.numero_serie ? `<tr><th>Nº de série</th><td>${portal.numero_serie}</td></tr>` : ""}
-  ${portal.patrimonio ? `<tr><th>Patrimônio</th><td>${portal.patrimonio}</td></tr>` : ""}
-</table>
-
-<h2>🔧 Serviço solicitado</h2>
-<table>
-  <tr><th>Tipo</th><td>${c.servico || "—"}</td></tr>
-  <tr><th>Descrição do problema</th><td>${(c.descricao || "—").replace(/\n/g, "<br>")}</td></tr>
-  ${c.observacoes ? `<tr><th>Observações</th><td>${(c.observacoes || "").replace(/\n/g, "<br>")}</td></tr>` : ""}
-</table>
-
-<div class="regra">
-  <strong>📋 SLA Contratual (Contrato 225/2026):</strong><br>
-  • Reparo: até 18h do 2º dia útil após a abertura.<br>
-  • Se ultrapassar 10 dias úteis do reparo: substituição definitiva do equipamento.<br>
-  • 3 chamados pela mesma falha no mesmo equipamento: troca obrigatória em até 30 dias corridos.
-</div>
-
-<div class="assinaturas">
-  <div class="assinatura">
-    <div>________________________________</div>
-    <div>GEASI / TJMG</div>
-  </div>
-  <div class="assinatura">
-    <div>________________________________</div>
-    <div>Preposto Magnetec</div>
+<div class="topo" style="position:relative">
+  <h1>Chamado de Assistência Técnica em Garantia</h1>
+  <div class="sub">Portais Detectores de Metal — Magnetec | TJMG/GEASI/COTESI</div>
+  <div class="numero">
+    <div style="font-size:16px;font-weight:800">${c.numero || "—"}</div>
+    <div style="margin-top:4px"><span class="badge ${statusClasse}">${c.status || "—"}</span></div>
   </div>
 </div>
+<div class="wrap">
+  <div class="info-top">
+    <div class="linha"><span class="lbl">Data de abertura</span><span class="val">${fmtData(c.data_abertura)}</span></div>
+    <div class="linha"><span class="lbl">Prazo SLA (2º dia útil)</span><span class="val">${fmtData(c.data_prazo)} às 18h</span></div>
+    ${c.data_conclusao ? `<div class="linha"><span class="lbl">Data de conclusão</span><span class="val">${fmtData(c.data_conclusao)}</span></div>` : `<div></div>`}
+    <div class="linha"><span class="lbl">Solicitante</span><span class="val">${c.criado_por || "GEASI/COTESI"}</span></div>
+  </div>
 
-<div class="footer">
-  Documento gerado em ${new Date().toLocaleString("pt-BR")} — SGTI-TJMG
+  <h2>🏛️ Local <span class="linha-h2"></span></h2>
+  <div class="card grid-2col">
+    <div class="campo"><div class="k">Comarca</div><div class="v">${c.comarca || "—"}</div></div>
+    <div class="campo"><div class="k">Edificação</div><div class="v">${c.edificacao || "—"}</div></div>
+    <div class="campo"><div class="k">Marca/Modelo</div><div class="v">${portal.marca_modelo || "—"}</div></div>
+    <div class="campo"><div class="k">Contrato</div><div class="v">${c.contrato || portal.contrato || "—"}</div></div>
+    <div class="campo"><div class="k">Garantia até</div><div class="v">${fmtData(portal.data_recebimento_definitivo)}</div></div>
+    <div class="campo"><div class="k">Nº de série</div><div class="v">${portal.numero_serie || "—"}</div></div>
+    <div class="campo" style="border-bottom:none"><div class="k">Patrimônio</div><div class="v">${portal.patrimonio || "—"}</div></div>
+    <div class="campo" style="border-bottom:none"></div>
+  </div>
+
+  <h2>🔧 Serviço solicitado <span class="linha-h2"></span></h2>
+  <div class="card">
+    <div class="campo-full"><div class="k">Tipo</div><div class="v">${c.servico || "—"}</div></div>
+    <div class="campo-full"><div class="k">Descrição do problema</div><div class="v">${(c.descricao || "—").replace(/\n/g, "<br>")}</div></div>
+    <div class="campo-full" style="border-bottom:none"><div class="k">Observações</div><div class="v">${(c.observacoes || "—").replace(/\n/g, "<br>")}</div></div>
+  </div>
+
+  <div class="regra">
+    <strong>📋 SLA Contratual (Contrato 225/2026)</strong>
+    • Reparo: até 18h do 2º dia útil após a abertura.<br>
+    • Se ultrapassar 10 dias úteis do reparo: substituição definitiva do equipamento.<br>
+    • 3 chamados pela mesma falha no mesmo equipamento: troca obrigatória em até 30 dias corridos.
+  </div>
+
+  <div class="assinaturas">
+    <div class="assinatura">GEASI / TJMG</div>
+    <div class="assinatura">Preposto Magnetec</div>
+  </div>
+
+  <div class="footer">
+    Documento gerado em ${new Date().toLocaleString("pt-BR")} — SGTI-TJMG
+  </div>
 </div>
 </body></html>`;
 }
