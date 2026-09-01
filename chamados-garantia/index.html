@@ -374,6 +374,7 @@ function calcularPrazo() {
 // ── DADOS ──────────────────────────────────────────────────
 let PORTAIS = [];
 let CHAMADOS = [];
+let editandoChamadoId = null;
 
 async function carregar(silencioso) {
   try {
@@ -483,6 +484,36 @@ async function abrirChamado(ev) {
   const obs = document.getElementById("fObs").value.trim();
   if (!servico || !dataAbertura || !descricao) { toast("Preencha todos os campos obrigatórios", "erro"); return; }
 
+  const btn = document.getElementById("btnAbrir");
+
+  if (editandoChamadoId) {
+    const prazo = addDiasUteis(dataAbertura, 2);
+    btn.disabled = true; btn.textContent = "Salvando...";
+    try {
+      await sbFetch("/chamados_portal?id=eq." + editandoChamadoId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          comarca: portal.comarca,
+          edificacao: portal.edificacao || "Fórum",
+          servico,
+          data_abertura: dataAbertura,
+          data_prazo: prazo,
+          descricao,
+          observacoes: obs || null
+        })
+      });
+      toast("✓ Chamado atualizado", "ok");
+      editandoChamadoId = null;
+      limparForm();
+      carregar(true);
+    } catch (e) {
+      toast("Erro ao salvar: " + e.message, "erro");
+    } finally {
+      btn.disabled = false; btn.textContent = "✓ Abrir chamado";
+    }
+    return;
+  }
+
   // Gera número MAG-NNN/AAAA
   const ano = new Date(dataAbertura + "T12:00").getFullYear();
   const maxSeq = CHAMADOS
@@ -493,7 +524,6 @@ async function abrirChamado(ev) {
   const prazo = addDiasUteis(dataAbertura, 2);
   const sess = getSession();
 
-  const btn = document.getElementById("btnAbrir");
   btn.disabled = true; btn.textContent = "Salvando...";
   try {
     const registros = await sbFetch("/chamados_portal", {
@@ -526,7 +556,41 @@ async function abrirChamado(ev) {
   }
 }
 
+function editarChamado(id) {
+  const c = CHAMADOS.find(x => x.id === id);
+  if (!c) return;
+  const portal = PORTAIS.find(p =>
+    (p.comarca || "").toLowerCase() === (c.comarca || "").toLowerCase() &&
+    (p.edificacao || "").toLowerCase() === (c.edificacao || "").toLowerCase()
+  );
+  editandoChamadoId = id;
+  if (portal) document.getElementById("fPortal").value = portal.id;
+  document.getElementById("fServico").value = c.servico || "";
+  document.getElementById("fDataAbertura").value = c.data_abertura || "";
+  document.getElementById("fDescricao").value = c.descricao || "";
+  document.getElementById("fObs").value = c.observacoes || "";
+  const btn = document.getElementById("btnAbrir");
+  btn.textContent = "💾 Salvar alterações";
+  document.getElementById("fPortal").scrollIntoView({ behavior: "smooth", block: "center" });
+  toast("Editando chamado " + (c.numero || "") + " — role para cima e salve", "ok");
+}
+
+async function excluirChamado(id) {
+  const c = CHAMADOS.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm("Excluir o chamado " + (c.numero || "") + "? Essa ação não pode ser desfeita.")) return;
+  try {
+    await sbFetch("/chamados_portal?id=eq." + id, { method: "DELETE" });
+    toast("✓ Chamado excluído", "ok");
+    carregar(true);
+  } catch (e) {
+    toast("Erro ao excluir: " + e.message, "erro");
+  }
+}
+
 function limparForm() {
+  editandoChamadoId = null;
+  document.getElementById("btnAbrir").textContent = "✓ Abrir chamado";
   document.getElementById("fPortal").value = "";
   document.getElementById("fServico").value = "";
   document.getElementById("fDataAbertura").value = hojeISO();
@@ -694,7 +758,9 @@ function renderLista() {
     html += '<td class="acoes">';
     if (c.status === "Aberto") {
       html += '<button class="btn sm success" onclick="concluirChamado(' + c.id + ')">✓ Concluir</button> ';
+      html += '<button class="btn sm" onclick="editarChamado(' + c.id + ')">✎ Editar</button> ';
       html += '<button class="btn sm warn" onclick="cancelarChamado(' + c.id + ')">Cancelar</button> ';
+      html += '<button class="btn sm danger" onclick="excluirChamado(' + c.id + ')">🗑 Excluir</button> ';
     }
     html += '<button class="btn sm" onclick="abrirImprimirChamado(' + c.id + ')">🖨</button>';
     html += '</td>';
