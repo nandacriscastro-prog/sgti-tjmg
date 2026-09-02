@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788349415 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788352099 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3083,12 +3083,21 @@ function PageNovaOS({
   useEffect(() => {
     if (!comarca || !sistemas.includes("Portal") || contratoSel !== "181/2026") { setGarantiaPortalAtiva(null); return; }
     const munNome = comarca.split(" - ")[0];
+    const edifNome = comarca.includes(" - ") ? comarca.split(" - ").slice(1).join(" - ").trim().toLowerCase() : "";
     (async () => {
       try {
         const rows = await sbFetch(`/portais_garantia?comarca=ilike.${encodeURIComponent(munNome)}&select=*`);
         const hoje = new Date();
-        const ativo = (rows || []).find(p => p.data_recebimento_definitivo && new Date(p.data_recebimento_definitivo + "T12:00") > hoje);
-        setGarantiaPortalAtiva(ativo || null);
+        const emGarantia = (rows || []).filter(p => p.data_recebimento_definitivo && new Date(p.data_recebimento_definitivo + "T12:00") > hoje);
+        // Se a comarca tem edificação específica (ex: "Belo Horizonte - Cartório das Câmaras") e há mais de um
+        // registro de portal na cidade, só avisa se achar o mesmo prédio — evita pegar a garantia de OUTRO prédio da mesma cidade
+        let ativo = null;
+        if (edifNome && emGarantia.length) {
+          ativo = emGarantia.find(p => (p.edificacao || "").trim().toLowerCase() === edifNome) || null;
+        } else if (emGarantia.length === 1) {
+          ativo = emGarantia[0];
+        }
+        setGarantiaPortalAtiva(ativo);
       } catch (e) { setGarantiaPortalAtiva(null); }
     })();
   }, [comarca, sistemas.join(","), contratoSel]);
