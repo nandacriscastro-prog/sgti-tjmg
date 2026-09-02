@@ -49,31 +49,54 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 | Estoque | Cobens/Comarcas/Cotesi — patrimônio de equipamentos |
 | Demandas | Sincronizado com planilha Google via Apps Script (bidirecional) |
 | Usuários / Técnicos | Administrativo — só Fernanda |
-| **Portais (Garantia)** | **Nova (última sessão) — controle de garantia dos portais detectores de metal, ver seção abaixo** |
+| Portais (Garantia) | Controle de garantia dos portais detectores de metal — ver seção abaixo |
+| Chamados de Garantia | App separado (`/chamados-garantia`), embutido via iframe dentro de Portais |
 
-## Feature em andamento: Portais Detectores de Metal (contrato separado da Alvo)
-
-Começamos a construir isso na última sessão, ainda não está completo. Contexto:
+## Portais Detectores de Metal (contrato separado da Alvo) — feature completa
 
 - **ATA 133/2026** (vigência 08/07/2026–07/07/2027): 100 portais no total, saldo vai sendo consumido por contratos de demanda de instalação por comarca.
 - **Contrato 225/2026** (vigência 03/08/2026–02/09/2029): primeiro contrato ativo, 4 portais para Itaúna, Medina, Iturama, Patos de Minas (todos Fórum).
 - **Garantia:** 36 meses a partir do Termo de Recebimento Provisório (quando a Magnetec instala) até o Termo de Recebimento Definitivo.
-- **Regra crítica de negócio:** se uma comarca ainda tem portal em garantia, **não pode abrir OS de manutenção de portal pela Alvo** (contrato 181) — perderia a garantia. O atendimento nesse caso é via "Chamado de Assistência Técnica em Garantia" direto com a Magnetec (numeração própria, diferente da numeração 181-N da Alvo).
+- **Regra crítica de negócio:** se uma comarca ainda tem portal em garantia, **não pode abrir OS de manutenção de portal pela Alvo** (contrato 181) — perderia a garantia. O atendimento nesse caso é via "Chamado de Assistência Técnica em Garantia" direto com a Magnetec (numeração própria MAG-NNN/AAAA, diferente da numeração 181-N da Alvo).
 - **SLA do chamado de garantia:** reparo em até 18h do 2º dia útil após o chamado; se passar de 10 dias úteis, substituição definitiva do equipamento; se 3 chamados pela mesma falha no mesmo equipamento, troca obrigatória em até 30 dias corridos.
 
-### O que já foi feito
-- 4 tabelas novas no Supabase: `portais_garantia`, `atas_portais`, `contratos_demanda_portal`, `chamados_portal`
-- Importados 288 portais já instalados (planilha da usuária) pra `portais_garantia`, com datas de recebimento provisório/definitivo calculadas
-- ATA 133/2026 e contrato 225/2026 cadastrados
-- Nova tela `PagePortais` (nav "Portais (Garantia)"): cadastro, KPIs de garantia (em garantia / vencendo em 90 dias / vencida), alertas de vencimento, saldo da ATA
-- Aviso na tela Nova OS: ao selecionar comarca + sistema "Portal" no contrato 181, verifica `portais_garantia` e mostra um alerta se a comarca ainda estiver em garantia (não deixa esquecer)
+### O que existe
+- 4 tabelas no Supabase: `portais_garantia` (284 registros importados), `atas_portais`, `contratos_demanda_portal`, `chamados_portal`
+- `PagePortais` (nav "Portais (Garantia)"): lista em formato de linha (não grid — layout revisado a pedido da usuária), clicável abrindo modal de detalhe com edição inline; KPIs com `className: "kpi-grid"` (⚠️ **NUNCA usar `"kpis"`, essa classe não existe no CSS — já causou layout quebrado (tudo empilhado) uma vez**)
+- App separado `/chamados-garantia/index.html`: abertura/edição/exclusão de chamados, embutido via `<iframe>` dentro de `PagePortais` com cache-busting `?v=Date.now()` no `src` (senão o iframe fica preso numa versão antiga em cache do navegador)
+- Dropdown de comarca no chamado: se serviço = "Instalação", mostra **todas** as comarcas cadastradas; se Manutenção/Substituição, só as que estão **em garantia vigente**
+- Documento de impressão do chamado (`imprimirHTML` dentro de `/chamados-garantia`) com layout institucional (cabeçalho navy sólido — não gradiente, que sai desbotado em PDF — badges com cor sólida, `print-color-adjust:exact` aplicado globalmente via `*`, não só dentro de `@media print`)
+- Aviso de garantia na Nova OS (`garantiaPortalAtiva`): ⚠️ **precisa bater comarca E edificação exatas**, não só a cidade — cidades grandes como BH têm 20+ edificações com garantias bem diferentes entre si; comparar só por cidade pega a garantia errada de outro prédio
 
-### O que falta
-- Tela/fluxo de abertura de "Chamado de Assistência Técnica em Garantia" (tabela `chamados_portal` já existe, numeração própria, ainda sem UI) — serviços: Instalação, Substituição, Manutenção
-- Cadastro completo do saldo da ATA 133/2026 abatendo múltiplos contratos de demanda (hoje só tem 225/2026)
-- Testar e validar o aviso de garantia na prática
+### Cuidados conhecidos
+- Nomes de edificação no cadastro de Portais (vindos da planilha da usuária) podem não bater exatamente com os nomes usados na Nova OS/ComarcaInput — isso faz o aviso de garantia deixar de aparecer em alguns casos legítimos (preferimos silêncio a alarme falso)
 
-## Como testar antes de publicar (padrão que sempre seguimos)
+## Medição — Planilha SEI e Atestados (gerarPlanilhaSEI / gerarAtestado)
+
+- Botões "Gerar Planilha SEI", "Atestado Dotação 39.21" e "Atestado Dotação 51.13" na tela Medição — **restritos a `fernanda.leao@tjmg.jus.br`**
+- Usam `xlsx-js-style` (carregado como `window.XLSXStyle`, sem conflitar com o `window.XLSX` padrão usado no resto do sistema) — valores monetários são escritos como **texto já formatado** (`brl()` — "R$ 1.296.058,13"), não como número + `numFmt`, porque `numFmt` deu problema em Excel 2019 de verdade mesmo passando em todo teste automatizado
+- Tabela "Medição Global" (Tabela 2) tem colunas **Dotação 39.21** (atendimento+deslocamento+diária por OS) e **Dotação 51.13** (recursos sob demanda por OS), mais uma linha `181-REMOTO` (remoto entra na Dotação 51.13/Recurso sob Demanda, agrupado em Belo Horizonte — decisão explícita da usuária, não é engano)
+- Agrupamento das linhas é por **comarca completa** (cidade + edificação), não só cidade — Ipatinga-Fórum e Ipatinga-JESP não podem ser somados numa linha só
+- A última linha da tabela absorve o resíduo de arredondamento de km/diária pra que a SOMA das linhas bata exatamente com o TOTAL exibido (ver próxima seção)
+- Item 4/5 da planilha SEI = mesmo dado do Controle de Ativos (consumo acumulado do contrato inteiro), tem que usar a mesma precisão (km: 2 casas, resto: 4 casas) — já ficaram divergentes uma vez por isso
+
+## Arredondamento — regra final consolidada (não mexer sem reler isso)
+
+- **Diária:** fração **agregada** de todo o período, arredondada em **1 casa decimal**, × R$231,73. Vale pra Resumo, Anexo IV (tela/exportação), Total Líquido e Planilha SEI — todos usam a mesma fórmula agora.
+- **Km:** soma por OS individual, cada linha arredondada em 2 casas antes de somar, × R$2,95.
+- **Controle de Ativos / Item 4 da SEI (consumo acumulado, não é uma medição específica):** km também soma por OS (não agrega e arredonda o total) — um bug real já causou 1 centavo de diferença aqui.
+- Tabelas que mostram linha por OS (Medição Global, Total por OS) reconciliam a última linha pra bater com o total agregado — ver `gerarPlanilhaSEI`/`gerarAtestado` pra o padrão exato.
+- `ANEXO_V_VALOR_TOTAL_CONTRATADO`: usar sempre esse valor oficial por item, nunca recalcular qtd×preço (ver seção do Anexo V acima).
+
+## Bug sutil de texto: nunca usar `<br>` literal em campo de observações
+
+Um bug real quebrou links de anexo compartilhados: o fluxo de "Rota" (abertura em lote) juntava texto usando `"<br>"` como separador **dentro de um campo de texto puro** (`observacoes`). Como a regex de extração de link (`/Anexo\s*\d*:\s*(https?:\/\/\S+)/`) usa `\S+` (não-espaço), ela não para no `<br>` (não é espaço em branco) e engole o texto seguinte junto — gerando um link tipo `https://.../123.pdf<br>Rota: 5`, que dá erro "InvalidKey"/"link inválido" quando alguém tenta abrir. **Regra:** sempre usar `\n` de verdade pra separar linhas dentro de `observacoes`; se precisar renderizar como HTML (no PDF da OS), converter com `.replace(/\n/g, "<br>")` **só na hora de exibir**, nunca no armazenamento.
+
+## Editar OS aberta / excluir do Histórico
+
+- Histórico tem "✎ Editar dados da OS" (comarca/tipo/prioridade/serviço/observações) pra qualquer OS ainda não Concluída, seja ela criada individual ou em Rota (mesma tabela `ordens_servico`)
+- Ao editar `sel` (a OS selecionada no estado local), **sempre usar `setSel(prev => ({...prev, ...mudancas}))`** — nunca mutar o objeto direto (`Object.assign`/`sel.campo = x`), isso já causou "Imprimir OS" mostrando dado antigo depois de editar
+- Excluir OS: o `DELETE` no Supabase **funciona perfeitamente** (testado direto via curl) — se parecer que "não apagou", o problema quase sempre é a lista não ter dado `reload()` depois, não o banco. `reload` é sempre uma prop válida disponível nas páginas de Histórico/Avaliação/Medição.
 
 ```bash
 # 1. Validar sintaxe
