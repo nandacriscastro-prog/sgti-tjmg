@@ -98,6 +98,8 @@ Um bug real quebrou links de anexo compartilhados: o fluxo de "Rota" (abertura e
 - Ao editar `sel` (a OS selecionada no estado local), **sempre usar `setSel(prev => ({...prev, ...mudancas}))`** — nunca mutar o objeto direto (`Object.assign`/`sel.campo = x`), isso já causou "Imprimir OS" mostrando dado antigo depois de editar
 - Excluir OS: o `DELETE` no Supabase **funciona perfeitamente** (testado direto via curl) — se parecer que "não apagou", o problema quase sempre é a lista não ter dado `reload()` depois, não o banco. `reload` é sempre uma prop válida disponível nas páginas de Histórico/Avaliação/Medição.
 
+## Como testar antes de publicar (padrão que sempre seguimos)
+
 ```bash
 # 1. Validar sintaxe
 python3 -c "
