@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788273316 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788349415 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1847,7 +1847,7 @@ ${os.infra_backbone ? `<table><tr><td style="background:#fff3cd">
   <div class="lbl">⚠️ INFRAESTRUTURA</div>
   <div style="font-size:11px"><b>Foi marcado que é necessário fazer infraestrutura — Backbone</b> para esta OS.</div>
 </td></tr></table>` : ""}
-${os.observacoes ? `<table><tr><td><div class="lbl">OBSERVAÇÕES</div>${os.observacoes}</td></tr></table>` : ""}
+${os.observacoes ? `<table><tr><td><div class="lbl">OBSERVAÇÕES</div>${os.observacoes.replace(/\n/g, "<br>")}</td></tr></table>` : ""}
 ${blocoAnexos(os.observacoes)}
 <table class="ass-row">
   <tr>
@@ -1965,7 +1965,7 @@ td,th{border:1px solid #888;padding:5px 8px;vertical-align:top}
   <tr>
     <td colspan="3"><div class="lbl">SERVIÇO</div><div class="val">${os.servico || "—"}</div></td>
   </tr>
-  ${os.observacoes ? `<tr><td colspan="3"><div class="lbl">OBSERVAÇÕES</div>${os.observacoes}</td></tr>` : ""}
+  ${os.observacoes ? `<tr><td colspan="3"><div class="lbl">OBSERVAÇÕES</div>${os.observacoes.replace(/\n/g, "<br>")}</td></tr>` : ""}
 </table>
 ${blocoAnexos(os.observacoes)}
 <div class="sec">TÉCNICOS AUTORIZADOS — MANUTENÇÃO</div>
@@ -2607,8 +2607,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const salvarEdicaoOS = async (o) => {
     setSalvandoEdicao(true);
     try {
-      const rotaTag = (o.observacoes || "").split("<br>").find(l => /^Rota:\s*\d+/i.test(l)) || "";
-      const novasObs = (editForm.observacoes ? editForm.observacoes.split("\n").filter(Boolean).join("<br>") + "<br>" : "") + rotaTag;
+      const rotaTag = (o.observacoes || "").split(/<br>|\n/).find(l => /^Rota:\s*\d+/i.test(l)) || "";
+      const novasObs = (editForm.observacoes ? editForm.observacoes.split("\n").filter(Boolean).join("\n") + "\n" : "") + rotaTag;
       await sbFetch(`/ordens_servico?id=eq.${o.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -2743,8 +2743,8 @@ function PageRota({ onOsCriada, os: todasOS }) {
           stop.infraBackbone ? "Necessário fazer infraestrutura - Backbone" : "",
           stop.tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
           stop.tipoInstalacao === "fornecimento" ? "Instalação com fornecimento de equipamento pela Alvo" : "",
-          urlsAnexoStop.length ? urlsAnexoStop.map((u, i) => `Anexo ${i + 1}: ${u}`).join("<br>") : ""
-        ].filter(Boolean).join("<br>");
+          urlsAnexoStop.length ? urlsAnexoStop.map((u, i) => `Anexo ${i + 1}: ${u}`).join("\n") : ""
+        ].filter(Boolean).join("\n");
         const corpo = {
           numero,
           empresa: "Alvo Segurança Ltda",
