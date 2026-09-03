@@ -66,6 +66,12 @@
   .btn-sm{padding:6px 12px;font-size:12px;border-radius:6px}
   .btn-danger{color:var(--red);border-color:#fecaca}
   .btn-danger:hover:not(:disabled){background:var(--red);color:#fff;border-color:var(--red)}
+  .btn-success{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn-success:hover:not(:disabled){background:#15803d;border-color:#15803d}
+  .btn-warn{background:var(--amber);color:#fff;border-color:var(--amber)}
+  .btn-warn:hover:not(:disabled){background:#b45309;border-color:#b45309}
+  .acoes{white-space:normal;min-width:230px}
+  .acoes .btn{padding:5px 9px;font-size:11px;gap:4px}
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
   .filterbar .search{flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff}
   .filterbar select{padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff}
@@ -748,13 +754,13 @@ function renderLista() {
     html += '<td>' + badgeStatus(c) + '</td>';
     html += '<td class="acoes">';
     if (c.status === "Aberto") {
-      html += '<button class="btn sm success" onclick="concluirChamado(' + c.id + ')">✓ Concluir</button> ';
-      html += '<button class="btn sm" onclick="editarChamado(' + c.id + ')">✎ Editar</button> ';
-      html += '<button class="btn sm warn" onclick="cancelarChamado(' + c.id + ')">Cancelar</button> ';
-      html += '<button class="btn sm danger" onclick="excluirChamado(' + c.id + ')">🗑 Excluir</button> ';
+      html += '<button class="btn btn-sm btn-success" onclick="concluirChamado(' + c.id + ')">✓ Concluir</button> ';
+      html += '<button class="btn btn-sm" onclick="editarChamado(' + c.id + ')">✎ Editar</button> ';
+      html += '<button class="btn btn-sm btn-warn" onclick="cancelarChamado(' + c.id + ')">Cancelar</button> ';
+      html += '<button class="btn btn-sm btn-danger" onclick="excluirChamado(' + c.id + ')">🗑 Excluir</button> ';
     }
-    html += '<button class="btn sm" onclick="abrirImprimirChamado(' + c.id + ')" title="Imprimir">🖨</button> ';
-    html += '<button class="btn sm" onclick="abrirEmailChamado(' + c.id + ')" title="Enviar por e-mail">📧</button>';
+    html += '<button class="btn btn-sm" onclick="abrirImprimirChamado(' + c.id + ')" title="Imprimir">🖨</button> ';
+    html += '<button class="btn btn-sm" onclick="abrirEmailChamado(' + c.id + ')" title="Enviar por e-mail">📧</button>';
     html += '</td>';
     html += '</tr>';
   });
