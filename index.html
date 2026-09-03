@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788459714 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788460900 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10719,7 +10719,7 @@ function PageControleAtivos() {
     )
   );
 }
-function PagePortais() {
+function PagePortais({ setPage }) {
   const [carregando, setCarregando] = useState(true);
   const [portais, setPortais] = useState([]);
   const [atas, setAtas] = useState([]);
@@ -10728,8 +10728,6 @@ function PagePortais() {
   const [filtroStatus, setFiltroStatus] = useState("");
   const [painelNovoAberto, setPainelNovoAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [iframeAberto, setIframeAberto] = useState(false);
-  const [iframeSrc, setIframeSrc] = useState("./chamados-garantia/");
   const [detalheAberto, setDetalheAberto] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
   const vazio = { comarca: "", edificacao: "Fórum", marca_modelo: "MAGNETEC", contrato: "", quantidade: 1, data_recebimento_provisorio: "", data_recebimento_definitivo: "", numero_serie: "", patrimonio: "", observacoes: "" };
@@ -10896,7 +10894,7 @@ function PagePortais() {
       ),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn btn-sm", onClick: carregar }, "🔄 Atualizar"),
-        React.createElement("button", { className: "btn btn-sm", onClick: () => { setIframeSrc("./chamados-garantia/?v=" + Date.now()); setIframeAberto(true); } }, "🔧 Chamados de Garantia"),
+        React.createElement("button", { className: "btn btn-sm", onClick: () => setPage("chamados-garantia") }, "🔧 Chamados de Garantia"),
         React.createElement("button", { className: "btn btn-primary", onClick: () => { if (painelNovoAberto) { setEditandoId(null); setForm(vazio); } setPainelNovoAberto(!painelNovoAberto); } }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado"),
         React.createElement("button", { className: "btn btn-sm", onClick: () => setPainelContratoAberto(!painelContratoAberto) }, painelContratoAberto ? "✕ Fechar" : "+ Cadastrar contrato de demanda")
       )
@@ -11027,15 +11025,23 @@ function PagePortais() {
         )
       )
     ),
-    iframeAberto && React.createElement("div", { onClick: () => setIframeAberto(false), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", flexDirection: "column" } },
-      React.createElement("div", { onClick: e => e.stopPropagation(), style: { background: "var(--navy, #0f1f3d)", color: "white", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
-        React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, "🔧 Chamados de Garantia — Portais Magnetec"),
-        React.createElement("div", { style: { display: "flex", gap: 8 } },
-          React.createElement("button", { onClick: () => setIframeSrc("./chamados-garantia/?v=" + Date.now()), style: { background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.4)", padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 } }, "🔄 Recarregar"),
-          React.createElement("button", { onClick: () => setIframeAberto(false), style: { background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.4)", padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 } }, "✕ Fechar")
-        )
+  );
+}
+function PageChamadosGarantia({ setPage }) {
+  const [iframeSrc, setIframeSrc] = useState(() => "./chamados-garantia/?v=" + Date.now());
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "🔧 Chamados de Garantia — Portais Magnetec"),
+        React.createElement("div", { className: "ph-sub" }, "Assistência técnica em garantia dos portais detectores de metal")
       ),
-      React.createElement("iframe", { id: "iframeChamados", src: iframeSrc, style: { flex: 1, width: "100%", border: "none", background: "white" } })
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: () => setPage("portais") }, "← Voltar"),
+        React.createElement("button", { className: "btn btn-sm", onClick: () => setIframeSrc("./chamados-garantia/?v=" + Date.now()) }, "🔄 Recarregar")
+      )
+    ),
+    React.createElement("div", { className: "card", style: { padding: 0, overflow: "hidden" } },
+      React.createElement("iframe", { id: "iframeChamados", src: iframeSrc, style: { display: "block", width: "100%", height: "calc(100vh - 170px)", border: "none", background: "white" } })
     )
   );
 }
@@ -13476,7 +13482,9 @@ function AppInterno({
       case "controle_ativos":
         return /*#__PURE__*/React.createElement(PageControleAtivos, null);
       case "portais":
-        return /*#__PURE__*/React.createElement(PagePortais, null);
+        return /*#__PURE__*/React.createElement(PagePortais, { setPage: setPage });
+      case "chamados-garantia":
+        return /*#__PURE__*/React.createElement(PageChamadosGarantia, { setPage: setPage });
       case "estoque":
         return /*#__PURE__*/React.createElement(PageEstoque, null);
       case "limpeza":
