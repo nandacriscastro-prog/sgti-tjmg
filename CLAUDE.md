@@ -2,6 +2,8 @@
 
 Contexto do projeto para o Claude Code. Leia isso antes de mexer em qualquer coisa — tem várias armadilhas conhecidas e decisões já tomadas que não devem ser revertidas sem querer.
 
+Backlog rastreável (o que já foi feito / o que falta) está em [`TODO.md`](TODO.md) — mantenha esse arquivo atualizado conforme o trabalho avança.
+
 ## O que é
 
 Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal detector de metais, controle de acesso) e telefonia do TJMG (GEASI/COTESI). Single-file React 18 (pré-compilado, sem build step) + Supabase + GitHub Pages/Netlify.

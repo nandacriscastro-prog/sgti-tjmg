@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788352099 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788445630 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10733,6 +10733,10 @@ function PagePortais() {
   const [editandoId, setEditandoId] = useState(null);
   const vazio = { comarca: "", edificacao: "Fórum", marca_modelo: "MAGNETEC", contrato: "", quantidade: 1, data_recebimento_provisorio: "", data_recebimento_definitivo: "", numero_serie: "", patrimonio: "", observacoes: "" };
   const [form, setForm] = useState(vazio);
+  const [painelContratoAberto, setPainelContratoAberto] = useState(false);
+  const [salvandoContrato, setSalvandoContrato] = useState(false);
+  const vazioContrato = { numero_contrato: "", quantidade: 1, comarcas: "", vigencia_inicio: "", vigencia_fim: "" };
+  const [formContrato, setFormContrato] = useState(vazioContrato);
 
   const carregar = async () => {
     setCarregando(true);
@@ -10821,6 +10825,35 @@ function PagePortais() {
     }
   };
 
+  const salvarContrato = async () => {
+    if (!formContrato.numero_contrato.trim()) { toast("Preencha o número do contrato", "erro"); return; }
+    setSalvandoContrato(true);
+    try {
+      await sbFetch("/contratos_demanda_portal", {
+        method: "POST",
+        body: JSON.stringify(formContrato)
+      });
+      setFormContrato(vazioContrato);
+      setPainelContratoAberto(false);
+      toast("✓ Contrato de demanda cadastrado!", "ok");
+      carregar();
+    } catch (e) {
+      toast("Erro ao salvar: " + e.message, "erro");
+    } finally {
+      setSalvandoContrato(false);
+    }
+  };
+
+  const excluirContrato = async id => {
+    if (!confirm("Excluir esse contrato de demanda? O saldo da ATA será recalculado.")) return;
+    try {
+      await sbFetch(`/contratos_demanda_portal?id=eq.${id}`, { method: "DELETE" });
+      carregar();
+    } catch (e) {
+      toast("Erro ao excluir: " + e.message, "erro");
+    }
+  };
+
   const editarPortal = p => {
     setForm({
       comarca: p.comarca || "",
@@ -10863,7 +10896,8 @@ function PagePortais() {
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn btn-sm", onClick: carregar }, "🔄 Atualizar"),
         React.createElement("button", { className: "btn btn-sm", onClick: () => setIframeAberto(true) }, "🔧 Chamados de Garantia"),
-        React.createElement("button", { className: "btn btn-primary", onClick: () => { if (painelNovoAberto) { setEditandoId(null); setForm(vazio); } setPainelNovoAberto(!painelNovoAberto); } }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado")
+        React.createElement("button", { className: "btn btn-primary", onClick: () => { if (painelNovoAberto) { setEditandoId(null); setForm(vazio); } setPainelNovoAberto(!painelNovoAberto); } }, painelNovoAberto ? "✕ Fechar" : "+ Cadastrar portal instalado"),
+        React.createElement("button", { className: "btn btn-sm", onClick: () => setPainelContratoAberto(!painelContratoAberto) }, painelContratoAberto ? "✕ Fechar" : "+ Cadastrar contrato de demanda")
       )
     ),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
@@ -10875,7 +10909,21 @@ function PagePortais() {
         React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: saldoAta <= 10 ? "var(--red, #c0392b)" : "var(--green)" } }, saldoAta), React.createElement("div", { className: "lbl" }, "Saldo disponível"))
       ),
       ataAtual && contratosDemanda.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, fontSize: 12, color: "var(--text3)" } },
-        contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { padding: "3px 0" } }, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)))
+        contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "3px 0" } },
+          React.createElement("span", null, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)),
+          React.createElement("button", { className: "btn btn-sm", style: { flexShrink: 0 }, onClick: () => excluirContrato(c.id) }, "🗑")
+        ))
+      ),
+      painelContratoAberto && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+        React.createElement("div", { className: "card-title" }, "Cadastrar contrato de demanda (abate saldo da ATA 133/2026)"),
+        React.createElement("div", { className: "form-grid" },
+          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Número do contrato"), React.createElement("input", { value: formContrato.numero_contrato, onChange: e => setFormContrato(f => ({ ...f, numero_contrato: e.target.value })), placeholder: "Ex: 300/2027" })),
+          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Quantidade de portais"), React.createElement("input", { type: "number", min: 1, value: formContrato.quantidade, onChange: e => setFormContrato(f => ({ ...f, quantidade: parseInt(e.target.value) || 1 })) })),
+          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Vigência início"), React.createElement("input", { type: "date", value: formContrato.vigencia_inicio, onChange: e => setFormContrato(f => ({ ...f, vigencia_inicio: e.target.value })) })),
+          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Vigência fim"), React.createElement("input", { type: "date", value: formContrato.vigencia_fim, onChange: e => setFormContrato(f => ({ ...f, vigencia_fim: e.target.value })) })),
+          React.createElement("div", { className: "fg full" }, React.createElement("label", null, "Comarcas de envio"), React.createElement("textarea", { value: formContrato.comarcas, onChange: e => setFormContrato(f => ({ ...f, comarcas: e.target.value })), placeholder: "Ex: Itaúna, Medina, Iturama, Patos de Minas" }))
+        ),
+        React.createElement("button", { className: "btn btn-primary", disabled: salvandoContrato, onClick: salvarContrato, style: { marginTop: 10 } }, salvandoContrato ? "Salvando..." : "Salvar contrato de demanda")
       ),
       React.createElement("div", { className: "kpi-grid", style: { marginBottom: 16 } },
         React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") },
