@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788445630 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788446086 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -10902,17 +10902,22 @@ function PagePortais() {
     ),
     carregando ? React.createElement("div", { className: "card" }, "Carregando...") :
     React.createElement(React.Fragment, null,
-      ataAtual && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 } }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
-      ataAtual && React.createElement("div", { className: "kpi-grid", style: { marginBottom: 10 } },
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, ataAtual.quantidade_total), React.createElement("div", { className: "lbl" }, "Total na ATA")),
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val" }, totalDemandado), React.createElement("div", { className: "lbl" }, "Já demandado (contratos)")),
-        React.createElement("div", { className: "kpi" }, React.createElement("div", { className: "val", style: { color: saldoAta <= 10 ? "var(--red, #c0392b)" : "var(--green)" } }, saldoAta), React.createElement("div", { className: "lbl" }, "Saldo disponível"))
-      ),
-      ataAtual && contratosDemanda.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, fontSize: 12, color: "var(--text3)" } },
-        contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "3px 0" } },
-          React.createElement("span", null, "• Contrato " + c.numero_contrato + " — " + c.quantidade + " portais (" + (c.comarcas || "") + ") — vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim)),
-          React.createElement("button", { className: "btn btn-sm", style: { flexShrink: 0 }, onClick: () => excluirContrato(c.id) }, "🗑")
-        ))
+      ataAtual && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+        React.createElement("div", { className: "card-title" }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
+        React.createElement("div", { className: "kpi-grid", style: { marginBottom: contratosDemanda.length > 0 ? 16 : 0 } },
+          React.createElement("div", { className: "kpi navy" }, React.createElement("div", { className: "kpi-val" }, ataAtual.quantidade_total), React.createElement("div", { className: "kpi-lbl" }, "Total na ATA")),
+          React.createElement("div", { className: "kpi blue" }, React.createElement("div", { className: "kpi-val" }, totalDemandado), React.createElement("div", { className: "kpi-lbl" }, "Já demandado (contratos)")),
+          React.createElement("div", { className: "kpi " + (saldoAta <= 10 ? "red" : "green") }, React.createElement("div", { className: "kpi-val", style: { color: saldoAta <= 10 ? "var(--red, #c0392b)" : "var(--green)" } }, saldoAta), React.createElement("div", { className: "kpi-lbl" }, "Saldo disponível"))
+        ),
+        contratosDemanda.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } },
+          contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 6, background: "var(--surface)", fontSize: 12.5 } },
+            React.createElement("span", null,
+              React.createElement("strong", null, "Contrato " + c.numero_contrato), " — " + c.quantidade + " portais",
+              React.createElement("span", { style: { color: "var(--text3)" } }, " · " + (c.comarcas || "—") + " · vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim))
+            ),
+            React.createElement("button", { className: "btn btn-sm", style: { flexShrink: 0 }, onClick: () => excluirContrato(c.id) }, "🗑")
+          ))
+        )
       ),
       painelContratoAberto && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
         React.createElement("div", { className: "card-title" }, "Cadastrar contrato de demanda (abate saldo da ATA 133/2026)"),
@@ -10926,12 +10931,12 @@ function PagePortais() {
         React.createElement("button", { className: "btn btn-primary", disabled: salvandoContrato, onClick: salvarContrato, style: { marginTop: 10 } }, salvandoContrato ? "Salvando..." : "Salvar contrato de demanda")
       ),
       React.createElement("div", { className: "kpi-grid", style: { marginBottom: 16 } },
-        React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") },
-          React.createElement("div", { className: "val", style: { color: "var(--green)" } }, emGarantia.length), React.createElement("div", { className: "lbl" }, "Em garantia")),
-        React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Vencendo em breve" ? "" : "Vencendo em breve") },
-          React.createElement("div", { className: "val", style: { color: "var(--amber, #b8860b)" } }, vencendoEmBreve.length), React.createElement("div", { className: "lbl" }, "Vencendo em 90 dias")),
-        React.createElement("div", { className: "kpi", style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Vencida" ? "" : "Vencida") },
-          React.createElement("div", { className: "val", style: { color: "var(--red, #c0392b)" } }, vencidas.length), React.createElement("div", { className: "lbl" }, "Garantia vencida"))
+        React.createElement("div", { className: "kpi green" + (filtroStatus === "Em garantia" ? " active" : ""), style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") },
+          React.createElement("div", { className: "kpi-val", style: { color: "var(--green)" } }, emGarantia.length), React.createElement("div", { className: "kpi-lbl" }, "Em garantia")),
+        React.createElement("div", { className: "kpi amber" + (filtroStatus === "Vencendo em breve" ? " active" : ""), style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Vencendo em breve" ? "" : "Vencendo em breve") },
+          React.createElement("div", { className: "kpi-val", style: { color: "var(--amber, #b8860b)" } }, vencendoEmBreve.length), React.createElement("div", { className: "kpi-lbl" }, "Vencendo em 90 dias")),
+        React.createElement("div", { className: "kpi red" + (filtroStatus === "Vencida" ? " active" : ""), style: { cursor: "pointer" }, onClick: () => setFiltroStatus(filtroStatus === "Vencida" ? "" : "Vencida") },
+          React.createElement("div", { className: "kpi-val", style: { color: "var(--red, #c0392b)" } }, vencidas.length), React.createElement("div", { className: "kpi-lbl" }, "Garantia vencida"))
       ),
       vencendoEmBreve.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, border: "1px solid #f0b429" } },
         React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", marginBottom: 8 } }, "⏰ Alertas — garantia vencendo nos próximos 90 dias"),
@@ -10986,7 +10991,11 @@ function PagePortais() {
           React.createElement("span", { style: { padding: "3px 10px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap" } }, p.statusReal)
         ))
       ),
-      listaFiltrada.length === 0 && React.createElement("div", { className: "card" }, "Nenhum portal encontrado.")
+      listaFiltrada.length === 0 && React.createElement("div", { className: "card empty" },
+        React.createElement("div", { className: "empty-icon" }, "🔍"),
+        React.createElement("div", { className: "empty-title" }, "Nenhum portal encontrado"),
+        React.createElement("div", { className: "text-sm text-muted" }, "Ajuste a busca ou o filtro de status selecionado.")
+      )
     ),
     detalheAberto && React.createElement("div", { onClick: () => setDetalheAberto(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } },
       React.createElement("div", { onClick: e => e.stopPropagation(), className: "card", style: { maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" } },
