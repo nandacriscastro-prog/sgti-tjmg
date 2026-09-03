@@ -753,7 +753,8 @@ function renderLista() {
       html += '<button class="btn sm warn" onclick="cancelarChamado(' + c.id + ')">Cancelar</button> ';
       html += '<button class="btn sm danger" onclick="excluirChamado(' + c.id + ')">🗑 Excluir</button> ';
     }
-    html += '<button class="btn sm" onclick="abrirImprimirChamado(' + c.id + ')">🖨</button>';
+    html += '<button class="btn sm" onclick="abrirImprimirChamado(' + c.id + ')" title="Imprimir">🖨</button> ';
+    html += '<button class="btn sm" onclick="abrirEmailChamado(' + c.id + ')" title="Enviar por e-mail">📧</button>';
     html += '</td>';
     html += '</tr>';
   });
@@ -810,6 +811,38 @@ function abrirImprimirChamado(id) {
     (p.edificacao || "").toLowerCase() === (c.edificacao || "").toLowerCase()
   ) || {};
   abrirImprimir(c, portal);
+}
+
+// ── E-MAIL DO CHAMADO (Gmail + documento para anexar em PDF) ──
+function abrirJanelaChamado(html) {
+  const w = window.open("", "_blank", "width=900,height=700");
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+}
+function abrirEmailChamado(id) {
+  const c = CHAMADOS.find(x => x.id === id);
+  if (!c) return;
+  const portal = PORTAIS.find(p =>
+    (p.comarca || "").toLowerCase() === (c.comarca || "").toLowerCase() &&
+    (p.edificacao || "").toLowerCase() === (c.edificacao || "").toLowerCase()
+  ) || {};
+  const assunto = encodeURIComponent(`Chamado ${c.numero || ""} — ${c.servico || "Assistência Técnica"} — ${c.comarca || ""} — Garantia Portais Magnetec`);
+  const corpo = encodeURIComponent(
+    `Prezados,\n\nSegue chamado de assistência técnica em garantia para o portal detector de metais abaixo:\n\n` +
+    `• Chamado Nº: ${c.numero || "—"}\n` +
+    `• Comarca: ${c.comarca || "—"}\n` +
+    `• Edificação: ${c.edificacao || "—"}\n` +
+    `• Tipo de serviço: ${c.servico || "—"}\n` +
+    `• Data de abertura: ${fmtData(c.data_abertura)}\n` +
+    `• Prazo SLA: ${c.data_prazo ? fmtData(c.data_prazo) + " (18h)" : "—"}\n` +
+    `• Descrição do problema: ${c.descricao || "—"}\n\n` +
+    `Salve o arquivo em anexo (Chamado_${c.numero || id}.pdf) e encaminhe à Magnetec.\n\n` +
+    `Atenciosamente,\nGEASI — COTESI | TJMG`
+  );
+  window.open(`https://mail.google.com/mail/?view=cm&su=${assunto}&body=${corpo}`, "_blank");
+  setTimeout(() => abrirJanelaChamado(imprimirHTML(c, portal)), 300);
+  toast("E-mail aberto. Salve o documento como PDF e anexe.", "ok");
 }
 
 function imprimirHTML(c, portal) {
