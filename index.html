@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788461582 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1788524870 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -29,6 +29,49 @@ const {
 // ── SUPABASE ──────────────────────────────────────────────────
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
+
+// ── GOOGLE MAPS (cálculo de km de rota) ──────────────────────────
+const GOOGLE_MAPS_API_KEY = "AIzaSyAwU0ZvDOHOCQJl91epq_WqNt7oHA4aYDg";
+let _googleMapsLoadPromise = null;
+function carregarGoogleMaps() {
+  if (window.google?.maps?.DirectionsService) return Promise.resolve();
+  if (_googleMapsLoadPromise) return _googleMapsLoadPromise;
+  _googleMapsLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_MAPS_API_KEY + "&libraries=places&loading=async&callback=__onGoogleMapsLoaded";
+    window.__onGoogleMapsLoaded = () => resolve();
+    s.onerror = () => reject(new Error("Falha ao carregar a API do Google Maps (verifique a chave/rede)."));
+    document.head.appendChild(s);
+  });
+  return _googleMapsLoadPromise;
+}
+// Calcula a rota BH -> paradas (na ordem informada) -> BH e retorna { totalKm, kmPorParada[], linkMaps }
+async function calcularRotaGoogleMaps(enderecos) {
+  await carregarGoogleMaps();
+  const origem = "Belo Horizonte, MG, Brasil";
+  const service = new window.google.maps.DirectionsService();
+  const waypoints = enderecos.map(e => ({ location: e, stopover: true }));
+  const result = await new Promise((resolve, reject) => {
+    service.route({
+      origin: origem,
+      destination: origem,
+      waypoints,
+      optimizeWaypoints: false,
+      travelMode: window.google.maps.TravelMode.DRIVING
+    }, (res, status) => {
+      if (status === "OK") resolve(res);
+      else reject(new Error("Não foi possível calcular a rota no Google Maps (status: " + status + ")"));
+    });
+  });
+  const legs = result.routes[0].legs;
+  const totalMetros = legs.reduce((a, l) => a + (l.distance?.value || 0), 0);
+  const totalKm = totalMetros / 1000;
+  const linkMaps = "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(origem)
+    + "&destination=" + encodeURIComponent(origem)
+    + "&waypoints=" + enderecos.map(e => encodeURIComponent(e)).join("|")
+    + "&travelmode=driving";
+  return { totalKm, linkMaps };
+}
 async function sbFetch(path, opts = {}) {
   const r = await fetch(SB_URL + "/rest/v1" + path, {
     headers: {
@@ -2640,6 +2683,9 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
   const [resultadoRotaNome, setResultadoRotaNome] = useState("");
+  const [calculandoKm, setCalculandoKm] = useState(false);
+  const [kmRotaInfo, setKmRotaInfo] = useState(null); // { totalKm, kmPorParada, linkMaps, qtdComarcas }
+  const [kmErro, setKmErro] = useState("");
   const [excluirNumRota, setExcluirNumRota] = useState("");
   const [osParaExcluir, setOsParaExcluir] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
@@ -2724,6 +2770,25 @@ function PageRota({ onOsCriada, os: todasOS }) {
   const setStopComarca = (i, k, dados) => setStops(stops.map((s, idx) => idx === i ? { ...s, comarca: k, dadosComarca: dados, contato: s.contato || dados?.t || "" } : s));
   const toggleSistema = (i, sis) => setStops(stops.map((s, idx) => idx === i ? { ...s, sistemas: s.sistemas.includes(sis) ? s.sistemas.filter(x => x !== sis) : [...s.sistemas, sis] } : s));
 
+  const calcularKmDaRota = async () => {
+    const validas = stops.filter(s => s.comarca);
+    if (validas.length < 1) { setKmErro("Preencha ao menos uma comarca antes de calcular a km."); return; }
+    setCalculandoKm(true); setKmErro(""); setKmRotaInfo(null);
+    try {
+      const enderecos = validas.map(s => (s.dadosComarca?.e ? s.dadosComarca.e + ", " : "") + s.comarca.split(" - ")[0] + ", MG, Brasil");
+      const { totalKm, linkMaps } = await calcularRotaGoogleMaps(enderecos);
+      // Divide igualmente pelas comarcas visitadas, excluindo Belo Horizonte (não paga diária de deslocamento)
+      const comarcasParaDividir = validas.filter(s => s.comarca.split(" - ")[0] !== "Belo Horizonte");
+      const qtd = comarcasParaDividir.length || 1;
+      const kmPorParada = Math.round((totalKm / qtd) * 100) / 100;
+      setKmRotaInfo({ totalKm: Math.round(totalKm * 100) / 100, kmPorParada, linkMaps, qtdComarcas: qtd });
+    } catch (e) {
+      setKmErro(e.message || "Erro ao calcular a rota.");
+    } finally {
+      setCalculandoKm(false);
+    }
+  };
+
   const criarRota = async () => {
     if (!rotaNome.trim()) { setMsg("Dê um nome/número pra rota."); return; }
     const validos = stops.filter(s => s.comarca && s.sistemas.length > 0);
@@ -2759,13 +2824,17 @@ function PageRota({ onOsCriada, os: todasOS }) {
           tipo: stopTipo,
           prioridade: stopPrio,
           regiao: (contratoSel === "181/2026" ? COLAR_181 : COLAR_CIDADES).has((stop.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "") + (obsExtrasStop ? obsExtrasStop + "<br>" : "") + "Rota: " + rotaNome.trim(),
+          observacoes: (stop.obs?.trim() ? stop.obs.trim() + "<br>" : "")
+            + (obsExtrasStop ? obsExtrasStop + "<br>" : "")
+            + (kmRotaInfo ? "Km estimado (Google Maps, rota dividida): " + kmRotaInfo.kmPorParada + " km — " + kmRotaInfo.linkMaps + "<br>" : "")
+            + "Rota: " + rotaNome.trim(),
           os_origem: null,
           data_os: dt,
           status: "Aberta",
           criado_por: (getSession()?.fiscal?.email || "sistema-rota"),
           criado_em: new Date().toISOString(),
-          email_enviado: false
+          email_enviado: false,
+          retorno_campo: kmRotaInfo ? JSON.stringify({ km: String(kmRotaInfo.kmPorParada), kmOrigem: "Google Maps (rota dividida)", rotaMapsLink: kmRotaInfo.linkMaps }) : null
         };
         let tentativas = 0, ok = false;
         while (tentativas < 4 && !ok) {
@@ -2785,6 +2854,7 @@ function PageRota({ onOsCriada, os: todasOS }) {
       setResultadoRotaNome(rotaNome);
       setMsg("✓ " + criadas.length + " OS criada(s) na rota \"" + rotaNome + "\"");
       setStops([{ comarca: "", dadosComarca: {}, sistemas: [], tipoOverride: null, prioOverride: "", obs: "" }]);
+      setKmRotaInfo(null); setKmErro("");
       if (onOsCriada) onOsCriada();
       // Abre automaticamente o e-mail com todas as OS da rota, sem precisar clicar
       setTimeout(() => abrirEmailRota(criadas, rotaNome, gerarHTMLRota(criadas, "Rota " + rotaNome)), 400);
@@ -2976,8 +3046,22 @@ function PageRota({ onOsCriada, os: todasOS }) {
         )
       )
     )),
-    React.createElement("div", { style: { maxWidth: 1100, marginBottom: 16 } },
-      React.createElement("button", { className: "btn", onClick: addStop }, "+ Adicionar parada (comarca)")
+    React.createElement("div", { style: { maxWidth: 1100, marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" } },
+      React.createElement("button", { className: "btn", onClick: addStop }, "+ Adicionar parada (comarca)"),
+      React.createElement("button", {
+        className: "btn", onClick: calcularKmDaRota, disabled: calculandoKm,
+        style: { background: "var(--navy, #0f1f3d)", color: "#fff", border: "none" }
+      }, calculandoKm ? "Calculando..." : "🗺️ Calcular km da rota (Google Maps)")
+    ),
+    kmErro && React.createElement("div", { style: { maxWidth: 1100, marginBottom: 12, fontSize: 13, color: "var(--red, #c0392b)" } }, kmErro),
+    kmRotaInfo && React.createElement("div", { className: "card", style: { maxWidth: 1100, marginBottom: 16, border: "1.5px solid var(--accent)" } },
+      React.createElement("div", { className: "card-title", style: { margin: "0 0 8px" } }, "🗺️ Km calculada pelo Google Maps"),
+      React.createElement("div", { style: { fontSize: 13, lineHeight: 1.7 } },
+        "Rota completa (BH → " + kmRotaInfo.qtdComarcas + " comarca(s) → BH): ", React.createElement("strong", null, kmRotaInfo.totalKm + " km"), React.createElement("br"),
+        "Dividido igualmente entre " + kmRotaInfo.qtdComarcas + " comarca(s) (Belo Horizonte não entra na divisão): ", React.createElement("strong", null, kmRotaInfo.kmPorParada + " km por comarca"), React.createElement("br"),
+        React.createElement("a", { href: kmRotaInfo.linkMaps, target: "_blank", rel: "noopener", style: { color: "var(--accent)" } }, "📍 Abrir rota no Google Maps")
+      ),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 8 } }, "Essa km será preenchida automaticamente em cada OS criada (campo km, editável no fechamento da OS).")
     ),
     msg && React.createElement("div", { style: { maxWidth: 1100, marginBottom: 12, fontSize: 13, color: msg.startsWith("✓") ? "var(--green)" : "var(--red, #c0392b)" } }, msg),
     React.createElement("button", { className: "btn btn-primary", onClick: criarRota, disabled: loading }, loading ? "Criando OS..." : (modoRota === "existente" ? "Adicionar parada(s) à rota" : "Criar OS da rota")),
