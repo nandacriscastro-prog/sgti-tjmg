@@ -130,16 +130,18 @@
 </head>
 <body>
 
-<div style="background:#fff7ed;border-bottom:1px solid #fdba74;padding:8px 20px;font-size:12px;color:#7c2d12;text-align:center">
-  🔒 <b>Acesso restrito</b> — uso interno GEASI/COTESI e preposto Magnetec. Todas as aberturas e alterações ficam registradas com data/hora.
-</div>
-
 <header class="app">
   <div class="brand">
     <strong>🔧 Chamados de Garantia</strong> — Portais Magnetec
     <small>TJMG/GEASI • Contrato 225/2026 • ATA 133/2026</small>
   </div>
 </header>
+
+<div id="acessoNegado" style="display:none;max-width:480px;margin:60px auto;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;text-align:center;box-shadow:var(--shadow)">
+  <div style="font-size:36px;margin-bottom:12px">🔒</div>
+  <div style="font-weight:700;font-size:16px;margin-bottom:8px">Acesso restrito</div>
+  <div style="font-size:13px;color:var(--text3);line-height:1.6">Essa tela agora exige login pelo sistema principal (SGTI-TJMG). Abra o sistema, faça login, e acesse "Portais (Garantia) → Chamados de Garantia" por lá.</div>
+</div>
 
 <main id="main">
   <div class="filter-periodo">
@@ -266,12 +268,54 @@
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
 
+// ── AUTENTICAÇÃO (compartilhada com o sistema principal — mesma origem,
+// mesmo sessionStorage) ─────────────────────────────────────────────
+const AUTH_TOKENS_KEY = "sgti_auth";
+const SESSION_KEY = "sgti_session";
+function getAuthTokens() {
+  try { return JSON.parse(sessionStorage.getItem(AUTH_TOKENS_KEY)); } catch (e) { return null; }
+}
+function setAuthTokens(t) { sessionStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(t)); }
+function clearAuthTokens() { sessionStorage.removeItem(AUTH_TOKENS_KEY); }
+let _refreshEmAndamento = null;
+async function authRefresh() {
+  if (_refreshEmAndamento) return _refreshEmAndamento;
+  _refreshEmAndamento = (async () => {
+    const t = getAuthTokens();
+    if (!t || !t.refresh_token) return null;
+    try {
+      const r = await fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+        method: "POST",
+        headers: { apikey: SB_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: t.refresh_token })
+      });
+      if (!r.ok) { if (r.status === 400 || r.status === 401) clearAuthTokens(); return null; }
+      const data = await r.json();
+      setAuthTokens({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + (data.expires_in || 3600) * 1000,
+        email: (data.user && data.user.email) || t.email
+      });
+      return data.access_token;
+    } catch (e) { return null; }
+  })();
+  try { return await _refreshEmAndamento; } finally { _refreshEmAndamento = null; }
+}
+async function getAccessToken() {
+  const t = getAuthTokens();
+  if (!t || !t.access_token) return null;
+  if (t.expires_at - Date.now() < 120000) return await authRefresh();
+  return t.access_token;
+}
+
 // ── HELPERS ────────────────────────────────────────────────
 async function sbFetch(path, opts = {}) {
+  const token = await getAccessToken();
   const r = await fetch(SB_URL + "/rest/v1" + path, {
     headers: {
       apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
+      Authorization: "Bearer " + (token || SB_KEY),
       "Content-Type": "application/json",
       Prefer: "return=representation",
       ...(opts.headers || {})
@@ -296,21 +340,28 @@ function toast(msg, tipo = "ok") {
   setTimeout(() => t.remove(), 3500);
 }
 
-// ── SESSÃO (acesso controlado pelo sistema principal) ──────
-// getSession() preservado para registrar "criado_por" com um rótulo genérico
+// ── SESSÃO (login real do sistema principal — compartilhado via sessionStorage) ──
 function getSession() {
-  // Acesso controlado pelo sistema principal (fiscais GEASI + preposto Magnetec)
-  // Esta página é interna; mantemos um rótulo genérico para auditoria no Supabase
-  return { usuario: "geasi-interno", nome: "GEASI/COTESI", perfil: "Interno" };
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (e) { return null; }
 }
 
 function mostrarApp() {
   document.getElementById("main").style.display = "block";
+  document.getElementById("acessoNegado").style.display = "none";
   document.getElementById("fDataAbertura").value = hojeISO();
   calcularPrazo();
   carregar();
 }
-if (getSession()) mostrarApp();
+function mostrarAcessoNegado() {
+  document.getElementById("main").style.display = "none";
+  document.getElementById("acessoNegado").style.display = "block";
+}
+(async function iniciar() {
+  const sess = getSession();
+  const token = await getAccessToken();
+  if (sess && token) mostrarApp();
+  else mostrarAcessoNegado();
+})();
 
 // ── CÁLCULOS DE SLA ────────────────────────────────────────
 function addDiasUteis(dataISO, n) {
@@ -535,7 +586,7 @@ async function abrirChamado(ev) {
         status: "Aberto",
         descricao,
         observacoes: obs || null,
-        criado_por: sess ? (sess.nome + " <" + sess.usuario + ">") : null
+        criado_por: sess ? ((sess.nome || sess.fiscal?.nome || sess.user) + " <" + (sess.fiscal?.email || sess.user || "") + ">") : null
       })
     });
     if (registros && registros[0]) {
