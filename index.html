@@ -870,6 +870,10 @@ body{font-family:var(--font);background:var(--surface);color:var(--text);transit
 [data-theme="dark"] .kpi2{background:var(--white)}
 .kpi2-trend{font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
 .kpi2-trend.up{color:var(--green)}.kpi2-trend.down{color:var(--red)}.kpi2-trend.flat{color:var(--text3)}
+.kpi2.compact{padding:10px 14px;gap:6px}
+.kpi2.compact .kpi2-icon{width:28px;height:28px;border-radius:8px}
+.kpi2.compact .kpi2-val{font-size:19px}
+.kpi2.compact .kpi2-lbl{font-size:11px;margin-top:0}
 .kpi2-val{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1;color:var(--text)}
 .kpi2-lbl{font-size:12px;color:var(--text3);font-weight:600;margin-top:4px}
 /* Cartão de alertas estilo lista */
@@ -1007,9 +1011,9 @@ function Icon({
 }
 
 // ── KPI2 — cartão padrão "stat tile" (ícone + valor + rótulo), usado em todas as telas ──
-function Kpi2({ icon, cls, val, label, onClick, active, trend }) {
+function Kpi2({ icon, cls, val, label, onClick, active, trend, compact }) {
   return /*#__PURE__*/React.createElement("div", {
-    className: "kpi2" + (active ? " active" : ""),
+    className: "kpi2" + (active ? " active" : "") + (compact ? " compact" : ""),
     onClick,
     role: onClick ? "button" : undefined,
     tabIndex: onClick ? 0 : undefined,
@@ -11146,16 +11150,22 @@ function PagePortais({ setPage }) {
     if (!form.comarca.trim()) { toast("Preencha a comarca", "erro"); return; }
     setSalvando(true);
     try {
+      // Datas vazias ("") não são aceitas pelo Postgres pra colunas do tipo date — precisa mandar null
+      const formLimpo = {
+        ...form,
+        data_recebimento_provisorio: form.data_recebimento_provisorio || null,
+        data_recebimento_definitivo: form.data_recebimento_definitivo || null
+      };
       if (editandoId) {
         await sbFetch(`/portais_garantia?id=eq.${editandoId}`, {
           method: "PATCH",
-          body: JSON.stringify(form)
+          body: JSON.stringify(formLimpo)
         });
         toast("✓ Portal atualizado!", "ok");
       } else {
         await sbFetch("/portais_garantia", {
           method: "POST",
-          body: JSON.stringify({ ...form, criado_por: getSession()?.fiscal?.email || null })
+          body: JSON.stringify({ ...formLimpo, criado_por: getSession()?.fiscal?.email || null })
         });
         toast("✓ Portal cadastrado!", "ok");
       }
@@ -11239,6 +11249,13 @@ function PagePortais({ setPage }) {
     setForm(f => ({ ...f, data_recebimento_provisorio: valor, data_recebimento_definitivo: definitivo }));
   };
 
+  // Sugestões de comarca no cadastro: nomes de cidade já usados nos portais + a lista oficial de comarcas do TJMG (sem o sufixo "- Fórum" etc, que aqui não se usa)
+  const comarcasConhecidas = React.useMemo(() => {
+    const doTribunal = Object.keys(CM).map(k => k.split(" - ")[0]);
+    const jaCadastradas = portais.map(p => p.comarca).filter(Boolean);
+    return Array.from(new Set([...jaCadastradas, ...doTribunal])).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [portais]);
+
   const ataAtual = atas[0];
   const totalDemandado = contratosDemanda.reduce((a, c) => a + (c.quantidade || 0), 0);
   const saldoAta = ataAtual ? ataAtual.quantidade_total - totalDemandado : null;
@@ -11260,16 +11277,16 @@ function PagePortais({ setPage }) {
     React.createElement(React.Fragment, null,
       ataAtual && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
         React.createElement("div", { className: "card-title" }, "📋 ATA " + ataAtual.numero_ata + " — Vigência " + fmtDate(ataAtual.vigencia_inicio) + " a " + fmtDate(ataAtual.vigencia_fim)),
-        React.createElement("div", { className: "kpi2-grid", style: { marginBottom: contratosDemanda.length > 0 ? 16 : 0 } },
-          React.createElement(Kpi2, { icon: "box", cls: "navy", val: ataAtual.quantidade_total, label: "Total na ATA" }),
-          React.createElement(Kpi2, { icon: "clip", cls: "blue", val: totalDemandado, label: "Já demandado (contratos)" }),
-          React.createElement(Kpi2, { icon: "check", cls: saldoAta <= 10 ? "red" : "green", val: saldoAta, label: "Saldo disponível" })
+        React.createElement("div", { className: "kpi2-grid", style: { marginBottom: contratosDemanda.length > 0 ? 12 : 0 } },
+          React.createElement(Kpi2, { icon: "box", cls: "navy", val: ataAtual.quantidade_total, label: "Total na ATA", compact: true }),
+          React.createElement(Kpi2, { icon: "clip", cls: "blue", val: totalDemandado, label: "Já demandado (contratos)", compact: true }),
+          React.createElement(Kpi2, { icon: "check", cls: saldoAta <= 10 ? "red" : "green", val: saldoAta, label: "Saldo disponível", compact: true })
         ),
-        contratosDemanda.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } },
-          contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 6, background: "var(--surface)", fontSize: 12.5 } },
-            React.createElement("span", null,
-              React.createElement("strong", null, "Contrato " + c.numero_contrato), " — " + c.quantidade + " portais",
-              React.createElement("span", { style: { color: "var(--text3)" } }, " · " + (c.comarcas || "—") + " · vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim))
+        contratosDemanda.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+          contratosDemanda.map(c => React.createElement("div", { key: c.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, background: "var(--surface)" } },
+            React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 } },
+              React.createElement("div", { style: { fontSize: 13, fontWeight: 700 } }, "Contrato " + c.numero_contrato + " · " + c.quantidade + " portais"),
+              React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (c.comarcas || "—") + " · vigência " + fmtDate(c.vigencia_inicio) + " a " + fmtDate(c.vigencia_fim))
             ),
             React.createElement("button", { className: "btn btn-sm", style: { flexShrink: 0 }, onClick: () => excluirContrato(c.id) }, "🗑")
           ))
@@ -11286,10 +11303,10 @@ function PagePortais({ setPage }) {
         ),
         React.createElement("button", { className: "btn btn-primary", disabled: salvandoContrato, onClick: salvarContrato, style: { marginTop: 10 } }, salvandoContrato ? "Salvando..." : "Salvar contrato de demanda")
       ),
-      React.createElement("div", { className: "kpi2-grid", style: { marginBottom: 16 } },
-        React.createElement(Kpi2, { icon: "check", cls: "green", val: emGarantia.length, label: "Em garantia", active: filtroStatus === "Em garantia", onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia") }),
-        React.createElement(Kpi2, { icon: "clock", cls: "amber", val: vencendoEmBreve.length, label: "Vencendo em 90 dias", active: filtroStatus === "Vencendo em breve", onClick: () => setFiltroStatus(filtroStatus === "Vencendo em breve" ? "" : "Vencendo em breve") }),
-        React.createElement(Kpi2, { icon: "x", cls: "red", val: vencidas.length, label: "Garantia vencida", active: filtroStatus === "Vencida", onClick: () => setFiltroStatus(filtroStatus === "Vencida" ? "" : "Vencida") })
+      React.createElement("div", { className: "kpi2-grid", style: { marginBottom: 12 } },
+        React.createElement(Kpi2, { icon: "check", cls: "green", val: emGarantia.length, label: "Em garantia", active: filtroStatus === "Em garantia", onClick: () => setFiltroStatus(filtroStatus === "Em garantia" ? "" : "Em garantia"), compact: true }),
+        React.createElement(Kpi2, { icon: "clock", cls: "amber", val: vencendoEmBreve.length, label: "Vencendo em 90 dias", active: filtroStatus === "Vencendo em breve", onClick: () => setFiltroStatus(filtroStatus === "Vencendo em breve" ? "" : "Vencendo em breve"), compact: true }),
+        React.createElement(Kpi2, { icon: "x", cls: "red", val: vencidas.length, label: "Garantia vencida", active: filtroStatus === "Vencida", onClick: () => setFiltroStatus(filtroStatus === "Vencida" ? "" : "Vencida"), compact: true })
       ),
       vencendoEmBreve.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, border: "1px solid #f0b429" } },
         React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", marginBottom: 8 } }, "⏰ Alertas — garantia vencendo nos próximos 90 dias"),
@@ -11301,7 +11318,12 @@ function PagePortais({ setPage }) {
       painelNovoAberto && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
         React.createElement("div", { className: "card-title" }, editandoId ? "Editar portal instalado" : "Cadastrar portal instalado"),
         React.createElement("div", { className: "form-grid" },
-          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Comarca"), React.createElement("input", { value: form.comarca, onChange: e => setForm(f => ({ ...f, comarca: e.target.value })) })),
+          React.createElement("div", { className: "fg" }, React.createElement("label", null, "Comarca"),
+            React.createElement("input", { value: form.comarca, list: "lista-comarcas-portal", onChange: e => setForm(f => ({ ...f, comarca: e.target.value })) }),
+            React.createElement("datalist", { id: "lista-comarcas-portal" },
+              comarcasConhecidas.map(c => React.createElement("option", { key: c, value: c }))
+            )
+          ),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Edificação"), React.createElement("input", { value: form.edificacao, onChange: e => setForm(f => ({ ...f, edificacao: e.target.value })) })),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Marca/Modelo"), React.createElement("input", { value: form.marca_modelo, onChange: e => setForm(f => ({ ...f, marca_modelo: e.target.value })) })),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Contrato"), React.createElement("input", { value: form.contrato, onChange: e => setForm(f => ({ ...f, contrato: e.target.value })), placeholder: "Ex: 225/2026" })),
@@ -11318,30 +11340,36 @@ function PagePortais({ setPage }) {
         type: "text", placeholder: "🔎 Buscar por comarca ou contrato...", value: busca, onChange: e => setBusca(e.target.value),
         style: { width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)", fontSize: 14 }
       }),
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } },
         listaFiltrada.map(p => React.createElement("div", {
           key: p.id,
           className: "card",
           onClick: () => setDetalheAberto(p),
           style: {
             cursor: "pointer",
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "1.6fr 1.6fr 0.7fr 1.1fr auto",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 14,
-            flexWrap: "wrap",
-            padding: "12px 16px",
+            gap: 16,
+            padding: "10px 16px",
+            margin: 0,
             borderLeft: "4px solid " + (p.statusReal === "Vencida" ? "var(--red, #c0392b)" : p.statusReal === "Vencendo em breve" ? "var(--amber, #b8860b)" : "var(--green)")
           }
         },
-          React.createElement("div", { style: { minWidth: 160, flex: "1 1 200px" } },
+          React.createElement("div", null,
             React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, p.comarca),
-            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, p.edificacao || "—")
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 2 } }, p.edificacao || "—")
           ),
-          React.createElement("div", { style: { fontSize: 12, flex: "1 1 180px", color: "var(--text3)" } }, "🏷️ ", p.marca_modelo || "—", " · Contrato ", p.contrato || "—"),
-          React.createElement("div", { style: { fontSize: 12, whiteSpace: "nowrap" } }, "📦 Qtd: ", React.createElement("strong", null, p.quantidade)),
-          React.createElement("div", { style: { fontSize: 12, whiteSpace: "nowrap" } }, "📅 Garantia até: ", React.createElement("strong", null, fmtDate(p.data_recebimento_definitivo))),
-          React.createElement("span", { style: { padding: "3px 10px", borderRadius: 10, fontSize: 10, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap" } }, p.statusReal)
+          React.createElement("div", { style: { fontSize: 12.5, color: "var(--text3)" } },
+            React.createElement("div", null, p.marca_modelo || "—"),
+            React.createElement("div", { style: { marginTop: 2 } }, "Contrato ", React.createElement("strong", { style: { color: "var(--text1, inherit)" } }, p.contrato || "—"))
+          ),
+          React.createElement("div", { style: { fontSize: 12.5, color: "var(--text3)" } }, "Qtd ", React.createElement("strong", { style: { color: "var(--text1, inherit)" } }, p.quantidade)),
+          React.createElement("div", { style: { fontSize: 12.5, color: "var(--text3)" } },
+            React.createElement("div", { style: { fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".03em" } }, "Garantia até"),
+            React.createElement("div", { style: { marginTop: 2, fontWeight: 600, color: "var(--text1, inherit)" } }, fmtDate(p.data_recebimento_definitivo))
+          ),
+          React.createElement("span", { style: { padding: "4px 12px", borderRadius: 10, fontSize: 10.5, fontWeight: 700, background: p.statusReal === "Vencida" ? "#c0392b" : p.statusReal === "Vencendo em breve" ? "#b8860b" : p.statusReal === "Em garantia" ? "var(--green)" : "var(--text3)", color: "white", whiteSpace: "nowrap", justifySelf: "end" } }, p.statusReal)
         ))
       ),
       listaFiltrada.length === 0 && React.createElement("div", { className: "card empty" },
