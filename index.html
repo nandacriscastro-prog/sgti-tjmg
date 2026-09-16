@@ -11319,10 +11319,16 @@ function PagePortais({ setPage }) {
         React.createElement("div", { className: "card-title" }, editandoId ? "Editar portal instalado" : "Cadastrar portal instalado"),
         React.createElement("div", { className: "form-grid" },
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Comarca"),
-            React.createElement("input", { value: form.comarca, list: "lista-comarcas-portal", onChange: e => setForm(f => ({ ...f, comarca: e.target.value })) }),
-            React.createElement("datalist", { id: "lista-comarcas-portal" },
-              comarcasConhecidas.map(c => React.createElement("option", { key: c, value: c }))
-            )
+            React.createElement(ComarcaInput, {
+              value: form.comarca ? (form.comarca + (form.edificacao ? " - " + form.edificacao : "")) : "",
+              onChange: (k) => {
+                if (!k) { setForm(f => ({ ...f, comarca: "" })); return; }
+                const partes = k.split(" - ");
+                const cidade = partes[0];
+                const edif = partes.slice(1).join(" - ") || "Fórum";
+                setForm(f => ({ ...f, comarca: cidade, edificacao: edif }));
+              }
+            })
           ),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Edificação"), React.createElement("input", { value: form.edificacao, onChange: e => setForm(f => ({ ...f, edificacao: e.target.value })) })),
           React.createElement("div", { className: "fg" }, React.createElement("label", null, "Marca/Modelo"), React.createElement("input", { value: form.marca_modelo, onChange: e => setForm(f => ({ ...f, marca_modelo: e.target.value })) })),
