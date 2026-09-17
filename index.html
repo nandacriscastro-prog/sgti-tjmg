@@ -2115,6 +2115,32 @@ ${blocoAnexos((d.urlsAnexos || []).map((u, i) => `Anexo ${i + 1}: ${u}`).join(" 
 </body></html>`;
 }
 // Extrai "Anexo N: URL" das observações e monta uma seção com prévia de imagem (quando aplicável) + link
+// Extrai as URLs de anexo ("Anexo N: URL") de dentro do texto de observações — usado tanto pro
+// preview dentro do app (AnexosPreview) quanto pro HTML de impressão/e-mail (blocoAnexos)
+function extrairUrlsAnexo(observacoes) {
+  if (!observacoes) return [];
+  return [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)].map(m => m[1]);
+}
+function observacoesSemAnexos(observacoes) {
+  if (!observacoes) return "";
+  return observacoes.replace(/\s*\|?\s*Anexo\s*\d*:\s*https?:\/\/\S+/gi, "").trim();
+}
+// Mostra os anexos de uma OS como miniatura clicável (se for imagem) ou link, direto na tela —
+// antes só dava pra ver copiando o link da observação e abrindo em outra aba
+function AnexosPreview({ observacoes }) {
+  const urls = extrairUrlsAnexo(observacoes);
+  if (!urls.length) return null;
+  const isImagem = url => /\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url);
+  return React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 } },
+    urls.map((url, i) => isImagem(url)
+      ? React.createElement("a", { key: i, href: url, target: "_blank", rel: "noopener noreferrer", style: { display: "block", textAlign: "center" } },
+          React.createElement("img", { src: url, style: { width: 100, height: 100, objectFit: "cover", border: "1px solid var(--border)", borderRadius: 6, display: "block" } }),
+          React.createElement("div", { style: { fontSize: 10, color: "var(--text3)", marginTop: 2 } }, "Anexo " + (i + 1))
+        )
+      : React.createElement("a", { key: i, href: url, target: "_blank", rel: "noopener noreferrer", className: "btn btn-sm", style: { fontSize: 11 } }, "📎 Anexo " + (i + 1))
+    )
+  );
+}
 function blocoAnexos(observacoes) {
   if (!observacoes) return "";
   const matches = [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)];
@@ -4777,7 +4803,7 @@ function PageHistorico({
       padding: "10px 12px",
       fontSize: 12
     }
-  }, sel.observacoes)),
+  }, observacoesSemAnexos(sel.observacoes) || "—", /*#__PURE__*/React.createElement(AnexosPreview, { observacoes: sel.observacoes }))),
   React.createElement("div", {
     style: {borderTop:"1px solid var(--border)", paddingTop:14, marginTop:4}
   },
