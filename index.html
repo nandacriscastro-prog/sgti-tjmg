@@ -1773,6 +1773,7 @@ function PageDashboard({
     className: "kpi2",
     onClick: () => {
       if (kk.filtroAval) { window._avaliacaoFiltro = kk.filtroAval; window._avaliacaoSoRemoto = kk.filtroSoRemoto; }
+      if (kk.page === "avaliacao") window._avaliacaoContrato = kk.filtroContrato || "todos";
       if (kk.hist) window._historicoFiltro = kk.hist;
       setPage(kk.page);
     }
@@ -1823,9 +1824,9 @@ function PageDashboard({
     { label: "OS's abertas — total geral", val: totalAbertasGeral, cls: "navy", icon: "clip", page: "historico", hist: { statusMulti: ["Aberta", "Em andamento", "Reaberta"] } },
     { label: "Em execução", val: emExecucao, cls: "blue", icon: "refresh", page: "historico", hist: { statusMulti: ["Em andamento"] } },
     { label: "Concluídas no período", val: concluidasPeriodo, cls: "green", icon: "check", page: "historico", hist: { dtIni: dtIniAtual, dtFim: dtFimAtual, dtCampo: "data_conclusao", statusMulti: ["Concluída"], contrato: "181/2026" } },
-    { label: "Pendentes de avaliação", val: pendentesAvaliacaoTotal, cls: "purple", icon: "clip", page: "avaliacao" },
-    { label: "⏳ SLA em risco (≤3 dias)", val: emRisco.length, cls: "amber", icon: "alert", page: "avaliacao" },
-    { label: "SLA vencido", val: vencidasTodas.length, cls: "red", icon: "x", page: "avaliacao", filtroAval: "vencidas" },
+    { label: "Pendentes de avaliação", val: pendentesAvaliacaoTotal, cls: "purple", icon: "clip", page: "avaliacao", filtroAval: "pendente", filtroContrato: "181/2026" },
+    { label: "⏳ SLA em risco (≤3 dias)", val: emRisco.length, cls: "amber", icon: "alert", page: "avaliacao", filtroAval: "risco", filtroContrato: "181/2026" },
+    { label: "SLA vencido", val: vencidasTodas.length, cls: "red", icon: "x", page: "avaliacao", filtroAval: "vencidas", filtroContrato: "181/2026" },
     { label: "Reaberturas em aberto", val: correcaoAbertas, cls: "amber", icon: "refresh", page: "medicao" },
     { label: "Técnicos/equipes cadastrados", val: tecnicosTotal, cls: "navy", icon: "users", page: "tecnicos" }
   ].map(kpi2)),
@@ -5039,7 +5040,11 @@ function PageAvaliacao({
   const [selecionadasAval, setSelecionadasAval] = useState(new Set());
   const [loteLoading, setLoteLoading] = useState(false);
   const [loteMsg, setLoteMsg] = useState("");
-  const [filtroContratoAval, setFiltroContratoAval] = useState("todos");
+  const [filtroContratoAval, setFiltroContratoAval] = useState(() => {
+    const v = window._avaliacaoContrato;
+    window._avaliacaoContrato = undefined;
+    return v || "todos";
+  });
   const [filtroDt1Aval, setFiltroDt1Aval] = useState("");
   const [filtroDt2Aval, setFiltroDt2Aval] = useState("");
   const [ordemPorAval, setOrdemPorAval] = useState("data"); // "data" | "numero"
@@ -5059,6 +5064,23 @@ function PageAvaliacao({
     prazo.setDate(prazo.getDate()+dias);
     return hoje > prazo.toISOString().slice(0,10);
   });
+  // SLA em risco (≤3 dias, ainda não vencida) — mesmo critério do KPI do Dashboard, só do contrato 181/2026
+  const emRiscoLista = abertas.filter(o => {
+    if ((o.contrato || "") !== "181/2026") return false;
+    if (!o.data_os) return false;
+    const mun = (o.comarca || "").split(" - ")[0];
+    const isC181 = COLAR_181.has(mun);
+    let dias;
+    if (o.tipo === "Atendimento Remoto") dias = 0;
+    else if (o.tipo === "Correção") dias = isC181 ? 1 : 3;
+    else if ((o.tipo || "").includes("Emergencial")) dias = isC181 ? 2 : 5;
+    else dias = isC181 ? 10 : 30;
+    const prazo = new Date(o.data_os + "T12:00");
+    prazo.setDate(prazo.getDate() + dias);
+    const prazoStr = prazo.toISOString().slice(0, 10);
+    const diasRestantes = Math.ceil((prazo - new Date(hoje + "T12:00")) / 86400000);
+    return hoje <= prazoStr && diasRestantes <= 3;
+  });
   const qtdVencidas = vencidasLista.length;
   const sat = os.filter(o => o.avaliacao === "satisfatorio").length;
   const reab = os.filter(o => o.avaliacao === "insatisfatorio").length;
@@ -5072,7 +5094,7 @@ function PageAvaliacao({
     const asInt = parseInt(n);
     return isNaN(asInt) ? -1 : asInt;
   };
-  let dados = (filtro === "vencidas" ? vencidasLista : filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
+  let dados = (filtro === "vencidas" ? vencidasLista : filtro === "risco" ? emRiscoLista : filtro === "pendente" ? os.filter(o => o.status === "Concluída" && !o.avaliacao) : filtro === "satisfatorio" ? os.filter(o => o.avaliacao === "satisfatorio") : filtro === "insatisfatorio" ? os.filter(o => o.avaliacao === "insatisfatorio") : filtro === "abertas" ? abertas : os.filter(o => o.status === "Concluída"));
   if (filtroSoRemoto === true) dados = dados.filter(o => o.tipo === "Atendimento Remoto");
   if (filtroSoRemoto === false) dados = dados.filter(o => o.tipo !== "Atendimento Remoto");
   if (filtroContratoAval !== "todos") dados = dados.filter(o => (o.contrato || "") === filtroContratoAval);
