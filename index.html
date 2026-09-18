@@ -5214,7 +5214,7 @@ function PageAvaliacao({
       const _isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
       const diasCorrecao = _isColar ? 1 : 3;
       const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-      const novaObs = (o.observacoes ? o.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b>`;
+      const novaObs = (o.observacoes ? o.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><i>Conforme Anexo II - Especificações Técnicas, item 2. Atendimento Presencial: "A correção de serviços considerados falhos, incompletos ou insatisfatórios de um determinado chamado técnico deverá ocorrer no prazo máximo de 01 (um) dia útil para o Colar Metropolitano da Região Metropolitana de Belo Horizonte/MG, estendendo-se para 03 (três) dias úteis quando se tratar de Comarcas de cidades do interior, contado da notificação."</i>`;
       const criadas = await sbFetch("/ordens_servico", {
         method: "POST",
         body: JSON.stringify({
@@ -5322,7 +5322,7 @@ function PageAvaliacao({
         const diasCorrecao = _isColar ? 1 : 3;
         const agora = new Date();
         const prazoCorrecaoDate = addDiasUteis(agora, diasCorrecao);
-        const novaObs = (sel.observacoes ? sel.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><b>Observação da avaliação:</b> ${obs || "—"}`;
+        const novaObs = (sel.observacoes ? sel.observacoes + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><i>Conforme Anexo II - Especificações Técnicas, item 2. Atendimento Presencial: "A correção de serviços considerados falhos, incompletos ou insatisfatórios de um determinado chamado técnico deverá ocorrer no prazo máximo de 01 (um) dia útil para o Colar Metropolitano da Região Metropolitana de Belo Horizonte/MG, estendendo-se para 03 (três) dias úteis quando se tratar de Comarcas de cidades do interior, contado da notificação."</i><br><b>Falhas identificadas no atendimento:</b> ${obs || "—"}`;
         const criadas = await sbFetch("/ordens_servico", {
           method: "POST",
           body: JSON.stringify({
@@ -5816,10 +5816,10 @@ function PageAvaliacao({
       style: {
         marginBottom: 12
       }
-    }, /*#__PURE__*/React.createElement("label", null, "Observa\xE7\xF5es da avalia\xE7\xE3o"), /*#__PURE__*/React.createElement("textarea", {
+    }, /*#__PURE__*/React.createElement("label", null, aval === "insat" ? "Falhas identificadas no atendimento" : "Observa\xE7\xF5es da avalia\xE7\xE3o"), /*#__PURE__*/React.createElement("textarea", {
       value: obs,
       onChange: e => setObs(e.target.value),
-      placeholder: "Descreva pend\xEAncias identificadas..."
+      placeholder: aval === "insat" ? "Descreva as falhas encontradas neste atendimento (isso entra na OS de reabertura, com o aviso do prazo do Anexo II)" : "Descreva pend\xEAncias identificadas..."
     })), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
@@ -6040,7 +6040,7 @@ function PageLancamentoManual({
               data_os: new Date().toISOString().slice(0, 10),
               criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
               criado_em: new Date().toISOString(),
-              observacoes: (l.observacoesOS ? l.observacoesOS + " | " : "") + `Reabertura por serviço malfeito — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}). Obs.: ${l.avaliacaoObs || "—"}`
+              observacoes: (l.observacoesOS ? l.observacoesOS + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><i>Conforme Anexo II - Especificações Técnicas, item 2. Atendimento Presencial: "A correção de serviços considerados falhos, incompletos ou insatisfatórios de um determinado chamado técnico deverá ocorrer no prazo máximo de 01 (um) dia útil para o Colar Metropolitano da Região Metropolitana de Belo Horizonte/MG, estendendo-se para 03 (três) dias úteis quando se tratar de Comarcas de cidades do interior, contado da notificação."</i><br><b>Falhas identificadas no atendimento:</b> ${l.avaliacaoObs || "—"}`
             })
           });
         }
@@ -6128,7 +6128,7 @@ function PageLancamentoManual({
         )
       ),
       l.avaliacao === "insatisfatorio" && React.createElement("div", { className: "fg" },
-        React.createElement("label", null, "Motivo (gera automaticamente uma OS de correção)"),
+        React.createElement("label", null, "Falhas identificadas no atendimento (gera automaticamente uma OS de correção)"),
         React.createElement("textarea", { value: l.avaliacaoObs, onChange: e => atualizarLinha(i, "avaliacaoObs", e.target.value), rows: 2, placeholder: "Ex: câmera continuou sem gravar após a visita" })
       )
     )
@@ -6708,7 +6708,7 @@ function PageMedicao({
           const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
           const diasCorrecao = _isColar ? 1 : 3;
           const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-          const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><b>Observação da avaliação:</b> ${l.avaliacaoObs || "—"}`;
+          const novaObsCorrecao = (l.observacoesOS ? l.observacoesOS + "<br>" : "") + `<b>REABERTURA — correção em até ${diasCorrecao} dia(s) útil(eis) da notificação (${_isColar ? "Colar Metropolitano" : "Interior"}).</b><br><i>Conforme Anexo II - Especificações Técnicas, item 2. Atendimento Presencial: "A correção de serviços considerados falhos, incompletos ou insatisfatórios de um determinado chamado técnico deverá ocorrer no prazo máximo de 01 (um) dia útil para o Colar Metropolitano da Região Metropolitana de Belo Horizonte/MG, estendendo-se para 03 (três) dias úteis quando se tratar de Comarcas de cidades do interior, contado da notificação."</i><br><b>Falhas identificadas no atendimento:</b> ${l.avaliacaoObs || "—"}`;
           const criadas = await sbFetch("/ordens_servico", {
             method: "POST",
             body: JSON.stringify({
@@ -6823,7 +6823,7 @@ function PageMedicao({
         )
       ),
       l.avaliacao === "insatisfatorio" && React.createElement("div", { className: "fg" },
-        React.createElement("label", null, "Motivo (gera automaticamente uma OS de correção)"),
+        React.createElement("label", null, "Falhas identificadas no atendimento (gera automaticamente uma OS de correção)"),
         React.createElement("textarea", { value: l.avaliacaoObs, onChange: e => atualizarLinha(i, "avaliacaoObs", e.target.value), rows: 2, placeholder: "Ex: câmera continuou sem gravar após a visita" })
       )
     )
