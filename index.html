@@ -2117,13 +2117,29 @@ ${blocoAnexos((d.urlsAnexos || []).map((u, i) => `Anexo ${i + 1}: ${u}`).join(" 
 // Extrai "Anexo N: URL" das observações e monta uma seção com prévia de imagem (quando aplicável) + link
 // Extrai as URLs de anexo ("Anexo N: URL") de dentro do texto de observações — usado tanto pro
 // preview dentro do app (AnexosPreview) quanto pro HTML de impressão/e-mail (blocoAnexos)
+// A URL para no primeiro espaço OU no primeiro "<" — sem isso, quando o texto usa "<br>" colado
+// direto depois do link (sem espaço), a URL "engolia" o "<br>Rota:..." seguinte e quebrava o anexo
 function extrairUrlsAnexo(observacoes) {
   if (!observacoes) return [];
-  return [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)].map(m => m[1]);
+  return [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/[^\s<]+)/gi)].map(m => m[1]);
 }
 function observacoesSemAnexos(observacoes) {
   if (!observacoes) return "";
-  return observacoes.replace(/\s*\|?\s*Anexo\s*\d*:\s*https?:\/\/\S+/gi, "").trim();
+  return observacoes
+    .replace(/Anexo\s*\d*:\s*https?:\/\/[^\s<]+/gi, "")
+    // limpa os separadores ("<br>" ou "|") que ficam órfãos no lugar do anexo removido
+    .replace(/(\s*<br\s*\/?>\s*){2,}/gi, "<br>")
+    .replace(/^\s*(<br\s*\/?>|\|)\s*/i, "")
+    .replace(/\s*(<br\s*\/?>|\|)\s*$/i, "")
+    .replace(/\|\s*\|/g, "|")
+    .trim();
+}
+// Troca os "<br>" literais (usados internamente como separador de linha nas observações) por
+// quebras de linha reais na tela — sem isso aparecia o texto "<br>" solto, cru, pro usuário
+function textoComQuebras(texto) {
+  if (!texto) return null;
+  const linhas = texto.split(/<br\s*\/?>/gi);
+  return linhas.map((linha, i) => React.createElement(React.Fragment, { key: i }, linha, i < linhas.length - 1 ? React.createElement("br", null) : null));
 }
 // Mostra os anexos de uma OS como miniatura clicável (se for imagem) ou link, direto na tela —
 // antes só dava pra ver copiando o link da observação e abrindo em outra aba
@@ -2143,11 +2159,10 @@ function AnexosPreview({ observacoes }) {
 }
 function blocoAnexos(observacoes) {
   if (!observacoes) return "";
-  const matches = [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)];
-  if (!matches.length) return "";
+  const urlsBloco = extrairUrlsAnexo(observacoes);
+  if (!urlsBloco.length) return "";
   const isImagem = url => /\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url);
-  const itens = matches.map((m, i) => {
-    const url = m[1];
+  const itens = urlsBloco.map((url, i) => {
     if (isImagem(url)) {
       return `<div style="display:inline-block;margin:4px 8px 4px 0;text-align:center;vertical-align:top">
         <a href="${url}" target="_blank"><img src="${url}" style="max-width:160px;max-height:160px;border:1px solid #ccc;border-radius:4px;display:block"></a>
@@ -4803,7 +4818,7 @@ function PageHistorico({
       padding: "10px 12px",
       fontSize: 12
     }
-  }, observacoesSemAnexos(sel.observacoes) || "—", /*#__PURE__*/React.createElement(AnexosPreview, { observacoes: sel.observacoes }))),
+  }, textoComQuebras(observacoesSemAnexos(sel.observacoes)) || "—", /*#__PURE__*/React.createElement(AnexosPreview, { observacoes: sel.observacoes }))),
   React.createElement("div", {
     style: {borderTop:"1px solid var(--border)", paddingTop:14, marginTop:4}
   },
@@ -10499,10 +10514,7 @@ function PageLimpezaAnexos() {
   const [msg, setMsg] = useState("");
   const [resultado, setResultado] = useState(null);
 
-  const extrairAnexos = observacoes => {
-    if (!observacoes) return [];
-    return [...observacoes.matchAll(/Anexo\s*\d*:\s*(https?:\/\/\S+)/gi)].map(m => m[1]);
-  };
+  const extrairAnexos = extrairUrlsAnexo;
   const nomeArquivoDaUrl = url => {
     const m = /\/os-anexos\/([^?]+)/.exec(url);
     return m ? decodeURIComponent(m[1]) : null;
