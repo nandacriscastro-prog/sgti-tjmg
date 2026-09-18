@@ -5230,6 +5230,7 @@ function PageAvaliacao({
       if (o.observacoes) partesObs.push(o.observacoes);
       if (obsFalha) partesObs.push(`<b>Falhas identificadas no atendimento:</b> ${obsFalha}`);
       const novaObs = partesObs.join("<br>");
+      const _cmDadosLote = CM[o.comarca] || {};
       const criadas = await sbFetch("/ordens_servico", {
         method: "POST",
         body: JSON.stringify({
@@ -5237,6 +5238,11 @@ function PageAvaliacao({
           empresa: o.empresa,
           contrato: o.contrato,
           comarca: o.comarca,
+          forum: o.forum || _cmDadosLote.f || "",
+          endereco: o.endereco || _cmDadosLote.e || "",
+          telefone: o.telefone || "",
+          contato: o.contato || "",
+          polo: o.polo || "",
           servico: o.servico,
           tipo: "Correção",
           prioridade: o.prioridade,
@@ -5346,6 +5352,7 @@ function PageAvaliacao({
         if (sel.observacoes) partesObs.push(sel.observacoes);
         if (obs) partesObs.push(`<b>Falhas identificadas no atendimento:</b> ${obs}`);
         const novaObs = partesObs.join("<br>");
+        const _cmDadosSel = CM[sel.comarca] || {};
         const criadas = await sbFetch("/ordens_servico", {
           method: "POST",
           body: JSON.stringify({
@@ -5358,6 +5365,8 @@ function PageAvaliacao({
             os_origem: sel.numero,
             criado_em: new Date().toISOString(),
             tipo: "Correção",
+            forum: sel.forum || _cmDadosSel.f || "",
+            endereco: sel.endereco || _cmDadosSel.e || "",
             prazo_date: prazoCorrecaoDate.toISOString().slice(0, 10),
             observacoes: novaObs
           })
@@ -6741,6 +6750,7 @@ function PageMedicao({
           const diasCorrecao = _isColar ? 1 : 3;
           const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
           const novaObsCorrecao = [l.observacoesOS, l.avaliacaoObs ? `<b>Falhas identificadas no atendimento:</b> ${l.avaliacaoObs}` : null].filter(Boolean).join("<br>");
+          const _cmDadosMed = CM[l.comarca] || {};
           const criadas = await sbFetch("/ordens_servico", {
             method: "POST",
             body: JSON.stringify({
@@ -6748,6 +6758,8 @@ function PageMedicao({
               empresa: "Alvo Segurança Ltda",
               contrato: l.contrato,
               comarca: l.comarca,
+              forum: _cmDadosMed.f || "",
+              endereco: _cmDadosMed.e || "",
               servico: l.servico,
               tipo: "Correção",
               prioridade: l.prioridade,
