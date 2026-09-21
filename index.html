@@ -4178,6 +4178,303 @@ function PageNovaOS({
   })))));
 }
 
+
+// ── PAGE: NOVA OS PORTAL DETECTOR DE METAIS ──────────────────────
+function PageNovaOSPortal({ onOsCriada, os: todasOS }) {
+  const [comarca, setComarca] = useState("");
+  const [dadosComarca, setDadosComarca] = useState({});
+  const [tipoPortal, setTipoPortal] = useState("novo"); // "novo" | "existente"
+  const [portaisExistentes, setPortaisExistentes] = useState([]);
+  const [portalSel, setPortalSel] = useState(null); // portal existente selecionado
+  const [marcaModelo, setMarcaModelo] = useState("MAGNETEC");
+  const [qtd, setQtd] = useState(1);
+  const [localInstal, setLocalInstal] = useState("");
+  const [numSerie, setNumSerie] = useState("");
+  const [obs, setObs] = useState("");
+  const [dt, setDt] = useState(new Date().toISOString().slice(0, 10));
+  const [fiscalId, setFiscalId] = useState(String(getSession()?.fiscal?.id || "3"));
+  const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
+  const [numOS, setNumOS] = useState("...");
+  const [loading, setLoading] = useState(false);
+  const [feito, setFeito] = useState(null); // { numOS, dados }
+
+  const buscarProximoNum = ct => {
+    return (async () => {
+      if (ct === "181/2026") {
+        let all = [], offset = 0;
+        while (true) {
+          const batch = await sbFetch("/ordens_servico?contrato=eq.181%2F2026&select=numero&limit=1000&offset=" + offset);
+          if (!batch?.length) break;
+          all = all.concat(batch);
+          offset += batch.length;
+          if (batch.length < 1000) break;
+        }
+        const seqs = all.map(r => { const m = /^181-(\d+)$/.exec(r.numero || ""); return m ? parseInt(m[1]) : 0; }).filter(n => n > 0);
+        return [{ numero: "181-" + (seqs.length ? Math.max(...seqs) : 0) }];
+      }
+      let all = [], offset = 0;
+      while (true) {
+        const batch = await sbFetch("/ordens_servico?contrato=in.(216%2F2023,217%2F2023,218%2F2023)&select=numero&limit=1000&offset=" + offset);
+        if (!batch?.length) break;
+        all = all.concat(batch);
+        offset += batch.length;
+        if (batch.length < 1000) break;
+      }
+      const nums = all.map(r => parseInt(r.numero) || 0).filter(n => n > 0 && n < 1000000);
+      return [{ numero: String(Math.max(87, nums.length ? Math.max(...nums) : 0)) }];
+    })().catch(() => [{ numero: ct === "181/2026" ? "181-0" : "0" }]);
+  };
+  const proximoNumeroDe = row => {
+    const v = row?.numero || "0";
+    const m = /^181-(\d+)$/.exec(v);
+    if (m) return "181-" + (parseInt(m[1]) + 1);
+    return String((parseInt(v) || 0) + 1);
+  };
+
+  useEffect(() => {
+    const ct = window._contratoNovaOS || "181/2026";
+    buscarProximoNum(ct).then(rows => setNumOS(proximoNumeroDe(rows?.[0]))).catch(() => {});
+  }, []);
+
+  // Carregar portais existentes quando comarca muda
+  useEffect(() => {
+    if (!comarca || tipoPortal !== "existente") { setPortaisExistentes([]); setPortalSel(null); return; }
+    const munNome = comarca.split(" - ")[0];
+    sbFetch("/portais_garantia?comarca=ilike." + encodeURIComponent(munNome) + "&select=*")
+      .then(rows => { setPortaisExistentes(rows || []); setPortalSel(null); })
+      .catch(() => setPortaisExistentes([]));
+  }, [comarca, tipoPortal]);
+
+  const fmtDate = v => v ? new Date(v + "T12:00").toLocaleDateString("pt-BR") : "—";
+
+  const confirmar = async () => {
+    if (!comarca) { toast("Selecione a comarca", "error"); return; }
+    if (tipoPortal === "existente" && !portalSel) { toast("Selecione o portal existente", "error"); return; }
+    if (!localInstal.trim() && tipoPortal === "novo") { toast("Informe o local de instalação", "error"); return; }
+    setLoading(true);
+    try {
+      const fiscalSel = FISCAIS.find(f => String(f.id) === fiscalId) || FISCAIS[2];
+      const dcm = CM[comarca] || {};
+      const descPortal = tipoPortal === "novo"
+        ? "Instalação de Novo Portal Detector de Metais — " + marcaModelo + (qtd > 1 ? " (" + qtd + " unid.)" : "") + (localInstal ? " — " + localInstal : "")
+        : "Substituição/Manutenção de Portal Detector de Metais Existente — " + marcaModelo + (portalSel?.numero_serie ? " S/N: " + portalSel.numero_serie : "") + (localInstal ? " — Local: " + localInstal : "");
+
+      // Calcular prazo SLA
+      const munNome = comarca.split(" - ")[0];
+      const isColar = contratoSel === "181/2026" ? COLAR_181.has(munNome) : COLAR_CIDADES.has(munNome);
+      const diasSLA = isColar ? 10 : 30; // programado
+      const baseDate = new Date(dt + "T12:00");
+      const prazoDate = new Date(baseDate);
+      prazoDate.setDate(prazoDate.getDate() + diasSLA);
+      const prazoStr = prazoDate.toLocaleDateString("pt-BR");
+
+      const obsTexto = [
+        tipoPortal === "existente" && portalSel ? ("Portal cadastrado: contrato " + (portalSel.contrato || "—") + (portalSel.data_recebimento_definitivo ? ", receb. definitivo: " + fmtDate(portalSel.data_recebimento_definitivo) : "")) : "",
+        numSerie ? ("Nº de série: " + numSerie) : "",
+        obs
+      ].filter(Boolean).join(" | ");
+
+      let rows = await buscarProximoNum(contratoSel);
+      const novoNum = proximoNumeroDe(rows?.[0]);
+      const corpo = {
+        numero: novoNum,
+        empresa: "Alvo Segurança Ltda",
+        contrato: contratoSel,
+        comarca,
+        forum: dcm.f || "",
+        endereco: dcm.e || "",
+        polo: dcm.p || "",
+        contato: dcm.t || "",
+        telefone: "",
+        servico: descPortal,
+        tipo: "Presencial Programado",
+        prioridade: "P2 - Alta",
+        regiao: isColar ? "Colar Metropolitano" : "Interior",
+        observacoes: obsTexto,
+        os_origem: null,
+        data_os: dt,
+        status: "Aberta",
+        criado_por: fiscalSel.email,
+        criado_em: new Date().toISOString(),
+        email_enviado: false,
+        numero_pedido: null
+      };
+      await sbFetch("/ordens_servico", { method: "POST", body: JSON.stringify(corpo) });
+      const pvFinal = {
+        ...corpo,
+        prazo: prazoStr,
+        criado_por: fiscalSel.email,
+        numero: novoNum,
+        infra_backbone: false
+      };
+      const htmlOS = gerarHTMLPortalOS(pvFinal, novoNum, tipoPortal, { marcaModelo, qtd, localInstal, numSerie, portalSel });
+      setFeito({ numOS: novoNum, dados: pvFinal, html: htmlOS });
+      setNumOS(proximoNumeroDe({ numero: novoNum }));
+      toast("✓ OS " + novoNum + " criada!", "ok");
+      onOsCriada && onOsCriada();
+    } catch(e) {
+      toast("Erro: " + e.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "ph-row" },
+      React.createElement("div", null,
+        React.createElement("div", { className: "ph-title" }, "🚫 OS — Portal Detector de Metais"),
+        React.createElement("div", { className: "ph-sub" }, "Instalação ou substituição de portal")
+      ),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text3)" } }, "Próximo nº:"),
+        React.createElement("span", { style: { fontFamily: "var(--mono)", fontWeight: 700, fontSize: 20, color: "var(--accent)" } }, numOS)
+      )
+    ),
+    feito && React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } },
+      React.createElement("span", { style: { fontWeight: 600, fontSize: 13, color: "#15803d" } }, "✓ OS ", feito.numOS, " criada"),
+      React.createElement("button", { className: "btn btn-sm btn-navy", onClick: () => abrirJanela(feito.html) }, "🖨️ Imprimir / PDF"),
+      React.createElement("button", { className: "btn btn-sm", onClick: () => setFeito(null) }, "✕ Nova OS Portal")
+    ),
+    React.createElement("div", { className: "card" },
+      React.createElement("div", { className: "card-title" }, React.createElement("span", { className: "dot" }), "Contrato e Comarca"),
+      React.createElement("div", { className: "form-grid" },
+        React.createElement("div", { className: "fg" },
+          React.createElement("label", null, "Contrato"),
+          React.createElement("select", { value: contratoSel, onChange: e => setContratoSel(e.target.value) },
+            React.createElement("option", { value: "181/2026" }, "181/2026 — Alvo Segurança"),
+            React.createElement("option", { value: "218/2023" }, "218/2023"),
+            React.createElement("option", { value: "217/2023" }, "217/2023"),
+            React.createElement("option", { value: "216/2023" }, "216/2023")
+          )
+        ),
+        React.createElement("div", { className: "fg" },
+          React.createElement("label", null, "Fiscal responsável"),
+          React.createElement("select", { value: fiscalId, onChange: e => setFiscalId(e.target.value) },
+            FISCAIS.map(f => React.createElement("option", { key: f.id, value: String(f.id) }, f.nome))
+          )
+        ),
+        React.createElement("div", { className: "fg full" },
+          React.createElement("label", null, "Comarca / Edificação *"),
+          React.createElement(ComarcaInput, { value: comarca, onChange: (k, d) => { setComarca(k); setDadosComarca(d); } })
+        ),
+        comarca && React.createElement("div", { className: "fg", style: { gridColumn: "span 2" } },
+          React.createElement("label", null, "Fórum (auto)"),
+          React.createElement("input", { readOnly: true, value: dadosComarca.f || "" })
+        ),
+        comarca && React.createElement("div", { className: "fg full" },
+          React.createElement("label", null, "Endereço (auto)"),
+          React.createElement("input", { readOnly: true, value: dadosComarca.e || "" })
+        ),
+        React.createElement("div", { className: "fg" },
+          React.createElement("label", null, "Data da OS"),
+          React.createElement("input", { type: "date", value: dt, onChange: e => setDt(e.target.value) })
+        )
+      )
+    ),
+    React.createElement("div", { className: "card" },
+      React.createElement("div", { className: "card-title" }, React.createElement("span", { className: "dot" }), "Tipo de Atendimento — Portal"),
+      React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 16 } },
+        ["novo", "existente"].map(t =>
+          React.createElement("label", { key: t, style: { display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", border: "1.5px solid " + (tipoPortal === t ? "var(--accent)" : "var(--border)"), borderRadius: 8, cursor: "pointer", background: tipoPortal === t ? "var(--accent-bg, #eef6ff)" : "transparent", fontWeight: tipoPortal === t ? 700 : 400, fontSize: 13 } },
+            React.createElement("input", { type: "radio", name: "tipoPortal", value: t, checked: tipoPortal === t, onChange: () => setTipoPortal(t) }),
+            t === "novo" ? "🆕 Novo portal" : "🔧 Portal existente"
+          )
+        )
+      ),
+      tipoPortal === "existente" && React.createElement("div", { className: "form-grid" },
+        React.createElement("div", { className: "fg full" },
+          React.createElement("label", null, "Portal cadastrado nesta comarca"),
+          portaisExistentes.length === 0
+            ? React.createElement("div", { style: { padding: "10px 12px", background: "#fff3cd", borderRadius: 6, fontSize: 12, color: "#8a6300" } }, comarca ? "Nenhum portal cadastrado para essa comarca. Cadastre em Portais → Cadastrar." : "Selecione a comarca acima.")
+            : React.createElement("select", { value: portalSel ? String(portalSel.id) : "", onChange: e => setPortalSel(portaisExistentes.find(p => String(p.id) === e.target.value) || null) },
+                React.createElement("option", { value: "" }, "Selecione o portal..."),
+                portaisExistentes.map(p => React.createElement("option", { key: p.id, value: String(p.id) },
+                  (p.marca_modelo || "Portal") + (p.numero_serie ? " — S/N " + p.numero_serie : "") + (p.edificacao ? " [" + p.edificacao + "]" : "") + (p.data_recebimento_definitivo ? " (garantia até " + fmtDate(p.data_recebimento_definitivo) + ")" : "")
+                ))
+              )
+        ),
+        portalSel && React.createElement("div", { className: "fg full", style: { background: "#f8f9fa", borderRadius: 6, padding: "10px 12px", fontSize: 12 } },
+          React.createElement("div", null, React.createElement("b", null, "Contrato: "), portalSel.contrato || "—"),
+          React.createElement("div", null, React.createElement("b", null, "Quantidade: "), portalSel.quantidade || 1),
+          React.createElement("div", null, React.createElement("b", null, "Patrimônio: "), portalSel.patrimonio || "—"),
+          React.createElement("div", null, React.createElement("b", null, "Receb. provisório: "), fmtDate(portalSel.data_recebimento_provisorio)),
+          React.createElement("div", null, React.createElement("b", null, "Receb. definitivo: "), fmtDate(portalSel.data_recebimento_definitivo))
+        )
+      ),
+      React.createElement("div", { className: "form-grid", style: { marginTop: 12 } },
+        React.createElement("div", { className: "fg" },
+          React.createElement("label", null, tipoPortal === "novo" ? "Marca / Modelo" : "Marca / Modelo do portal"),
+          React.createElement("input", { value: marcaModelo, onChange: e => setMarcaModelo(e.target.value), placeholder: "Ex: MAGNETEC" })
+        ),
+        tipoPortal === "novo" && React.createElement("div", { className: "fg" },
+          React.createElement("label", null, "Quantidade de portais"),
+          React.createElement("input", { type: "number", min: 1, max: 10, value: qtd, onChange: e => setQtd(parseInt(e.target.value) || 1) })
+        ),
+        React.createElement("div", { className: "fg" + (tipoPortal === "existente" ? " full" : "") },
+          React.createElement("label", null, "Nº de série (se disponível)"),
+          React.createElement("input", { value: numSerie, onChange: e => setNumSerie(e.target.value), placeholder: "SN..." })
+        ),
+        React.createElement("div", { className: "fg full" },
+          React.createElement("label", null, tipoPortal === "novo" ? "Local de instalação *" : "Local / posição no prédio"),
+          React.createElement("input", { value: localInstal, onChange: e => setLocalInstal(e.target.value), placeholder: "Ex: Entrada principal, hall de acesso, 1º pavimento..." })
+        ),
+        React.createElement("div", { className: "fg full" },
+          React.createElement("label", null, "Observações"),
+          React.createElement("textarea", { rows: 3, value: obs, onChange: e => setObs(e.target.value), placeholder: "Condições do local, requisitos especiais, etc." })
+        )
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 4 } },
+      React.createElement("button", { className: "btn", onClick: () => { window._contratoNovaOS = null; window.setPage && window.setPage("nova"); } }, "← Voltar"),
+      React.createElement("button", {
+        className: "btn btn-primary",
+        disabled: loading || !comarca,
+        onClick: confirmar
+      }, loading ? "Salvando..." : ("💾 Criar OS Portal — " + (tipoPortal === "novo" ? "Nova instalação" : "Portal existente")))
+    )
+  );
+}
+
+function gerarHTMLPortalOS(os, numOS, tipoPortal, extras) {
+  const fiscal = FISCAIS.find(f => f.email === os.criado_por) || FISCAIS[2];
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const dtFmt = v => v ? new Date(v + "T12:00").toLocaleDateString("pt-BR") : "—";
+  const tipoLabel = tipoPortal === "novo" ? "INSTALAÇÃO DE NOVO PORTAL" : "PORTAL EXISTENTE — SUBSTITUIÇÃO / MANUTENÇÃO";
+  const detalhePortal = tipoPortal === "existente" && extras.portalSel
+    ? "<tr><td colspan='3'><div class='lbl'>PORTAL EXISTENTE</div><div class='val'>" +
+      (extras.portalSel.marca_modelo || "—") +
+      (extras.portalSel.numero_serie ? " | S/N: " + extras.portalSel.numero_serie : "") +
+      (extras.portalSel.patrimonio ? " | Patrimônio: " + extras.portalSel.patrimonio : "") +
+      (extras.portalSel.data_recebimento_definitivo ? " | Garantia até: " + dtFmt(extras.portalSel.data_recebimento_definitivo) : "") +
+      "</div></td></tr>"
+    : "";
+  return "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>OS Portal " + numOS + " — " + (os.comarca || "") + "</title><style>" + ESTILO_OS_PDF + "</style></head><body>" +
+    "<div class='cab'><div class='cab-title'>Tribunal de Justiça do Estado de Minas Gerais</div><div class='cab-sub'>Diretoria Executiva de Engenharia e Gestão Predial — Gerência de Adaptações e Sistemas Prediais</div></div>" +
+    "<table><tr><td colspan='3' style='background:#0f1f3d;color:white;text-align:center;padding:8px'><div style='font-size:13px;font-weight:800;letter-spacing:.04em'>ORDEM DE SERVIÇO — PORTAL DETECTOR DE METAIS</div><div style='font-size:11px;margin-top:2px;opacity:.85'>" + tipoLabel + "</div></td></tr></table>" +
+    "<table>" +
+    "<tr><td style='width:50%'><div class='lbl'>EMPRESA</div><div class='val'>" + (os.empresa || "A DEFINIR") + "</div></td>" +
+    "<td style='width:25%'><div class='lbl'>CONTRATO</div><div class='val'>" + (os.contrato || "181/2026") + "</div></td>" +
+    "<td style='width:25%'><div class='lbl'>Nº O.S.</div><div class='val red'>" + numOS + "</div></td></tr>" +
+    "<tr><td><div class='lbl'>COMARCA</div><div class='val'>" + (os.comarca || "—") + "</div></td>" +
+    "<td colspan='2'><div class='lbl'>DATA</div><div class='val'>" + dtFmt(os.data_os) + "</div></td></tr>" +
+    "<tr><td><div class='lbl'>EDIFÍCIO</div><div class='val'>" + (os.forum || "—") + "</div></td>" +
+    "<td colspan='2'><div class='lbl'>PRAZO SLA</div><div class='val'>" + (os.prazo || "—") + "</div></td></tr>" +
+    "<tr><td colspan='3'><div class='lbl'>ENDEREÇO</div><div class='val'>" + (os.endereco || "—") + "</div></td></tr>" +
+    detalhePortal +
+    "<tr><td colspan='3'><div class='lbl'>MARCA / MODELO</div><div class='val'>" + (extras.marcaModelo || "MAGNETEC") + (extras.qtd > 1 ? " × " + extras.qtd + " unid." : "") + (extras.numSerie ? " | S/N: " + extras.numSerie : "") + "</div></td></tr>" +
+    "<tr><td colspan='3'><div class='lbl'>LOCAL DE INSTALAÇÃO</div><div class='val'>" + (extras.localInstal || "—") + "</div></td></tr>" +
+    "</table>" +
+    (os.observacoes ? "<table><tr><td><div class='lbl'>OBSERVAÇÕES</div>" + os.observacoes.replace(/\n/g, "<br>") + "</td></tr></table>" : "") +
+    "<table class='ass-row'>" +
+    "<tr><td style='width:50%'>Nome e assinatura do representante local</td><td>" + (fiscal.assinatura ? "<img src='" + fiscal.assinatura + "' style='max-height:50px;max-width:100%;display:block;margin-bottom:2px'>" : "") + fiscal.nome + " — TJ " + fiscal.matricula + "</td></tr>" +
+    "<tr><td>DATA</td><td>DATA: " + hoje + "</td></tr>" +
+    "</table>" +
+    "<div class='footer'>Gerado pelo SGTI — " + new Date().toLocaleString("pt-BR") + "</div>" +
+    "<button class='no-print' onclick='window.print()' style='margin-top:12px;background:#0f1f3d;color:white;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:12px'>🖨️ Imprimir / PDF</button>" +
+    "</body></html>";
+}
+
+
 // ── PAGE: HISTÓRICO ───────────────────────────────────────────
 function PageHistorico({
   os,
@@ -13860,6 +14157,7 @@ function AppInterno({
 }) {
   const [col, setCol] = useState(false);
   const [page, setPage] = useState("home");
+  window.setPage = setPage;
   const [os, setOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
@@ -13935,11 +14233,17 @@ function AppInterno({
           ),
           React.createElement("div",{style:{display:"flex",gap:10,marginTop:20,maxWidth:960}},
             React.createElement("button",{className:"btn",onClick:()=>setPage("dashboard")},"← Voltar"),
-            React.createElement("button",{className:"btn btn-primary",onClick:()=>setPage("rota")},"🛣️ Abrir rota de atendimento (várias OS)")
+            React.createElement("button",{className:"btn btn-primary",onClick:()=>setPage("rota")},"🛣️ Abrir rota de atendimento (várias OS)"),
+            React.createElement("button",{className:"btn",style:{background:"#1a4a2e",color:"white"},onClick:()=>{window._contratoNovaOS="181/2026";setPage("nova-portal");}},"🚫 OS — Portal Detector de Metais")
           )
         );
       case "rota":
         return /*#__PURE__*/React.createElement(PageRota, {
+          onOsCriada: loadOS,
+          os: os
+        });
+      case "nova-portal":
+        return /*#__PURE__*/React.createElement(PageNovaOSPortal, {
           onOsCriada: loadOS,
           os: os
         });
