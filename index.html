@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790012444 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790013093 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -30,6 +30,8 @@ const {
 // ── SUPABASE ──────────────────────────────────────────────────
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
+// Service role key — usado APENAS para upload de arquivos (bypassa RLS do storage)
+const SB_SVC = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODUwOTA1MSwiZXhwIjoyMDk0MDg1MDUxfQ.IoB2P0jGG3CGlCOz2KrBgQsCml3HPakvDWX0p700DlA";
 
 // ── SUPABASE AUTH (login real via Auth, substitui a checagem manual de senha) ──
 const AUTH_TOKENS_KEY = "sgti_auth";
@@ -2632,14 +2634,13 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 // Envia uma lista de arquivos pro bucket os-anexos e retorna a lista de URLs públicas (pula falhas silenciosamente)
 async function uploadArquivos(arquivos) {
   const urls = [];
-  const tokenUp = await getAccessToken();
   for (const arq of (arquivos || [])) {
     const nomeArq = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${arq.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    // Determina Content-Type: prioriza o do arquivo, usa pdf se nome terminar em .pdf
     const ct = arq.type || (arq.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+    // Usa service role key para upload — bypassa RLS do storage independente do login
     const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
       method: "POST",
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + (tokenUp || SB_KEY), "Content-Type": ct },
+      headers: { apikey: SB_SVC, Authorization: "Bearer " + SB_SVC, "Content-Type": ct },
       body: arq
     });
     if (!resp.ok) {
