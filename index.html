@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790013093 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790014319 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -2885,12 +2885,15 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
         React.createElement("label", null, "Anexar arquivo (opcional)"),
         React.createElement("input", { type: "file", multiple: true, onChange: e => setArquivoAnexo(Array.from(e.target.files || [])), style: { display: "block", marginTop: 6 } }),
         arquivoAnexo.length > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.length + " arquivo(s) selecionado(s): " + arquivoAnexo.map(a => a.name).join(", ")),
-        arquivoAnexo.some(a => /\.(jpe?g|png|gif|webp|bmp)$/i.test(a.name)) && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 } },
-          arquivoAnexo.filter(a => /\.(jpe?g|png|gif|webp|bmp)$/i.test(a.name)).map((a, i) => {
+        arquivoAnexo.some(a => /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(a.name)) && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 } },
+          arquivoAnexo.filter(a => /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(a.name)).map((a, i) => {
             const url = URL.createObjectURL(a);
+            const isPdf = /\.pdf$/i.test(a.name);
             return React.createElement("div", { key: i, style: { textAlign: "center" } },
-              React.createElement("img", { src: url, style: { width: 80, height: 80, objectFit: "cover", border: "1px solid var(--border)", borderRadius: 6, display: "block" } }),
-              React.createElement("div", { style: { fontSize: 9, color: "var(--text3)", marginTop: 2 } }, a.name.length > 12 ? a.name.slice(0, 10) + "…" : a.name)
+              isPdf
+                ? React.createElement("embed", { src: url, type: "application/pdf", style: { width: 120, height: 160, border: "1px solid var(--border)", borderRadius: 6, display: "block" } })
+                : React.createElement("img", { src: url, style: { width: 80, height: 80, objectFit: "cover", border: "1px solid var(--border)", borderRadius: 6, display: "block" } }),
+              React.createElement("div", { style: { fontSize: 9, color: "var(--text3)", marginTop: 2 } }, a.name.length > 14 ? a.name.slice(0, 12) + "…" : a.name)
             );
           })
         )
@@ -4084,12 +4087,15 @@ function PageNovaOS({
       style: { display: "block", marginTop: 6 }
     }),
     arquivoAnexo.length > 0 && !arquivoUrl && React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginTop: 4 } }, arquivoAnexo.length + " arquivo(s) selecionado(s): " + arquivoAnexo.map(a => a.name).join(", ")),
-    arquivoAnexo.length > 0 && !arquivoUrl && arquivoAnexo.some(a => /\.(jpe?g|png|gif|webp|bmp)$/i.test(a.name)) && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 } },
-      arquivoAnexo.filter(a => /\.(jpe?g|png|gif|webp|bmp)$/i.test(a.name)).map((a, i) => {
+    arquivoAnexo.length > 0 && !arquivoUrl && arquivoAnexo.some(a => /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(a.name)) && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 } },
+      arquivoAnexo.filter(a => /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(a.name)).map((a, i) => {
         const url = URL.createObjectURL(a);
+        const isPdf = /\.pdf$/i.test(a.name);
         return React.createElement("div", { key: i, style: { textAlign: "center" } },
-          React.createElement("img", { src: url, style: { width: 80, height: 80, objectFit: "cover", border: "1px solid var(--border)", borderRadius: 6, display: "block" } }),
-          React.createElement("div", { style: { fontSize: 9, color: "var(--text3)", marginTop: 2 } }, a.name.length > 12 ? a.name.slice(0, 10) + "…" : a.name)
+          isPdf
+            ? React.createElement("embed", { src: url, type: "application/pdf", style: { width: 120, height: 160, border: "1px solid var(--border)", borderRadius: 6, display: "block" } })
+            : React.createElement("img", { src: url, style: { width: 80, height: 80, objectFit: "cover", border: "1px solid var(--border)", borderRadius: 6, display: "block" } }),
+          React.createElement("div", { style: { fontSize: 9, color: "var(--text3)", marginTop: 2 } }, a.name.length > 14 ? a.name.slice(0, 12) + "…" : a.name)
         );
       })
     ),
