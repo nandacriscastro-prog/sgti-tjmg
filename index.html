@@ -2633,16 +2633,20 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 async function uploadArquivos(arquivos) {
   const urls = [];
   for (const arq of (arquivos || [])) {
-    try {
-      const nomeArq = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${arq.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const tokenUp = await getAccessToken();
-      const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
-        method: "POST",
-        headers: { apikey: SB_KEY, Authorization: "Bearer " + (tokenUp || SB_KEY), "Content-Type": arq.type || "application/octet-stream" },
-        body: arq
-      });
-      if (resp.ok) urls.push(`${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`);
-    } catch (e) {}
+    const nomeArq = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${arq.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const tokenUp = await getAccessToken();
+    // Determina Content-Type: prioriza o do arquivo, usa pdf se nome terminar em .pdf
+    const ct = arq.type || (arq.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+    const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
+      method: "POST",
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + (tokenUp || SB_KEY), "Content-Type": ct },
+      body: arq
+    });
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`);
+    }
+    urls.push(`${SB_URL}/storage/v1/object/public/os-anexos/${nomeArq}`);
   }
   return urls;
 }
@@ -11261,12 +11265,24 @@ function PagePortais({ setPage }) {
       // Upload do PDF Magnetec se houver arquivo selecionado
       let obsComPdf = form.observacoes || "";
       if (pdfFile) {
-        const urls = await uploadArquivos([pdfFile]);
-        if (urls.length > 0) {
-          // Armazena a URL no campo observacoes com prefixo [PDF_MAGNETEC:url]
-          // Remove URL anterior se existir
-          obsComPdf = obsComPdf.replace(/\[PDF_MAGNETEC:[^\]]+\]\n?/g, "").trim();
-          obsComPdf = (obsComPdf ? obsComPdf + "\n" : "") + "[PDF_MAGNETEC:" + urls[0] + "]";
+        toast("Enviando PDF...", "ok");
+        try {
+          const urls = await uploadArquivos([pdfFile]);
+          if (urls.length > 0) {
+            // Armazena a URL no campo observacoes com prefixo [PDF_MAGNETEC:url]
+            // Remove URL anterior se existir
+            obsComPdf = obsComPdf.replace(/\[PDF_MAGNETEC:[^\]]+\]\n?/g, "").trim();
+            obsComPdf = (obsComPdf ? obsComPdf + "\n" : "") + "[PDF_MAGNETEC:" + urls[0] + "]";
+            toast("✓ PDF enviado!", "ok");
+          } else {
+            toast("⚠️ Falha ao enviar o PDF. Verifique o arquivo e tente novamente.", "erro");
+            setSalvando(false);
+            return;
+          }
+        } catch (uploadErr) {
+          toast("⚠️ Erro no upload do PDF: " + uploadErr.message, "erro");
+          setSalvando(false);
+          return;
         }
       }
       // Datas vazias ("") não são aceitas pelo Postgres pra colunas do tipo date — precisa mandar null
