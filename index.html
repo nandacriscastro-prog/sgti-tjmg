@@ -2633,14 +2633,13 @@ function getSLADesc(tipo, prio, comarca, contrato) {
 async function uploadArquivos(arquivos) {
   const urls = [];
   const tokenUp = await getAccessToken();
-  if (!tokenUp) throw new Error("Sessão expirada — faça login novamente.");
   for (const arq of (arquivos || [])) {
     const nomeArq = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${arq.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     // Determina Content-Type: prioriza o do arquivo, usa pdf se nome terminar em .pdf
     const ct = arq.type || (arq.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
     const resp = await fetch(`${SB_URL}/storage/v1/object/os-anexos/${nomeArq}`, {
       method: "POST",
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + tokenUp, "Content-Type": ct },
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + (tokenUp || SB_KEY), "Content-Type": ct },
       body: arq
     });
     if (!resp.ok) {
@@ -11266,12 +11265,6 @@ function PagePortais({ setPage }) {
       // Upload do PDF Magnetec se houver arquivo selecionado
       let obsComPdf = form.observacoes || "";
       if (pdfFile) {
-        const tokenVerif = await getAccessToken();
-        if (!tokenVerif) {
-          toast("⚠️ Faça login como fiscal para enviar o PDF.", "erro");
-          setSalvando(false);
-          return;
-        }
         toast("Enviando PDF...", "ok");
         try {
           const urls = await uploadArquivos([pdfFile]);
