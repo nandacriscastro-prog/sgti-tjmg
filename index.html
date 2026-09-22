@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790014319 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790098878 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5114,6 +5114,7 @@ function PageAvaliacao({
   const [sel, setSel] = useState(null);
   const [aval, setAval] = useState("");
   const [obs, setObs] = useState("");
+  const [avalPorSistema, setAvalPorSistema] = useState({});
   const [revisitaRevisao, setRevisitaRevisao] = useState(null); // { id, numero, obsAjustavel, ...dadosCompletos }
   const [kmFinal, setKmFinal] = useState("");
   const [loading, setLoading] = useState(false);
@@ -5374,6 +5375,14 @@ function PageAvaliacao({
       if (aval === "insat") {
         // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
         const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
+        // Sistemas com falha (se avaliação por sistema, usa só os insatisfatórios)
+        const TODOS_SIST_C = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso", "Portal", "Scanner"];
+        const sistemasOSC = TODOS_SIST_C.filter(s => (sel.servico || "").includes(s));
+        const multi_c = sistemasOSC.length > 1 && Object.keys(avalPorSistema).length > 0;
+        const sistemasInsat = multi_c ? sistemasOSC.filter(s => avalPorSistema[s] === "insat") : sistemasOSC;
+        const servicoCorrecao = (sel.servico || "").replace(/Manutenção:\s*/, "Manutenção: ").replace(
+          sistemasOSC.join(", "), sistemasInsat.join(", ")
+        );
         const novoNum = sel.numero + "-R";
         const _mun = (sel.comarca || "").split(" - ")[0];
         const _isColar = (sel.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
@@ -5391,6 +5400,7 @@ function PageAvaliacao({
             ...sel,
             id: undefined,
             numero: novoNum,
+            servico: servicoCorrecao || sel.servico,
             status: "Aberta",
             avaliacao: null,
             avaliacao_obs: null,
@@ -5413,6 +5423,7 @@ function PageAvaliacao({
       setSel(null);
       setAval("");
       setObs("");
+      setAvalPorSistema({});
       reload();
     } catch (e) {
       toast("Erro: " + e.message, "error");
@@ -5594,6 +5605,7 @@ function PageAvaliacao({
         setSel(o);
         setAval("");
         setObs("");
+        setAvalPorSistema({});
         let _kmExist = "";
         try {
           _kmExist = JSON.parse(o.retorno_campo || "{}").km || "";
@@ -5632,6 +5644,7 @@ function PageAvaliacao({
       setSel(o);
       setAval("");
       setObs("");
+      setAvalPorSistema({});
     }
   }, "Avaliar \u2192")), /*#__PURE__*/React.createElement("td", null, filtro === "abertas" && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sm btn-green",
@@ -5712,6 +5725,7 @@ function PageAvaliacao({
         setSel(null);
         setAval("");
         setObs("");
+        setAvalPorSistema({});
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -5811,46 +5825,55 @@ function PageAvaliacao({
         fontSize: 13,
         marginBottom: 10
       }
-    }, "O atendimento foi executado de forma satisfat\xF3ria?"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 10,
-        marginBottom: 14
+    }, "O atendimento foi executado de forma satisfat\xF3ria?"),
+    (() => {
+      const TODOS_SIST = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso", "Portal", "Scanner"];
+      const sistemasOS = TODOS_SIST.filter(s => (sel.servico || "").includes(s));
+      const multi = sistemasOS.length > 1;
+      if (multi) {
+        // Avaliação por sistema — deriva aval global automaticamente
+        const todosAvaliados = sistemasOS.every(s => avalPorSistema[s]);
+        const algumInsat = sistemasOS.some(s => avalPorSistema[s] === "insat");
+        const avalGlobal = todosAvaliados ? (algumInsat ? "insat" : "sat") : "";
+        // Sincroniza aval global sempre que avalPorSistema muda
+        if (avalGlobal !== aval) { setTimeout(() => setAval(avalGlobal), 0); }
+        return React.createElement("div", { style: { marginBottom: 14 } },
+          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, "Avalie cada sistema individualmente:"),
+          sistemasOS.map(s => {
+            const v = avalPorSistema[s] || "";
+            return React.createElement("div", { key: s, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
+              React.createElement("span", { style: { minWidth: 160, fontSize: 13, fontWeight: 600 } }, s),
+              React.createElement("button", {
+                onClick: () => setAvalPorSistema(p => ({ ...p, [s]: "sat" })),
+                style: { padding: "6px 14px", border: `2px solid ${v === "sat" ? "var(--green)" : "var(--border)"}`, borderRadius: 7, background: v === "sat" ? "#f0fdf4" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 12 }
+              }, "✅ Satisfatório"),
+              React.createElement("button", {
+                onClick: () => setAvalPorSistema(p => ({ ...p, [s]: "insat" })),
+                style: { padding: "6px 14px", border: `2px solid ${v === "insat" ? "var(--accent)" : "var(--border)"}`, borderRadius: 7, background: v === "insat" ? "#fef2f2" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 12 }
+              }, "🔄 Insatisfatório")
+            );
+          }),
+          todosAvaliados && React.createElement("div", { style: { marginTop: 6, fontSize: 12, color: algumInsat ? "var(--accent)" : "var(--green)", fontWeight: 600 } },
+            algumInsat
+              ? "⚠️ OS será reaberta — nova OS de correção gerada para: " + sistemasOS.filter(s => avalPorSistema[s] === "insat").join(", ")
+              : "✅ Todos os sistemas satisfatórios — OS será encerrada"
+          )
+        );
       }
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => setAval("sat"),
-      style: {
-        padding: "14px",
-        border: `2px solid ${aval === "sat" ? "var(--green)" : "var(--border)"}`,
-        borderRadius: 8,
-        background: aval === "sat" ? "#f0fdf4" : "var(--white)",
-        cursor: "pointer",
-        fontWeight: 600,
-        fontSize: 13
-      }
-    }, "\u2705 Satisfat\xF3rio", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("small", {
-      style: {
-        fontWeight: 400,
-        color: "var(--text3)"
-      }
-    }, "OS encerrada")), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setAval("insat"),
-      style: {
-        padding: "14px",
-        border: `2px solid ${aval === "insat" ? "var(--accent)" : "var(--border)"}`,
-        borderRadius: 8,
-        background: aval === "insat" ? "#fef2f2" : "var(--white)",
-        cursor: "pointer",
-        fontWeight: 600,
-        fontSize: 13
-      }
-    }, "\uD83D\uDD04 Insatisfat\xF3rio", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("small", {
-      style: {
-        fontWeight: 400,
-        color: "var(--text3)"
-      }
-    }, "Reabrir OS"))), /*#__PURE__*/React.createElement("div", {
+      // OS de sistema único — botões originais
+      return React.createElement("div", {
+        style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }
+      },
+        React.createElement("button", {
+          onClick: () => setAval("sat"),
+          style: { padding: "14px", border: `2px solid ${aval === "sat" ? "var(--green)" : "var(--border)"}`, borderRadius: 8, background: aval === "sat" ? "#f0fdf4" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 13 }
+        }, "\u2705 Satisfat\xF3rio", React.createElement("br", null), React.createElement("small", { style: { fontWeight: 400, color: "var(--text3)" } }, "OS encerrada")),
+        React.createElement("button", {
+          onClick: () => setAval("insat"),
+          style: { padding: "14px", border: `2px solid ${aval === "insat" ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, background: aval === "insat" ? "#fef2f2" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 13 }
+        }, "\uD83D\uDD04 Insatisfat\xF3rio", React.createElement("br", null), React.createElement("small", { style: { fontWeight: 400, color: "var(--text3)" } }, "Reabrir OS"))
+      );
+    })(), /*#__PURE__*/React.createElement("div", {
       className: "fg",
       style: {
         marginBottom: 12
@@ -5908,6 +5931,7 @@ function PageAvaliacao({
         setSel(null);
         setAval("");
         setObs("");
+        setAvalPorSistema({});
       }
     }, "Cancelar")));
   })(), revisitaRevisao && React.createElement(Modal, {
