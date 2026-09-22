@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790098878 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790103555 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -4366,6 +4366,26 @@ function PageHistorico({
       setSalvandoHist(false);
     }
   };
+  const toggleSlaExcecao = async () => {
+    if (!sel) return;
+    setSalvandoHist(true);
+    try {
+      const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
+      const novasObs = temExcecao
+        ? (sel.observacoes || "").replace(/\[SLA_EXCECAO\]/g, "").trim()
+        : ((sel.observacoes || "").trim() + " [SLA_EXCECAO]").trim();
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ observacoes: novasObs })
+      });
+      setSel(s => ({ ...s, observacoes: novasObs }));
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar exceção SLA: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
+  };
   const dados = os.filter(o => {
     const _ct = o.contrato || "218/2023";
     if(filtroContrato && filtroContrato !== "todos" && _ct !== filtroContrato) return false;
@@ -5092,7 +5112,25 @@ function PageHistorico({
         w.document.write(ret.relatorio_html);
         w.document.close();
       }
-    }, "\uD83D\uDCC4 Ver relat\xF3rio completo do t\xE9cnico"));
+    }, "\uD83D\uDCC4 Ver relat\xF3rio completo do t\xE9cnico"),
+    sel.status === "Conclu\xEDda" && (() => {
+      const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
+      return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temExcecao ? "#fef9ec" : "var(--surface)", border: temExcecao ? "1px solid #f5d78e" : "1px solid var(--border)" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: temExcecao ? "#b45309" : "var(--text2)" } }, temExcecao ? "\u26A0\uFE0F Exce\xE7\xE3o SLA ativa" : "Exce\xE7\xE3o SLA"),
+            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, temExcecao ? "Esta OS est\xE1 exclu\xEDda do c\xE1lculo de glosa SLA (autorizado pelo coordenador)" : "OS inclu\xEDda normalmente no c\xE1lculo de glosa SLA")
+          ),
+          React.createElement("button", {
+            className: "btn btn-sm",
+            style: { background: temExcecao ? "#fef3c7" : undefined, borderColor: temExcecao ? "#f59e0b" : undefined, color: temExcecao ? "#92400e" : undefined, whiteSpace: "nowrap" },
+            onClick: toggleSlaExcecao,
+            disabled: salvandoHist
+          }, temExcecao ? "\u2715 Remover exce\xE7\xE3o" : "\uD83D\uDEE1\uFE0F Marcar como exce\xE7\xE3o")
+        )
+      );
+    })()
+  );
   })()));
 }
 
@@ -6547,6 +6585,7 @@ function blocoGlosaSLA(tipo, prioridade, isColar) {
 }
 function calcPtsAutoOS(o) {
   if (o.tipo === "Atendimento Remoto") return { pts: 0, diasAtraso: 0 };
+  if ((o.observacoes || "").includes("[SLA_EXCECAO]")) return { pts: 0, diasAtraso: 0, excecao: true };
   let dtConcRaw = o.data_conclusao || null;
   if (!dtConcRaw) {
     try {
@@ -6947,9 +6986,12 @@ function PageMedicao({
         totalDiarias = 0;
       let autoPts = 0;
       const ocorrenciasAtraso = [];
+      const excecoesSla = [];
       osMes.forEach(o => {
         const r = calcPtsAutoOS(o);
-        if (r.pts > 0) {
+        if (r.excecao) {
+          excecoesSla.push({ numero: o.numero, comarca: o.comarca });
+        } else if (r.pts > 0) {
           autoPts += r.pts;
           ocorrenciasAtraso.push({
             numero: o.numero,
@@ -7070,6 +7112,7 @@ function PageMedicao({
         liq: bruto - glosa,
         autoPts,
         ocorrenciasAtraso,
+        excecoesSla,
         pecasMes,
         osSemKm,
         diariaDetalhe
@@ -8534,7 +8577,12 @@ function PageMedicao({
         ),
     /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 12, fontWeight: 700, marginTop: 8 }
-    }, "Total autom\xE1tico: " + resultado.autoPts + " pts")
+    }, "Total autom\xE1tico: " + resultado.autoPts + " pts"),
+    (resultado.excecoesSla || []).length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 10, padding: "8px 12px", background: "#fef9ec", border: "1px solid #f5d78e", borderRadius: 7, fontSize: 12 } },
+      /*#__PURE__*/React.createElement("div", { style: { fontWeight: 700, color: "#b45309", marginBottom: 4 } }, "⚠️ Exce\xE7\xF5es SLA autorizadas pelo coordenador (" + (resultado.excecoesSla || []).length + ")"),
+      /*#__PURE__*/React.createElement("div", { style: { color: "var(--text3)", marginBottom: 6 } }, "OS abaixo estavam em atraso mas foram exclu\xEDdas da glosa por decis\xE3o do coordenador:"),
+      (resultado.excecoesSla || []).map(e => /*#__PURE__*/React.createElement("div", { key: e.numero, style: { fontSize: 11, padding: "2px 0" } }, e.numero + " — " + e.comarca))
+    )
   ),
   /*#__PURE__*/React.createElement("label", {
     style: { display: "flex", alignItems: "center", gap: 8, fontSize: 12, margin: "10px 0", cursor: "pointer" }
