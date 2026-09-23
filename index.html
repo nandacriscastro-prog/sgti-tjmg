@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790177400 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790177746 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -583,6 +583,13 @@ const PRECO_ANEXO_V = {
   "3.9.6": 1047.00, "3.9.7": 3115.63, "3.9.8": 203.35,
   "3.10": 3498.98, "3.11": 36.60,
   "RSD": 0
+};
+const getRsdVu = p => {
+  if (p.vu && parseFloat(p.vu) > 0) return parseFloat(p.vu);
+  // CEOP salva o valor dentro da desc: "Recurso sob demanda — R$ 7690.00"
+  const m = (p.desc || "").match(/R\$\s*([\d.,]+)/);
+  if (m) return parseFloat(m[1].replace(/\./g, "").replace(",", ".")) || 0;
+  return 0;
 };
 const ANEXO_V_DESC = {
   "3.1.1":"Bateria p/ central de alarme","3.1.2":"Fonte de alimentação chaveada","3.1.3":"Placa central de alarme microprocessada",
@@ -6070,7 +6077,7 @@ function PageLancamentoManual({
       const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
       const pecasOS = r.pecas || [];
-      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoBaseEPecas + fracaoDeslocamento });
     });
@@ -6751,7 +6758,7 @@ function PageMedicao({
       })();
       totalDiarias += fracaoTotalSalvo;
       const pecasOS = r.pecas || [];
-      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo });
     });
@@ -7123,7 +7130,7 @@ function PageMedicao({
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       }, 0);
       let bruto = brutoServicos + brutoMateriais;
       const pts = slaVals._manual ? getSLAPts() : autoPts;
@@ -7182,7 +7189,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const item = dd.find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKmAt).toFixed(2));
@@ -7501,7 +7508,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKm).toFixed(2));
@@ -7594,7 +7601,7 @@ function PageMedicao({
       const s = (o.servico || o.tipo || "").toLowerCase();
       const servicoLabel = "Manutenção: " + (o.servico || o.tipo || "");
       (r.pecas || []).filter(p => p.desc).forEach(p => {
-        const vu = p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0);
+        const vu = p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0);
         const qtd = parseFloat(p.qtd) || 1;
         const total = vu * qtd;
         totRSD2 += total;
@@ -8488,7 +8495,7 @@ function PageMedicao({
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
+        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKm = Number((kmOS * valorKmUnit).toFixed(2));
         const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
@@ -8546,7 +8553,7 @@ function PageMedicao({
         const pecasOS = (r.pecas || []).filter(p => p.desc);
         const fracaoPecas = pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const pecasTxt = pecasOS.length ? pecasOS.map(p => `[${p.cod || "?"}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
-        const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+        const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKmOS = kmOS * valorKmUnitDet;
         const valorDiariaOS = (d.fracaoTotal || 0) * valorDiariaUnitDet;
