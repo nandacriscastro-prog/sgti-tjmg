@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790176770 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790177400 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -8356,6 +8356,12 @@ function PageMedicao({
       fontFamily: "var(--mono)"
     }
   }, fmtR(resultado.liq)))), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 24, padding: "8px 0", borderTop: "1px solid var(--border)", marginTop: 6, fontSize: 12, color: "var(--text3)" }
+  },
+    React.createElement("span", null, "📋 OS no período: ", React.createElement("strong", { style: { color: "var(--text)" } }, resultado.osMes?.length || 0)),
+    React.createElement("span", null, "🚗 km total: ", React.createElement("strong", { style: { color: "var(--text)" } }, (resultado.totalKm || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }), " km")),
+    React.createElement("span", null, "📅 Diárias: ", React.createElement("strong", { style: { color: "var(--text)" } }, (resultado.totalDiarias || 0).toFixed(2)))
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
