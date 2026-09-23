@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790184139 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790184844 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7254,7 +7254,8 @@ function PageMedicao({
       const s = (o.servico || o.tipo || "").toLowerCase();
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
-      const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
+      const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
+      const vuAtend = (isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu;
       const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const item = dd.find(d => d.numero === o.numero);
@@ -7573,7 +7574,8 @@ function PageMedicao({
       const s = (o.servico || o.tipo || "").toLowerCase();
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
-      const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
+      const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
+      const vuAtend = (isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu;
       const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
