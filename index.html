@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790176520 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790176770 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -11377,13 +11377,10 @@ function PageControleAtivos() {
               style: { borderBottom: "1px solid var(--border)", background: "#fef9ec", borderLeft: "3px solid #f59e0b" }
             },
               React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)", fontWeight: 700, color: "#b45309" } }, "RSD"),
-              React.createElement("td", { style: { padding: "5px 8px", color: "#b45309" } }, "⚡ Recurso sob demanda (saldo aberto)"),
-              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)" } }, "—"),
-              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "aberto"),
-              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "—"),
+              React.createElement("td", { colSpan: 3, style: { padding: "5px 8px", color: "#b45309", fontStyle: "italic", fontSize: 11 } }, "⚡ Recurso sob demanda — sem quantidade contratada (saldo aberto)"),
               React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--green)", fontWeight: 700 } }, linhaRsd.valorUsado > 0 ? fmtR(linhaRsd.valorUsado) : "—"),
               React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--amber, #b8860b)" } }, linhaRsd.valorReservado > 0 ? fmtR(linhaRsd.valorReservado) : "—"),
-              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "aberto"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "—"),
               React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "—")
             )
           ),
