@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790185828 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790186576 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -8612,8 +8612,8 @@ function PageMedicao({
         const valorDiaria = Number(((d ? d.fracaoTotal : 0) * valorDiariaUnit).toFixed(2));
         const isRaioServOS = /raio|scanner/i.test(o.servico || o.tipo || "");
         const isPortalServOS = /portal|detector/i.test(o.servico || o.tipo || "");
-        const atendItemOS = isPortalServOS ? ANEXO_IV.find(a=>a.id==="portal") : isRaioServOS ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
-        const valorAtend = atendItemOS.vu;
+        const isPresServOS = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServOS && !isRaioServOS));
+        const valorAtend = (isPortalServOS ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServOS ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServOS ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
         const totalOS = Number((valorPecas + valorKm + valorDiaria + valorAtend).toFixed(2));
         totalGeralOS += totalOS; // já soma o valor arredondado de cada linha — bate com a soma manual das linhas mostradas
         const mRota = /Rota:\s*([^|]+)/i.exec(o.observacoes || "");
@@ -8667,8 +8667,8 @@ function PageMedicao({
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKmOS = kmOS * valorKmUnitDet;
         const valorDiariaOS = (d.fracaoTotal || 0) * valorDiariaUnitDet;
-        const atendItem = isPortalServ ? ANEXO_IV.find(a=>a.id==="portal") : isRaioServ ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
-        const valorAtendOS = atendItem.vu;
+        const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
+        const valorAtendOS = (isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
         const totalOS = valorDiariaOS + valorKmOS + valorAtendOS + valorMateriaisOS;
         linhasDetCompleto.push([
           o.numero, o.comarca || "", d.regiao || "", o.data_conclusao || r.dtconc || "", o.servico || o.tipo || "",
