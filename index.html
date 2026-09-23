@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790180200 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790181269 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6416,13 +6416,22 @@ function PageLancamentoManual({
                 )
               )
             )),
+            (() => { const vuRem = ANEXO_IV.find(a => a.id === "rem")?.vu || 0; return React.createElement("tr", { style: { background: "var(--bg2)", borderBottom: "1px solid var(--border)", fontStyle: "italic" } },
+              React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", color: "var(--text3)", fontSize: 11 } }, "📞 Atendimento Remoto (fixo contratual)"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, fmtR(vuRem)),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(vuRem))
+            ); })(),
             React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", fontWeight: 700, borderTop: "2px solid var(--border)" } },
               React.createElement("td", { colSpan: 2, style: { padding: "7px 10px" } }, "TOTAL GERAL"),
-              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0) + (ANEXO_IV.find(a => a.id === "rem")?.vu || 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
-              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0) + (ANEXO_IV.find(a => a.id === "rem")?.vu || 0)))
             )
           )
         )
@@ -8090,13 +8099,22 @@ function PageMedicao({
                 )
               )
             )),
+            (() => { const vuRem = ANEXO_IV.find(a => a.id === "rem")?.vu || 0; return React.createElement("tr", { style: { background: "var(--bg2)", borderBottom: "1px solid var(--border)", fontStyle: "italic" } },
+              React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", color: "var(--text3)", fontSize: 11 } }, "📞 Atendimento Remoto (fixo contratual)"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, fmtR(vuRem)),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(vuRem))
+            ); })(),
             React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", fontWeight: 700, borderTop: "2px solid var(--border)" } },
               React.createElement("td", { colSpan: 2, style: { padding: "7px 10px" } }, "TOTAL GERAL"),
-              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0) + (ANEXO_IV.find(a => a.id === "rem")?.vu || 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
               React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
-              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0) + (ANEXO_IV.find(a => a.id === "rem")?.vu || 0)))
             )
           )
         )
