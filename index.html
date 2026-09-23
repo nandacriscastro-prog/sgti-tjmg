@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790179202 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790179820 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6389,40 +6389,40 @@ function PageLancamentoManual({
       React.createElement("div", { style: { overflowX: "auto" } },
         React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
           React.createElement("thead", null,
-            React.createElement("tr", { style: { background: "var(--bg2)", borderBottom: "2px solid var(--border)" } },
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "left" } }, "OS"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "left" } }, "Comarca"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Serviço"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Km"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Diárias"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Materiais"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right", fontWeight: 700 } }, "Total OS")
+            React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", borderBottom: "2px solid var(--border)" } },
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "left", fontWeight: 700 } }, "OS"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "left", fontWeight: 700 } }, "Comarca"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Serviço"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Km"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Diárias"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Materiais"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Total OS")
             )
           ),
           React.createElement("tbody", null,
-            medicaoResumo.detalhe.map(d => React.createElement(React.Fragment, { key: d.numero },
-              React.createElement("tr", { style: { borderBottom: "1px solid var(--border)" } },
-                React.createElement("td", { style: { padding: "5px 8px", fontWeight: 700 } }, d.numero),
-                React.createElement("td", { style: { padding: "5px 8px" } }, d.comarca),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(d.valorServico || 0)),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.km > 0 ? fmtR(d.valorKm || 0) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.fracaoDiaria > 0 ? fmtR(d.valorDiaria || 0) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.valorMateriais > 0 ? fmtR(d.valorMateriais) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(d.totalOS || 0))
+            medicaoResumo.detalhe.map((d, i) => React.createElement(React.Fragment, { key: d.numero },
+              React.createElement("tr", { style: { background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)", borderBottom: d.pecas.length > 0 ? "none" : "1px solid var(--border)" } },
+                React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--accent)" } }, d.numero),
+                React.createElement("td", { style: { padding: "6px 10px" } }, d.comarca),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, fmtR(d.valorServico || 0)),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.km > 0 ? fmtR(d.valorKm || 0) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.fracaoDiaria > 0 ? fmtR(d.valorDiaria || 0) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.valorMateriais > 0 ? fmtR(d.valorMateriais) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(d.totalOS || 0))
               ),
-              d.pecas.length > 0 && React.createElement("tr", null,
-                React.createElement("td", { colSpan: 7, style: { padding: "2px 8px 6px 24px", color: "var(--text3)", fontSize: 11, borderBottom: "1px solid var(--border)" } },
-                  d.pecas.map(p => "[" + (p.cod || "?") + "] " + p.desc + " ×" + p.qtd + (PRECO_ANEXO_V[p.cod] ? " (" + fmtR(PRECO_ANEXO_V[p.cod]) + "/un)" : p.cod === "RSD" ? " (" + fmtR(getRsdVu(p)) + ")" : " ⚠️ sem preço")).join(" · ")
+              d.pecas.length > 0 && React.createElement("tr", { style: { background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)", borderBottom: "1px solid var(--border)" } },
+                React.createElement("td", { colSpan: 7, style: { padding: "2px 10px 6px 28px", color: "var(--text3)", fontSize: 11 } },
+                  "📦 " + d.pecas.map(p => "[" + (p.cod || "?") + "] " + p.desc + " ×" + p.qtd + (PRECO_ANEXO_V[p.cod] ? " (" + fmtR(PRECO_ANEXO_V[p.cod]) + "/un)" : p.cod === "RSD" ? " (" + fmtR(getRsdVu(p)) + ")" : " ⚠️ sem preço")).join(" · ")
                 )
               )
             )),
-            React.createElement("tr", { style: { background: "var(--bg2)", borderTop: "2px solid var(--border)", fontWeight: 700 } },
-              React.createElement("td", { colSpan: 2, style: { padding: "6px 8px" } }, "TOTAL"),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right", color: "var(--green)" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
+            React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", fontWeight: 700, borderTop: "2px solid var(--border)" } },
+              React.createElement("td", { colSpan: 2, style: { padding: "7px 10px" } }, "TOTAL GERAL"),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
             )
           )
         )
@@ -8063,40 +8063,40 @@ function PageMedicao({
       React.createElement("div", { style: { overflowX: "auto" } },
         React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
           React.createElement("thead", null,
-            React.createElement("tr", { style: { background: "var(--bg2)", borderBottom: "2px solid var(--border)" } },
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "left" } }, "OS"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "left" } }, "Comarca"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Serviço"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Km"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Diárias"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right" } }, "Materiais"),
-              React.createElement("th", { style: { padding: "6px 8px", textAlign: "right", fontWeight: 700 } }, "Total OS")
+            React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", borderBottom: "2px solid var(--border)" } },
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "left", fontWeight: 700 } }, "OS"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "left", fontWeight: 700 } }, "Comarca"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Serviço"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Km"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Diárias"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Materiais"),
+              React.createElement("th", { style: { padding: "7px 10px", textAlign: "right", fontWeight: 700 } }, "Total OS")
             )
           ),
           React.createElement("tbody", null,
-            medicaoResumo.detalhe.map(d => React.createElement(React.Fragment, { key: d.numero },
-              React.createElement("tr", { style: { borderBottom: "1px solid var(--border)" } },
-                React.createElement("td", { style: { padding: "5px 8px", fontWeight: 700 } }, d.numero),
-                React.createElement("td", { style: { padding: "5px 8px" } }, d.comarca),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(d.valorServico || 0)),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.km > 0 ? fmtR(d.valorKm || 0) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.fracaoDiaria > 0 ? fmtR(d.valorDiaria || 0) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, d.valorMateriais > 0 ? fmtR(d.valorMateriais) : "—"),
-                React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(d.totalOS || 0))
+            medicaoResumo.detalhe.map((d, i) => React.createElement(React.Fragment, { key: d.numero },
+              React.createElement("tr", { style: { background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)", borderBottom: d.pecas.length > 0 ? "none" : "1px solid var(--border)" } },
+                React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--accent)" } }, d.numero),
+                React.createElement("td", { style: { padding: "6px 10px" } }, d.comarca),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, fmtR(d.valorServico || 0)),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.km > 0 ? fmtR(d.valorKm || 0) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.fracaoDiaria > 0 ? fmtR(d.valorDiaria || 0) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, d.valorMateriais > 0 ? fmtR(d.valorMateriais) : React.createElement("span", { style: { color: "var(--text3)" } }, "—")),
+                React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", fontWeight: 700, color: "var(--green)" } }, fmtR(d.totalOS || 0))
               ),
-              d.pecas.length > 0 && React.createElement("tr", null,
-                React.createElement("td", { colSpan: 7, style: { padding: "2px 8px 6px 24px", color: "var(--text3)", fontSize: 11, borderBottom: "1px solid var(--border)" } },
-                  d.pecas.map(p => "[" + (p.cod || "?") + "] " + p.desc + " ×" + p.qtd + (PRECO_ANEXO_V[p.cod] ? " (" + fmtR(PRECO_ANEXO_V[p.cod]) + "/un)" : p.cod === "RSD" ? " (" + fmtR(getRsdVu(p)) + ")" : " ⚠️ sem preço")).join(" · ")
+              d.pecas.length > 0 && React.createElement("tr", { style: { background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)", borderBottom: "1px solid var(--border)" } },
+                React.createElement("td", { colSpan: 7, style: { padding: "2px 10px 6px 28px", color: "var(--text3)", fontSize: 11 } },
+                  "📦 " + d.pecas.map(p => "[" + (p.cod || "?") + "] " + p.desc + " ×" + p.qtd + (PRECO_ANEXO_V[p.cod] ? " (" + fmtR(PRECO_ANEXO_V[p.cod]) + "/un)" : p.cod === "RSD" ? " (" + fmtR(getRsdVu(p)) + ")" : " ⚠️ sem preço")).join(" · ")
                 )
               )
             )),
-            React.createElement("tr", { style: { background: "var(--bg2)", borderTop: "2px solid var(--border)", fontWeight: 700 } },
-              React.createElement("td", { colSpan: 2, style: { padding: "6px 8px" } }, "TOTAL"),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
-              React.createElement("td", { style: { padding: "6px 8px", textAlign: "right", color: "var(--green)" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
+            React.createElement("tr", { style: { background: "var(--navy,#1e3a5f)", color: "#fff", fontWeight: 700, borderTop: "2px solid var(--border)" } },
+              React.createElement("td", { colSpan: 2, style: { padding: "7px 10px" } }, "TOTAL GERAL"),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorServico || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorKm || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.valorDiaria || 0), 0))),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right" } }, fmtR(medicaoResumo.brutoMateriais)),
+              React.createElement("td", { style: { padding: "7px 10px", textAlign: "right", color: "#6ee7b7" } }, fmtR(medicaoResumo.detalhe.reduce((a, d) => a + (d.totalOS || 0), 0)))
             )
           )
         )
