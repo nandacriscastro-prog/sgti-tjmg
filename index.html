@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790181269 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790184139 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1711,7 +1711,10 @@ function PageDashboard({
       const kmOS = parseFloat(r.km || 0) || 0;
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
-      if (isRaioServ) p.qtdRaio++; else if (isPortalServ) p.qtdPortal++; else p.qtdAlarme++;
+      const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
+      if (isPortalServ) p.qtdPortal++;
+      if (isRaioServ) p.qtdRaio++;
+      if (isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
       const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -6070,7 +6073,12 @@ function PageLancamentoManual({
     const detalhe = [];
     osMedidas.forEach(o => {
       const s = (o.servico || o.tipo || "").toLowerCase();
-      if (s.includes("portal") || s.includes("detector")) qtdPortal++; else if (s.includes("raio") || s.includes("scanner")) qtdRaio++; else qtdAlarme++;
+      const _isPortal = s.includes("portal") || s.includes("detector");
+      const _isRaio = s.includes("raio") || s.includes("scanner");
+      const _isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal && !_isRaio));
+      if (_isPortal) qtdPortal++;
+      if (_isRaio) qtdRaio++;
+      if (_isPres) qtdAlarme++;
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const kmOS = parseFloat(r.km || 0) || 0;
@@ -6083,8 +6091,8 @@ function PageLancamentoManual({
       const pecasOS = r.pecas || [];
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
-      const tipoOS = s.includes("portal") || s.includes("detector") ? "portal" : s.includes("raio") || s.includes("scanner") ? "raio" : s.includes("remot") ? "rem" : "pres";
-      const vuOS = ANEXO_IV.find(a => a.id === tipoOS)?.vu || 0;
+      const tipoOS = _isPortal && _isPres ? "portal+pres" : _isPortal ? "portal" : _isRaio ? "raio" : s.includes("remot") ? "rem" : "pres";
+      const vuOS = (_isPortal ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0));
       const valorKmOS = kmOS * (ANEXO_IV.find(a => a.id === "km")?.vu || 0);
       const valorDiariaOS = (fracaoBaseEPecas + fracaoDeslocamento) * (ANEXO_IV.find(a => a.id === "diaria")?.vu || 0);
       const totalOS = vuOS + valorKmOS + valorDiariaOS + valorMateriaisOS;
@@ -6787,7 +6795,12 @@ function PageMedicao({
     const detalhe = [];
     osMedidas.forEach(o => {
       const s = (o.servico || o.tipo || "").toLowerCase();
-      if (s.includes("portal") || s.includes("detector")) qtdPortal++; else if (s.includes("raio") || s.includes("scanner")) qtdRaio++; else qtdAlarme++;
+      const _isPortal2 = s.includes("portal") || s.includes("detector");
+      const _isRaio2 = s.includes("raio") || s.includes("scanner");
+      const _isPres2 = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal2 && !_isRaio2));
+      if (_isPortal2) qtdPortal++;
+      if (_isRaio2) qtdRaio++;
+      if (_isPres2) qtdAlarme++;
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const kmOS = parseFloat(r.km || 0) || 0;
@@ -6808,8 +6821,8 @@ function PageMedicao({
       const pecasOS = r.pecas || [];
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
-      const tipoOS2 = s.includes("portal") || s.includes("detector") ? "portal" : s.includes("raio") || s.includes("scanner") ? "raio" : s.includes("remot") ? "rem" : "pres";
-      const vuOS2 = ANEXO_IV.find(a => a.id === tipoOS2)?.vu || 0;
+      const tipoOS2 = _isPortal2 && _isPres2 ? "portal+pres" : _isPortal2 ? "portal" : _isRaio2 ? "raio" : s.includes("remot") ? "rem" : "pres";
+      const vuOS2 = (_isPortal2 ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio2 ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres2 ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0));
       const valorKmOS2 = kmOS * (ANEXO_IV.find(a => a.id === "km")?.vu || 0);
       const valorDiariaOS2 = fracaoTotalSalvo * (ANEXO_IV.find(a => a.id === "diaria")?.vu || 0);
       const totalOS2 = vuOS2 + valorKmOS2 + valorDiariaOS2 + valorMateriaisOS;
@@ -7112,7 +7125,7 @@ function PageMedicao({
         const isCorrecaoOS = o.tipo === "Correção";
         const s = (o.servico || o.tipo || "").toLowerCase();
         // Correção continua cobrando atendimento/km normalmente — só a fração de DIÁRIA fica zerada (a garantia cobre o "dia" já pago, não a visita/km em si)
-        if (s.includes("portal") || s.includes("detector")) qtdPortal++;else if (s.includes("raio") || s.includes("scanner")) qtdRaio++;else qtdAlarme++;
+        { const _p = s.includes("portal") || s.includes("detector"), _r = s.includes("raio") || s.includes("scanner"), _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r)); if (_p) qtdPortal++; if (_r) qtdRaio++; if (_a) qtdAlarme++; }
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
           if (!r.historico) {
@@ -7911,7 +7924,10 @@ function PageMedicao({
       const kmOS = parseFloat(r.km || 0) || 0;
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
-      if (isRaioServ) p.qtdRaio++; else if (isPortalServ) p.qtdPortal++; else p.qtdAlarme++;
+      const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
+      if (isPortalServ) p.qtdPortal++;
+      if (isRaioServ) p.qtdRaio++;
+      if (isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : 1.0);
       const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
