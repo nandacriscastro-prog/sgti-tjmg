@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790103555 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790175051 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -581,7 +581,8 @@ const PRECO_ANEXO_V = {
   "3.8.6": 1232.89, "3.8.7": 7595.55,
   "3.9.1": 523.21, "3.9.2": 680.48, "3.9.3": 897.28, "3.9.4": 1254.13, "3.9.5": 1019.36,
   "3.9.6": 1047.00, "3.9.7": 3115.63, "3.9.8": 203.35,
-  "3.10": 3498.98, "3.11": 36.60
+  "3.10": 3498.98, "3.11": 36.60,
+  "RSD": 0
 };
 const ANEXO_V_DESC = {
   "3.1.1":"Bateria p/ central de alarme","3.1.2":"Fonte de alimentação chaveada","3.1.3":"Placa central de alarme microprocessada",
@@ -598,7 +599,8 @@ const ANEXO_V_DESC = {
   "3.8.2":"Câmera dome analógica","3.8.3":"DVR gravador 16 canais","3.8.4":"Monitor de vídeo 18.5\"","3.8.5":"Câmera bullet IP",
   "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP","3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
-  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
+  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês",
+  "RSD":"Recurso sob demanda (valor a preencher)"
 };
 // FRAC_D e FRACAO_KM_ANEXO_VI agora vêm de calc-medicao.js (compartilhado com o portal Alvo) — ver <script src="./calc-medicao.js"> no <head>
 const ANEXO_IV = [{
@@ -4326,7 +4328,10 @@ function PageHistorico({
       solucao: ret.solucao || "",
       obs: ret.obs || "",
       pecas: Array.isArray(ret.pecas) ? ret.pecas.filter(p => p.desc).map(p => ({ ...p })) : [],
-      _restante: ret
+      _restante: ret,
+      _codSel: "",
+      _qtdSel: "1",
+      _valorSel: ""
     });
     setEditandoExecucao(true);
   };
@@ -4953,13 +4958,35 @@ function PageHistorico({
         ),
         React.createElement("div", { style: { marginBottom: 10 } },
           React.createElement("label", { style: { display: "block", marginBottom: 6 } }, "Peças substituídas"),
-          execForm.pecas.map((p, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
-            React.createElement("input", { placeholder: "Código", value: p.cod || "", onChange: e => atualizarPeca(i, "cod", e.target.value), style: { width: 90 } }),
-            React.createElement("input", { placeholder: "Descrição", value: p.desc || "", onChange: e => atualizarPeca(i, "desc", e.target.value), style: { flex: 1 } }),
-            React.createElement("input", { type: "number", min: "1", placeholder: "Qtd", value: p.qtd || 1, onChange: e => atualizarPeca(i, "qtd", e.target.value), style: { width: 60 } }),
-            React.createElement("button", { className: "btn btn-sm", onClick: () => setExecForm(f => ({ ...f, pecas: f.pecas.filter((_, idx) => idx !== i) })) }, "✕")
+          execForm.pecas.filter(p => p.desc).map((p, i) => React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 } },
+            React.createElement("span", null, (p.cod ? "[" + p.cod + "] " : "") + p.desc + " × " + (p.qtd || 1)),
+            React.createElement("button", { onClick: () => setExecForm(f => ({ ...f, pecas: f.pecas.filter((_, idx) => idx !== i) })), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
           )),
-          React.createElement("button", { className: "btn btn-sm", onClick: () => setExecForm(f => ({ ...f, pecas: [...f.pecas, { cod: "", desc: "", qtd: 1 }] })) }, "+ Adicionar peça")
+          React.createElement("div", { className: "fr", style: { alignItems: "flex-end", gap: 6, marginTop: 6 } },
+            React.createElement("div", { className: "fld", style: { flex: 3 } },
+              React.createElement("select", {
+                value: execForm._codSel || "",
+                onChange: e => setExecForm(f => ({ ...f, _codSel: e.target.value, _valorSel: "" }))
+              },
+              React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
+              Object.keys(ANEXO_V_DESC).filter(c => c !== "RSD").map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod])),
+              React.createElement("option", { value: "RSD" }, "⚡ Recurso sob demanda (valor livre)")
+            )),
+            React.createElement("div", { className: "fld", style: { flex: 1 } },
+              React.createElement("input", { type: "number", min: "1", placeholder: "Qtd", value: execForm._qtdSel || "1", onChange: e => setExecForm(f => ({ ...f, _qtdSel: e.target.value }) ) })
+            ),
+            (execForm._codSel === "RSD") && React.createElement("div", { className: "fld", style: { flex: 1.5 } },
+              React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "Valor unit. R$", value: execForm._valorSel || "", onChange: e => setExecForm(f => ({ ...f, _valorSel: e.target.value })) })
+            ),
+            React.createElement("button", { className: "btn btn-sm", onClick: () => {
+              const cod = execForm._codSel;
+              if (!cod) return;
+              const isRsd = cod === "RSD";
+              const vu = isRsd ? (parseFloat(execForm._valorSel) || 0) : undefined;
+              const peca = { cod, desc: isRsd ? ("Recurso sob demanda" + (execForm._valorSel ? " — R$ " + parseFloat(execForm._valorSel).toFixed(2) : "")) : (ANEXO_V_DESC[cod] || cod), qtd: execForm._qtdSel || "1", ...(isRsd && vu > 0 ? { vu } : {}) };
+              setExecForm(f => ({ ...f, pecas: [...f.pecas, peca], _codSel: "", _qtdSel: "1", _valorSel: "" }));
+            }, style: { height: 42 } }, "+ Adicionar")
+          )
         ),
         React.createElement("div", { style: { display: "flex", gap: 8 } },
           React.createElement("button", { className: "btn", onClick: () => setEditandoExecucao(false), disabled: salvandoHist }, "Cancelar"),
@@ -6043,7 +6070,7 @@ function PageLancamentoManual({
       const fracaoDeslocamento = isColarOS ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       totalDiarias += fracaoBaseEPecas + fracaoDeslocamento;
       const pecasOS = r.pecas || [];
-      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoBaseEPecas + fracaoDeslocamento });
     });
@@ -6083,7 +6110,8 @@ function PageLancamentoManual({
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
     _codSel: "",
-    _qtdSel: "1"
+    _qtdSel: "1",
+    _valorSel: ""
   });
 
   const abrirPainelIndividual = o => {
@@ -6104,7 +6132,10 @@ function PageLancamentoManual({
   const atualizarLinha = (i, campo, val) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, [campo]: val } : l));
   const addPecaNaLinha = i => setLinhas(linhas.map((l, idx) => {
     if (idx !== i || !l._codSel) return l;
-    return { ...l, pecas: [...l.pecas, { cod: l._codSel, desc: ANEXO_V_DESC[l._codSel] || l._codSel, qtd: l._qtdSel || "1" }], _codSel: "", _qtdSel: "1" };
+    const isRsd = l._codSel === "RSD";
+    const vu = isRsd ? (parseFloat(l._valorSel) || 0) : undefined;
+    const peca = { cod: l._codSel, desc: isRsd ? ("Recurso sob demanda" + (l._valorSel ? " — R$ " + parseFloat(l._valorSel).toFixed(2) : "")) : (ANEXO_V_DESC[l._codSel] || l._codSel), qtd: l._qtdSel || "1", ...(isRsd && vu > 0 ? { vu } : {}) };
+    return { ...l, pecas: [...l.pecas, peca], _codSel: "", _qtdSel: "1", _valorSel: "" };
   }));
   const removerPecaDaLinha = (i, pi) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, pecas: l.pecas.filter((_, x) => x !== pi) } : l));
 
@@ -6219,10 +6250,13 @@ function PageLancamentoManual({
       React.createElement("div", { className: "fld", style: { flex: 3 } },
         React.createElement("select", { value: l._codSel, onChange: e => atualizarLinha(i, "_codSel", e.target.value) },
           React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
-          Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+          Object.keys(ANEXO_V_DESC).filter(c => c !== "RSD").map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod])),
+          React.createElement("option", { value: "RSD" }, "⚡ Recurso sob demanda (valor livre)")
         )),
       React.createElement("div", { className: "fld", style: { flex: 1 } },
         React.createElement("input", { type: "number", min: "1", value: l._qtdSel, onChange: e => atualizarLinha(i, "_qtdSel", e.target.value) })),
+      l._codSel === "RSD" && React.createElement("div", { className: "fld", style: { flex: 1.5 } },
+        React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "Valor unit. R$", value: l._valorSel || "", onChange: e => atualizarLinha(i, "_valorSel", e.target.value) })),
       React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
     ),
     l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
@@ -6717,7 +6751,7 @@ function PageMedicao({
       })();
       totalDiarias += fracaoTotalSalvo;
       const pecasOS = r.pecas || [];
-      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo });
     });
@@ -6757,7 +6791,8 @@ function PageMedicao({
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
     _codSel: "",
-    _qtdSel: "1"
+    _qtdSel: "1",
+    _valorSel: ""
   });
 
   const abrirPainelIndividual = o => {
@@ -6778,7 +6813,10 @@ function PageMedicao({
   const atualizarLinha = (i, campo, val) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, [campo]: val } : l));
   const addPecaNaLinha = i => setLinhas(linhas.map((l, idx) => {
     if (idx !== i || !l._codSel) return l;
-    return { ...l, pecas: [...l.pecas, { cod: l._codSel, desc: ANEXO_V_DESC[l._codSel] || l._codSel, qtd: l._qtdSel || "1" }], _codSel: "", _qtdSel: "1" };
+    const isRsd = l._codSel === "RSD";
+    const vu = isRsd ? (parseFloat(l._valorSel) || 0) : undefined;
+    const peca = { cod: l._codSel, desc: isRsd ? ("Recurso sob demanda" + (l._valorSel ? " — R$ " + parseFloat(l._valorSel).toFixed(2) : "")) : (ANEXO_V_DESC[l._codSel] || l._codSel), qtd: l._qtdSel || "1", ...(isRsd && vu > 0 ? { vu } : {}) };
+    return { ...l, pecas: [...l.pecas, peca], _codSel: "", _qtdSel: "1", _valorSel: "" };
   }));
   const removerPecaDaLinha = (i, pi) => setLinhas(linhas.map((l, idx) => idx === i ? { ...l, pecas: l.pecas.filter((_, x) => x !== pi) } : l));
 
@@ -6918,10 +6956,13 @@ function PageMedicao({
       React.createElement("div", { className: "fld", style: { flex: 3 } },
         React.createElement("select", { value: l._codSel, onChange: e => atualizarLinha(i, "_codSel", e.target.value) },
           React.createElement("option", { value: "" }, "Selecione o item do Anexo V"),
-          Object.keys(ANEXO_V_DESC).map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod]))
+          Object.keys(ANEXO_V_DESC).filter(c => c !== "RSD").map(cod => React.createElement("option", { key: cod, value: cod }, "[" + cod + "] " + ANEXO_V_DESC[cod])),
+          React.createElement("option", { value: "RSD" }, "⚡ Recurso sob demanda (valor livre)")
         )),
       React.createElement("div", { className: "fld", style: { flex: 1 } },
         React.createElement("input", { type: "number", min: "1", value: l._qtdSel, onChange: e => atualizarLinha(i, "_qtdSel", e.target.value) })),
+      l._codSel === "RSD" && React.createElement("div", { className: "fld", style: { flex: 1.5 } },
+        React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "Valor unit. R$", value: l._valorSel || "", onChange: e => atualizarLinha(i, "_valorSel", e.target.value) })),
       React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
     ),
     l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
@@ -7082,7 +7123,7 @@ function PageMedicao({
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       }, 0);
       let bruto = brutoServicos + brutoMateriais;
       const pts = slaVals._manual ? getSLAPts() : autoPts;
@@ -7141,7 +7182,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const item = dd.find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKmAt).toFixed(2));
@@ -7460,7 +7501,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const vuAtend = isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : ANEXO_IV.find(a => a.id === "pres").vu;
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = parseFloat(r.km || 0) || 0;
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKm).toFixed(2));
@@ -8418,7 +8459,7 @@ function PageMedicao({
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
+        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKm = Number((kmOS * valorKmUnit).toFixed(2));
         const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
@@ -8476,7 +8517,7 @@ function PageMedicao({
         const pecasOS = (r.pecas || []).filter(p => p.desc);
         const fracaoPecas = pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const pecasTxt = pecasOS.length ? pecasOS.map(p => `[${p.cod || "?"}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
-        const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKmOS = kmOS * valorKmUnitDet;
         const valorDiariaOS = (d.fracaoTotal || 0) * valorDiariaUnitDet;
