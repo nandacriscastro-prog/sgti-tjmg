@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790175051 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790176520 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7594,7 +7594,7 @@ function PageMedicao({
       const s = (o.servico || o.tipo || "").toLowerCase();
       const servicoLabel = "Manutenção: " + (o.servico || o.tipo || "");
       (r.pecas || []).filter(p => p.desc).forEach(p => {
-        const vu = PRECO_ANEXO_V[p.cod] || 0;
+        const vu = p.cod === "RSD" ? (parseFloat(p.vu) || 0) : (PRECO_ANEXO_V[p.cod] || 0);
         const qtd = parseFloat(p.qtd) || 1;
         const total = vu * qtd;
         totRSD2 += total;
@@ -7650,7 +7650,11 @@ function PageMedicao({
         const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
         usoAprovadoIVAll.diaria += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
         (r.pecas || []).filter(p => p.desc && p.cod).forEach(p => {
-          usoAprovadoVAll[p.cod] = (usoAprovadoVAll[p.cod] || 0) + (parseFloat(p.qtd) || 1);
+          if (p.cod === "RSD") {
+            usoAprovadoVAll["_RSD_VALOR"] = (usoAprovadoVAll["_RSD_VALOR"] || 0) + ((parseFloat(p.vu) || 0) * (parseFloat(p.qtd) || 1));
+          } else {
+            usoAprovadoVAll[p.cod] = (usoAprovadoVAll[p.cod] || 0) + (parseFloat(p.qtd) || 1);
+          }
         });
         if (o.data_conclusao) {
           const dt = new Date(o.data_conclusao + "T12:00");
@@ -7735,6 +7739,25 @@ function PageMedicao({
       merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
       merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
     });
+    // RSD — saldo aberto (não tem qtd contratada), só mostra o valor já utilizado
+    {
+      const rsdValorUsado = usoAprovadoVAll["_RSD_VALOR"] || 0;
+      if (rsdValorUsado > 0) {
+        const linhaRsd = [
+          cell("RSD", styNormal(centro, true)),
+          cell("Recurso sob demanda (saldo aberto)", styNormal(esquerda)), cell("", styNormal()), cell("", styNormal()),
+          cell("aberto", styNormal(centro)),
+          cell("—", styMoeda()),
+          cell(brl(rsdValorUsado), styVerdeMoeda()), cell("", styNormal()),
+          cell("aberto", styNormal(centro)), cell("", styNormal()),
+          cell("—", styMoeda())
+        ];
+        addRow(linhaRsd);
+        merges.push({ s: { r: R - 1, c: 1 }, e: { r: R - 1, c: 3 } });
+        merges.push({ s: { r: R - 1, c: 8 }, e: { r: R - 1, c: 9 } });
+        totUsadoV += rsdValorUsado;
+      }
+    }
     {
       const linha = new Array(11).fill(cell("", styCinza(true)));
       linha[1] = cell("TOTAL", styCinza(true));
@@ -11066,6 +11089,8 @@ function PageControleAtivos() {
   const [usoAprovadoIV, setUsoAprovadoIV] = useState({});
   const [usoReservadoIV, setUsoReservadoIV] = useState({});
   const [mesesRemoto, setMesesRemoto] = useState(0);
+  const [rsdValorUsado, setRsdValorUsado] = useState(0);
+  const [rsdValorReservado, setRsdValorReservado] = useState(0);
   const [erro, setErro] = useState("");
   const [busca, setBusca] = useState("");
 
@@ -11098,7 +11123,13 @@ function PageControleAtivos() {
         const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
 
         if (o.avaliacao === "satisfatorio") {
-          pecas.forEach(p => { aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
+          pecas.forEach(p => {
+            if (p.cod === "RSD") {
+              aprovado["_RSD_VALOR"] = (aprovado["_RSD_VALOR"] || 0) + ((parseFloat(p.vu) || 0) * (parseFloat(p.qtd) || 1));
+            } else {
+              aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
+            }
+          });
           aprovadoIV[itemAtend]++;
           aprovadoIV.km += kmOS;
           aprovadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
@@ -11111,13 +11142,23 @@ function PageControleAtivos() {
             periodosMedidos.add(anoP + "-" + mesP);
           }
         } else if (o.status === "Concluída" && !o.avaliacao) {
-          pecas.forEach(p => { reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1); });
+          pecas.forEach(p => {
+            if (p.cod === "RSD") {
+              reservado["_RSD_VALOR"] = (reservado["_RSD_VALOR"] || 0) + ((parseFloat(p.vu) || 0) * (parseFloat(p.qtd) || 1));
+            } else {
+              reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
+            }
+          });
           reservadoIV[itemAtend]++;
           reservadoIV.km += kmOS;
           reservadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           reservadoIV.diaria += fracaoTotal;
         }
       });
+      setRsdValorUsado(aprovado["_RSD_VALOR"] || 0);
+      setRsdValorReservado(reservado["_RSD_VALOR"] || 0);
+      delete aprovado["_RSD_VALOR"];
+      delete reservado["_RSD_VALOR"];
       setUsoAprovado(aprovado);
       setUsoReservado(reservado);
       setUsoAprovadoIV(aprovadoIV);
@@ -11154,6 +11195,15 @@ function PageControleAtivos() {
       qtdRestante, valorRestante: valorContratadoOficial - (qtdUsada * vu) - (qtdReservada * vu)
     };
   });
+
+  // RSD row — saldo aberto, sem qtd contratada
+  const linhaRsd = rsdValorUsado > 0 || rsdValorReservado > 0 ? {
+    cod: "RSD", desc: "Recurso sob demanda (saldo aberto)", vu: null, isRsd: true,
+    qtdContratada: null, valorContratado: null,
+    qtdUsada: null, valorUsado: rsdValorUsado,
+    qtdReservada: null, valorReservado: rsdValorReservado,
+    qtdRestante: null, valorRestante: null
+  } : null;
 
   const ANEXO_IV_DESC = {
     rem: "Atendimento remoto (mensal)", pres: "Atend. Alarme/CFTV/Controle de Acesso",
@@ -11208,7 +11258,14 @@ function PageControleAtivos() {
         l.qtdReservada, Number(l.valorReservado.toFixed(2)),
         l.qtdRestante, Number(l.valorRestante.toFixed(2))]);
     });
-    linhasExcel.push(["", "TOTAL", "", "", "", Number(totaisV.valorContratado.toFixed(2)), "", Number(totaisV.valorUsado.toFixed(2)), "", Number(totaisV.valorReservado.toFixed(2)), "", Number(totaisV.valorRestante.toFixed(2))]);
+    if (rsdValorUsado > 0 || rsdValorReservado > 0) {
+      linhasExcel.push(["RSD", "Recurso sob demanda (saldo aberto)", "UNID", "—",
+        "aberto", "—",
+        "—", Number(rsdValorUsado.toFixed(2)),
+        "—", Number(rsdValorReservado.toFixed(2)),
+        "aberto", "—"]);
+    }
+    linhasExcel.push(["", "TOTAL", "", "", "", Number(totaisV.valorContratado.toFixed(2)), "", Number((totaisV.valorUsado + rsdValorUsado).toFixed(2)), "", Number((totaisV.valorReservado + rsdValorReservado).toFixed(2)), "", Number(totaisV.valorRestante.toFixed(2))]);
     const ws = XLSX.utils.aoa_to_sheet(linhasExcel);
     ws["!cols"] = [{ wch: 8 }, { wch: 46 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
 
@@ -11280,10 +11337,10 @@ function PageControleAtivos() {
       ),
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8 } }, "🔧 Anexo V — Aplicação de Recursos Sob Demanda (peças)"),
       React.createElement("div", { className: "kpi2-grid", style: { marginBottom: 16 } },
-        React.createElement(Kpi2, { icon: "money", cls: "navy", val: fmtR(totaisV.valorContratado), label: "Total contratado" }),
-        React.createElement(Kpi2, { icon: "check", cls: "green", val: fmtR(totaisV.valorUsado), label: "Já usado (aprovado)" }),
-        React.createElement(Kpi2, { icon: "clock", cls: "amber", val: fmtR(totaisV.valorReservado), label: "Reservado (aguarda avaliação)" }),
-        React.createElement(Kpi2, { icon: "box", cls: totaisV.valorRestante < 0 ? "red" : "blue", val: fmtR(totaisV.valorRestante), label: "Saldo restante" })
+        React.createElement(Kpi2, { icon: "money", cls: "navy", val: fmtR(totaisV.valorContratado), label: "Total contratado (itens fixos)" }),
+        React.createElement(Kpi2, { icon: "check", cls: "green", val: fmtR(totaisV.valorUsado + rsdValorUsado), label: "Já usado (aprovado)" }),
+        React.createElement(Kpi2, { icon: "clock", cls: "amber", val: fmtR(totaisV.valorReservado + rsdValorReservado), label: "Reservado (aguarda avaliação)" }),
+        React.createElement(Kpi2, { icon: "box", cls: totaisV.valorRestante < 0 ? "red" : "blue", val: fmtR(totaisV.valorRestante), label: "Saldo restante (itens fixos)" })
       ),
       React.createElement("input", {
         type: "text",
@@ -11300,20 +11357,36 @@ function PageControleAtivos() {
               React.createElement("th", { key: h, style: { textAlign: h === "Descrição" ? "left" : "right", padding: "6px 8px", whiteSpace: "nowrap" } }, h)
             )
           )),
-          React.createElement("tbody", null, linhasFiltradas.map(l => React.createElement("tr", {
-            key: l.cod,
-            style: { borderBottom: "1px solid var(--border)", background: l.qtdRestante < 0 ? "#fdecea" : "transparent" }
-          },
-            React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)" } }, l.cod),
-            React.createElement("td", { style: { padding: "5px 8px" } }, l.desc),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.vu)),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, l.qtdContratada),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.valorContratado)),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdUsada > 0 ? "var(--green)" : "var(--text3)" } }, l.qtdUsada || "—"),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdReservada > 0 ? "var(--amber, #b8860b)" : "var(--text3)" } }, l.qtdReservada || "—"),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: l.qtdRestante < 0 ? "var(--red, #c0392b)" : "var(--text)" } }, l.qtdRestante),
-            React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700 } }, fmtR(l.valorRestante))
-          ))),
+          React.createElement("tbody", null,
+            linhasFiltradas.map(l => React.createElement("tr", {
+              key: l.cod,
+              style: { borderBottom: "1px solid var(--border)", background: l.qtdRestante < 0 ? "#fdecea" : "transparent" }
+            },
+              React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)" } }, l.cod),
+              React.createElement("td", { style: { padding: "5px 8px" } }, l.desc),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.vu)),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, l.qtdContratada),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right" } }, fmtR(l.valorContratado)),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdUsada > 0 ? "var(--green)" : "var(--text3)" } }, l.qtdUsada || "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: l.qtdReservada > 0 ? "var(--amber, #b8860b)" : "var(--text3)" } }, l.qtdReservada || "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700, color: l.qtdRestante < 0 ? "var(--red, #c0392b)" : "var(--text)" } }, l.qtdRestante),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", fontWeight: 700 } }, fmtR(l.valorRestante))
+            )),
+            linhaRsd && (!buscaLower || "rsd".includes(buscaLower) || "recurso sob demanda".includes(buscaLower)) && React.createElement("tr", {
+              key: "RSD",
+              style: { borderBottom: "1px solid var(--border)", background: "#fef9ec", borderLeft: "3px solid #f59e0b" }
+            },
+              React.createElement("td", { style: { padding: "5px 8px", fontFamily: "var(--mono)", fontWeight: 700, color: "#b45309" } }, "RSD"),
+              React.createElement("td", { style: { padding: "5px 8px", color: "#b45309" } }, "⚡ Recurso sob demanda (saldo aberto)"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)" } }, "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "aberto"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--green)", fontWeight: 700 } }, linhaRsd.valorUsado > 0 ? fmtR(linhaRsd.valorUsado) : "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--amber, #b8860b)" } }, linhaRsd.valorReservado > 0 ? fmtR(linhaRsd.valorReservado) : "—"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "aberto"),
+              React.createElement("td", { style: { padding: "5px 8px", textAlign: "right", color: "var(--text3)", fontStyle: "italic" } }, "—")
+            )
+          ),
           React.createElement("tfoot", null, React.createElement("tr", { style: { borderTop: "2px solid var(--border)", fontWeight: 700 } },
             React.createElement("td", { colSpan: 2, style: { padding: "8px" } }, "TOTAL"),
             React.createElement("td", { style: { padding: "8px", textAlign: "right" } }, ""),
