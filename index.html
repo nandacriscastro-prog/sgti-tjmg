@@ -617,7 +617,7 @@ const ANEXO_V_DESC = {
 // Medições aprovadas e travadas — valor bruto fixo por período (dtIni–dtFim do contrato 181/2026)
 const MEDICOES_TRAVADAS_181 = {
   "2026-07-20_2026-08-19": 49453.60,  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
-  "2026-08-20_2026-09-19": 127308.74  // Setembro/2026 — aprovado em planilha; valor travado em 24/09/2026
+  // "2026-08-20_2026-09-19": 127308.74  // Setembro/2026 — desativado a pedido da fiscalização
 };
 const ANEXO_IV = [{
   id: "rem",
@@ -6133,17 +6133,8 @@ function PageLancamentoManual({
       const totalOS = vuOS + valorKmOS + valorDiariaOS + valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalOS1, tipoServico: tipoOS, valorServico: vuOS, valorKm: valorKmOS, valorDiaria: valorDiariaOS, totalOS, isCorrecao: isCorrecaoOS });
     });
-    // Lógica igual à planilha aprovada (SMO/ObraasGov):
-    // - Km: soma total de km (com decimais) × VU, arredonda 2 casas no final (não por OS)
-    // - Diária: soma total de frações arredondada em 1 casa decimal × VU, arredonda 2 casas no final
-    // - Demais: qtd inteira × VU, arredonda 2 casas por linha (pres, portal, raio, rem)
-    const vuKm = ANEXO_IV.find(x=>x.id==="km")?.vu||0;
-    const vuDiaria = ANEXO_IV.find(x=>x.id==="diaria")?.vu||0;
-    const totalFracaoDiaria = Number(totalDiarias.toFixed(1)); // 1 casa decimal como na planilha
-    const valorKmTotal = Number((totalKm * vuKm).toFixed(2));
-    const valorDiariaTotal = Number((totalFracaoDiaria * vuDiaria).toFixed(2));
-    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalFracaoDiaria };
-    const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0) + valorKmTotal + valorDiariaTotal;
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
+    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
     const brutoCalc = brutoServicos + brutoMateriais;
     const _chaveTrava = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
@@ -6881,14 +6872,8 @@ function PageMedicao({
       const totalOS2 = vuOS2 + valorKmOS2 + valorDiariaOS2 + valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo, tipoServico: tipoOS2, valorServico: vuOS2, valorKm: valorKmOS2, valorDiaria: valorDiariaOS2, totalOS: totalOS2, isCorrecao: isCorrecaoOS2 });
     });
-    // Lógica igual à planilha aprovada: km total × VU; fração diária total (1 casa) × VU; arredonda no final
-    const vuKm2 = ANEXO_IV.find(x=>x.id==="km")?.vu||0;
-    const vuDiaria2 = ANEXO_IV.find(x=>x.id==="diaria")?.vu||0;
-    const totalFracaoDiaria2 = Number(totalDiarias.toFixed(1));
-    const valorKmTotal2 = Number((totalKm * vuKm2).toFixed(2));
-    const valorDiariaTotal2 = Number((totalFracaoDiaria2 * vuDiaria2).toFixed(2));
-    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalFracaoDiaria2 };
-    const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0) + valorKmTotal2 + valorDiariaTotal2;
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
+    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
     const brutoCalc2 = brutoServicos + brutoMateriais;
     const _chaveTrava2 = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava2] ?? brutoCalc2;
@@ -7247,19 +7232,10 @@ function PageMedicao({
         diaria: totalDiarias
       };
       setQtds(novos);
-      // Lógica igual à planilha aprovada (SMO/ObraasGov):
-      // - Km: soma total de km × VU, arredonda 2 casas no final (não por OS)
-      // - Diária: total de frações arredondado em 1 casa decimal × VU, arredonda 2 casas no final
-      // - Demais: qtd inteira × VU, arredonda 2 casas por linha
-      const vuKmCalc = ANEXO_IV.find(a => a.id === "km").vu;
-      const totalFracaoDiariaCalc = Number(totalDiarias.toFixed(1));
-      const valorKmTotal3 = Number((totalKm * vuKmCalc).toFixed(2));
-      const valorDiariaTotal3 = Number((totalFracaoDiariaCalc * valorDiariaUnitCalc).toFixed(2));
-      novos.diaria = totalFracaoDiariaCalc; // atualiza novos para exibição na tela
-      const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => {
+      const brutoServicos = ANEXO_IV.reduce((a, it) => {
         const q = novos[it.id] || 0;
         return a + Number((q * it.vu).toFixed(2));
-      }, 0) + valorKmTotal3 + valorDiariaTotal3;
+      }, 0);
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
