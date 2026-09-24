@@ -5451,11 +5451,11 @@ function PageAvaliacao({
         body: JSON.stringify({
           avaliacao: aval === "sat" ? "satisfatorio" : "insatisfatorio",
           avaliacao_obs: obs,
-          status: aval === "sat" ? "Concluída" : "Reaberta",
+          status: (aval === "sat") ? "Concluída" : "Reaberta",
           retorno_campo: retAtualizado
         })
       });
-      if (aval === "insat") {
+      if (aval === "insat" || aval === "parcial") {
         // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
         const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
         // Sistemas com falha (se avaliação por sistema, usa só os insatisfatórios)
@@ -5468,7 +5468,10 @@ function PageAvaliacao({
           return true;
         });
         const multi_c = sistemasOSC.length > 1 && Object.keys(avalPorSistema).length > 0;
-        const sistemasInsat = multi_c ? sistemasOSC.filter(s => avalPorSistema[s] === "insat") : sistemasOSC;
+        // Parcial: gera correção só para os que foram marcados como insat (ignora pendentes)
+        const sistemasInsat = multi_c
+          ? sistemasOSC.filter(s => avalPorSistema[s] === "insat")
+          : sistemasOSC;
         const servicoCorrecao = (sel.servico || "").replace(/Manutenção:\s*/, "Manutenção: ").replace(
           sistemasOSC.join(", "), sistemasInsat.join(", ")
         );
@@ -5507,7 +5510,7 @@ function PageAvaliacao({
         const novaOS = criadas?.[0] || { ...sel, numero: novoNum };
         setRevisitaRevisao({ ...novaOS, tipo: "Correção", prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR"), obsEditavel: obs || "" });
       } else {
-        toast("✓ Avaliado como satisfatório", "ok");
+        toast("✓ Avaliado como satisfatório — OS encerrada", "ok");
       }
       setSel(null);
       setAval("");
