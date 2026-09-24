@@ -5930,16 +5930,19 @@ function PageAvaliacao({
       if (multi) {
         // Avaliação por sistema — deriva aval global automaticamente
         const todosAvaliados = sistemasOS.every(s => avalPorSistema[s]);
+        const algumAvaliado = sistemasOS.some(s => avalPorSistema[s]);
         const algumInsat = sistemasOS.some(s => avalPorSistema[s] === "insat");
-        const avalGlobal = todosAvaliados ? (algumInsat ? "insat" : "sat") : "";
+        const sistPendentes = sistemasOS.filter(s => !avalPorSistema[s]);
+        // Se todos avaliados: sat ou insat. Se ao menos um avaliado: "parcial" (permite confirmar). Senão vazio (bloqueia).
+        const avalGlobal = todosAvaliados ? (algumInsat ? "insat" : "sat") : algumAvaliado ? "parcial" : "";
         // Sincroniza aval global sempre que avalPorSistema muda
         if (avalGlobal !== aval) { setTimeout(() => setAval(avalGlobal), 0); }
         return React.createElement("div", { style: { marginBottom: 14 } },
-          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, "Avalie cada sistema individualmente:"),
+          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, "Avalie cada sistema individualmente (pode deixar em branco os que ainda não tem retorno):"),
           sistemasOS.map(s => {
             const v = avalPorSistema[s] || "";
             return React.createElement("div", { key: s, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
-              React.createElement("span", { style: { minWidth: 160, fontSize: 13, fontWeight: 600 } }, s),
+              React.createElement("span", { style: { minWidth: 160, fontSize: 13, fontWeight: 600, color: !v ? "var(--text3)" : "var(--text)" } }, s, !v ? " ⏳" : ""),
               React.createElement("button", {
                 onClick: () => setAvalPorSistema(p => ({ ...p, [s]: "sat" })),
                 style: { padding: "6px 14px", border: `2px solid ${v === "sat" ? "var(--green)" : "var(--border)"}`, borderRadius: 7, background: v === "sat" ? "#f0fdf4" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 12 }
@@ -5950,10 +5953,12 @@ function PageAvaliacao({
               }, "🔄 Insatisfatório")
             );
           }),
-          todosAvaliados && React.createElement("div", { style: { marginTop: 6, fontSize: 12, color: algumInsat ? "var(--accent)" : "var(--green)", fontWeight: 600 } },
-            algumInsat
-              ? "⚠️ OS será reaberta — nova OS de correção gerada para: " + sistemasOS.filter(s => avalPorSistema[s] === "insat").join(", ")
-              : "✅ Todos os sistemas satisfatórios — OS será encerrada"
+          algumAvaliado && React.createElement("div", { style: { marginTop: 6, fontSize: 12, fontWeight: 600, color: sistPendentes.length ? "var(--text3)" : algumInsat ? "var(--accent)" : "var(--green)" } },
+            sistPendentes.length
+              ? "⏳ Pendente: " + sistPendentes.join(", ") + " — pode confirmar agora e avaliar depois"
+              : algumInsat
+                ? "⚠️ OS será reaberta — nova OS de correção gerada para: " + sistemasOS.filter(s => avalPorSistema[s] === "insat").join(", ")
+                : "✅ Todos os sistemas satisfatórios — OS será encerrada"
           )
         );
       }
@@ -6021,8 +6026,8 @@ function PageAvaliacao({
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn btn-primary",
       onClick: confirmar,
-      disabled: !aval || loading
-    }, loading ? "Salvando..." : "✓ Confirmar avaliação"), /*#__PURE__*/React.createElement("button", {
+      disabled: (!aval || loading)
+    }, loading ? "Salvando..." : aval === "parcial" ? "✓ Confirmar (avaliação parcial)" : "✓ Confirmar avaliação"), /*#__PURE__*/React.createElement("button", {
       className: "btn",
       onClick: () => {
         setSel(null);
