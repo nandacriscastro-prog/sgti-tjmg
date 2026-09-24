@@ -100,7 +100,7 @@ let medAno = new Date().getFullYear();
 // Medições aprovadas e travadas — valor bruto fixo por período (dtIni–dtFim do contrato 181/2026)
 const MEDICOES_TRAVADAS_181 = {
   "2026-07-20_2026-08-19": 49453.60,  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
-  "2026-08-20_2026-09-19": 127308.74  // Setembro/2026 — aprovado em planilha; valor travado em 24/09/2026
+  // "2026-08-20_2026-09-19": 127308.74  // Setembro/2026 — desativado a pedido da fiscalização
 };
 // ===== MEDIÇÃO (somente leitura) =====
 const ANEXO_IV = [
@@ -267,19 +267,11 @@ async function carregarMedicao(){
         totalOS: (isCorrecaoOS ? 0 : vuAtend) + valorKmOS + valorDiariaOS + matOS
       });
     });
-    // Lógica igual à planilha aprovada (SMO/ObraasGov):
-    // - Km: soma total de km × VU, arredonda 2 casas no final
-    // - Diária: total de frações arredondado em 1 casa decimal × VU, arredonda 2 casas no final
-    const vuKmAgg = ANEXO_IV.find(a=>a.id==="km").vu;
-    const vuDiariaAgg = ANEXO_IV.find(a=>a.id==="diaria").vu;
-    const totalFracaoDiariaAgg = Number(totalDiarias.toFixed(1));
-    const valorKmAgg = Number((totalKm * vuKmAgg).toFixed(2));
-    const valorDiariaAgg = Number((totalFracaoDiariaAgg * vuDiariaAgg).toFixed(2));
-    const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalFracaoDiariaAgg};
-    const brutoServicos = ANEXO_IV.filter(it=>it.id!=="km"&&it.id!=="diaria").reduce((a,it)=>{
+    const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+    const brutoServicos = ANEXO_IV.reduce((a,it)=>{
       const q = qtds[it.id]||0;
       return a + Number((q*it.vu).toFixed(2));
-    },0) + valorKmAgg + valorDiariaAgg;
+    },0);
     const _chaveTrava = `${dtIni}_${dtFim}`;
     const brutoCalc = brutoServicos + brutoMateriais;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
@@ -290,7 +282,7 @@ async function carregarMedicao(){
       const q = qtds[it.id]||0;
       const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
       const qFmt = Number.isInteger(q) ? q : q.toFixed(2);
-      const subtotalLinha = it.id==="km" ? valorKmAgg : it.id==="diaria" ? valorDiariaAgg : qArred*it.vu;
+      const subtotalLinha = Number((qArred * it.vu).toFixed(2));
       linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(subtotalLinha)}</td></tr>`;
     });
 
