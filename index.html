@@ -614,6 +614,10 @@ const ANEXO_V_DESC = {
   "RSD":"Recurso sob demanda (valor a preencher)"
 };
 // FRAC_D e FRACAO_KM_ANEXO_VI agora vêm de calc-medicao.js (compartilhado com o portal Alvo) — ver <script src="./calc-medicao.js"> no <head>
+// Medições aprovadas e travadas — valor bruto fixo por período (dtIni–dtFim do contrato 181/2026)
+const MEDICOES_TRAVADAS_181 = {
+  "2026-07-20_2026-08-19": 49453.60  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
+};
 const ANEXO_IV = [{
   id: "rem",
   desc: "Atendimento remoto",
@@ -6110,11 +6114,14 @@ function PageLancamentoManual({
     const valorKmSomaPorOS1 = detalhe.reduce((a, d) => a + (d.valorKm || 0), 0);
     const valorDiariaSomaPorOS1 = detalhe.reduce((a, d) => a + Number(((d.fracaoDiaria || 0) * (ANEXO_IV.find(x=>x.id==="diaria")?.vu||0)).toFixed(2)), 0);
     const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0) + valorKmSomaPorOS1 + valorDiariaSomaPorOS1;
-    const bruto = brutoServicos + brutoMateriais;
+    const brutoCalc = brutoServicos + brutoMateriais;
+    const _chaveTrava = `${dtIni}_${dtFim}`;
+    const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
     const autoPts = osMedidas.reduce((a, o) => a + (calcPtsAutoOS(o).pts || 0), 0);
     const pct = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
     const glosa = bruto * pct / 100;
-    return { qtd: osMedidas.length, brutoServicos, brutoMateriais, bruto, autoPts, pct, glosa, liq: bruto - glosa, detalhe };
+    const travado = _chaveTrava in MEDICOES_TRAVADAS_181;
+    return { qtd: osMedidas.length, brutoServicos, brutoMateriais, bruto, autoPts, pct, glosa, liq: bruto - glosa, detalhe, travado };
   })();
 
   const toggleSel = numero => {
@@ -6398,7 +6405,11 @@ function PageLancamentoManual({
           ["Total líquido", fmtR(medicaoResumo.liq)]
         ].map(([label, val]) => React.createElement("div", { key: label, style: { padding: "10px", background: "var(--surface)", borderRadius: 8, textAlign: "center" } },
           React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--accent)" } }, val),
-          React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, label)
+          React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } },
+            label === "Total bruto" && medicaoResumo.travado
+              ? React.createElement("span", null, "🔒 ", label, " (aprovado)")
+              : label
+          )
         ))
       )
     ),
