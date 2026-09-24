@@ -7365,7 +7365,13 @@ function PageMedicao({
     });
     const totalD3921 = linhasOS.reduce((a, l) => a + l.dotacao3921, 0);
     const totalD5113 = linhasOS.reduce((a, l) => a + l.dotacao5113, 0);
-    const totalGeral = totalD3921 + totalD5113;
+    // totalGeral usa o valor autoritativo da tela (respeita trava de medição) em vez de re-somar por OS
+    const _vuKmSEI2 = ANEXO_IV.find(a => a.id === "km").vu, _vuDiariaSEI2 = ANEXO_IV.find(a => a.id === "diaria").vu;
+    const _valorKm2 = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number((d.kmOS * _vuKmSEI2).toFixed(2)), 0);
+    const _valorDiaria2 = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number(((d.fracaoTotal || 0) * _vuDiariaSEI2).toFixed(2)), 0);
+    const _brutoServicos2 = ANEXO_IV.find(a => a.id === "rem").vu + Number((resultado.qtdAlarme * ANEXO_IV.find(a => a.id === "pres").vu).toFixed(2)) + Number((resultado.qtdPortal * ANEXO_IV.find(a => a.id === "portal").vu).toFixed(2)) + Number((resultado.qtdRaio * ANEXO_IV.find(a => a.id === "raio").vu).toFixed(2)) + Number(_valorKm2.toFixed(2)) + Number(_valorDiaria2.toFixed(2));
+    const _brutoCalc2 = _brutoServicos2 + resultado.brutoMateriais;
+    const totalGeral = resultado.travado ? resultado.bruto : _brutoCalc2;
     const dataMedicaoStr = new Date().toLocaleDateString("pt-BR");
     const valorFoco = dotacaoFoco === "39.21" ? totalD3921 : totalD5113;
     if (!window.XLSXStyle) { toast("Biblioteca de estilo ainda não carregou, tente novamente em alguns segundos.", "erro"); return; }
