@@ -921,45 +921,88 @@ function exportarDetalhamento() {
   const travado = window._medTravado || false;
 
   const fmtN = v => typeof v === "number" ? Number(v.toFixed(2)) : (v||0);
+  const fmtF = v => typeof v === "number" ? Number(v.toFixed(4)) : (v||0); // 4 casas para frações
 
-  // Aba: Detalhamento por OS
+  // Constantes do Anexo IV
+  const VU_KM     = 2.95;
+  const VU_DIARIA = 231.73;
+
+  // Totais agregados — mesmo método da planilha aprovada
+  const totalKmBruto       = det.reduce((a,d) => a + (d.kmOS||0), 0);
+  const totalFracoesBrutas = det.reduce((a,d) => a + (d.fracaoTotalSalvo||0), 0);
+  const totalFracoes1Casa  = Number(totalFracoesBrutas.toFixed(1));  // arredonda 1 casa
+  const valorKmAgg         = Number((totalKmBruto * VU_KM).toFixed(2));
+  const valorDiariaAgg     = Number((totalFracoes1Casa * VU_DIARIA).toFixed(2));
+  const totalMatOS         = det.reduce((a,d) => a + (d.matOS||0), 0);
+
+  // ── Aba: Detalhamento por OS ──────────────────────────────────────────────
+  // Diária: mostra FRAÇÃO (não R$) por OS — soma das frações × VU fecha igual à planilha
   const cabDet = [
     "Nº OS","Comarca","Serviço","Tipo Sistema","Região",
-    "É Correção?","Fração Base","Fração Peças","Km Deslocamento","Fração Deslocamento",
-    "Fração Total","VU Atendimento (R$)","Valor Km (R$)","Valor Diária (R$)","Materiais (R$)","Total OS (R$)"
+    "Correção?","Fração Base","Fração Peças","Km","Fração Km","Fração Diária Total",
+    "VU Atendimento (R$)","Valor Km (R$)","Materiais (R$)"
   ];
   const linhasDet = [cabDet, ...det.map(d => [
     d.numero, d.comarca, d.servico, d.tipoSistema, d.regiaoOS,
     d.isCorrecaoOS ? "Sim" : "Não",
-    fmtN(d.fracaoBase), fmtN(d.fracaoPecasCalc), fmtN(d.kmOS), fmtN(d.fracaoDeslocamento),
-    fmtN(d.fracaoTotalSalvo), fmtN(d.vuAtend), fmtN(d.valorKmOS), fmtN(d.valorDiariaOS),
-    fmtN(d.matOS), fmtN(d.totalOS)
+    fmtF(d.fracaoBase), fmtF(d.fracaoPecasCalc),
+    fmtN(d.kmOS), fmtF(d.fracaoDeslocamento),
+    fmtF(d.fracaoTotalSalvo),
+    fmtN(d.vuAtend), fmtN(d.valorKmOS),
+    fmtN(d.matOS)
   ])];
 
-  // Linha de totais
-  const totalRow = ["TOTAL","","","","","","","","","","",
-    "", "", "",
-    fmtN(det.reduce((a,d)=>a+d.matOS,0)),
-    fmtN(det.reduce((a,d)=>a+d.totalOS,0))
-  ];
-  linhasDet.push(totalRow);
+  // Linha de totais — cálculo agregado (igual à planilha gov)
+  linhasDet.push([
+    "TOTAL","","","","","",
+    "","",
+    fmtN(totalKmBruto), "",
+    fmtF(totalFracoesBrutas),   // fração bruta acumulada
+    "", fmtN(valorKmAgg),
+    fmtN(totalMatOS)
+  ]);
+  // Linha explicando o arredondamento da diária
+  linhasDet.push([
+    "","","","","","",
+    "","","","",
+    `→ arred. 1 casa: ${totalFracoes1Casa}`,
+    "","",""
+  ]);
+  linhasDet.push([
+    "","","","","","",
+    "","","","",
+    `→ × R$ ${VU_DIARIA} = R$ ${valorDiariaAgg.toLocaleString('pt-BR',{minimumFractionDigits:2})}`,
+    "","",""
+  ]);
 
-  // Aba: Resumo
+  // ── Aba: Resumo financeiro ────────────────────────────────────────────────
+  const vuAtendTotal = det.reduce((a,d) => a + (d.isCorrecaoOS ? 0 : (d.vuAtend||0)), 0);
   const linhasRes = [
     ["Portal Alvo Segurança — Detalhamento de Medição"],
     ["Período:", periodo],
     [""],
-    ["Item","Valor (R$)"],
-    ["Serviços (calculado)", fmtN(brutoServicos)],
-    ["Materiais", fmtN(brutoMat)],
-    ["Bruto Calculado", fmtN(brutoServicos + brutoMat)],
+    ["RESUMO FINANCEIRO (método planilha aprovada)",""],
+    ["",""],
+    ["Item","Qtd / Fração","VU (R$)","Total (R$)"],
+    ["Atendimento (serviços)", "", "", fmtN(vuAtendTotal)],
+    ["Deslocamento (km)", fmtN(totalKmBruto), VU_KM, fmtN(valorKmAgg)],
+    ["Diária — fração bruta acumulada", fmtF(totalFracoesBrutas), "", ""],
+    ["Diária — arredondada 1 casa decimal", totalFracoes1Casa, VU_DIARIA, fmtN(valorDiariaAgg)],
+    ["Materiais", "", "", fmtN(totalMatOS)],
+    [""],
+    ["Total Serviços + Materiais (calculado)", "", "", fmtN(brutoServicos + totalMatOS)],
   ];
   if (travado) {
-    linhasRes.push(["🔒 Total Bruto Aprovado (travado)", fmtN(bruto)]);
+    linhasRes.push(["🔒 Total Bruto Aprovado (planilha SEI — travado)", "", "", fmtN(bruto)]);
   } else {
-    linhasRes.push(["Total Bruto", fmtN(bruto)]);
+    linhasRes.push(["Total Bruto", "", "", fmtN(bruto)]);
   }
-  linhasRes.push([""], ["Obs: valores por OS incluem atendimento, km e diária apenas. Materiais somados separadamente."]);
+  linhasRes.push(
+    [""],
+    ["NOTA: A coluna 'Fração Diária Total' por OS é a fração acumulada (base + peças + km)."],
+    ["Somar as frações → arredondar em 1 casa decimal → × R$231,73 = valor da diária (igual à planilha gov)."],
+    ["Não somar os valores R$ de diária por OS — a soma não fecha por arredondamento."]
+  );
 
   const wb = XLSX.utils.book_new();
 
