@@ -7545,7 +7545,9 @@ function PageMedicao({
     const valorDiariaAutoritativo = (resultado.diariaDetalhe || []).reduce((a, d) => a + Number(((d.fracaoTotal || 0) * vuDiariaSEI).toFixed(2)), 0);
     const vuRemSEI = ANEXO_IV.find(a => a.id === "rem").vu, vuPresSEI = ANEXO_IV.find(a => a.id === "pres").vu, vuPortalSEI = ANEXO_IV.find(a => a.id === "portal").vu, vuRaioSEI = ANEXO_IV.find(a => a.id === "raio").vu;
     const brutoServicosSEI = vuRemSEI + Number((resultado.qtdAlarme * vuPresSEI).toFixed(2)) + Number((resultado.qtdPortal * vuPortalSEI).toFixed(2)) + Number((resultado.qtdRaio * vuRaioSEI).toFixed(2)) + Number(valorKmAutoritativo.toFixed(2)) + Number(valorDiariaAutoritativo.toFixed(2));
-    const brutoSEI = brutoServicosSEI + resultado.brutoMateriais;
+    const brutoSEICalc = brutoServicosSEI + resultado.brutoMateriais;
+    // Se a medição está travada, usa o valor aprovado (não o recalculado)
+    const brutoSEI = resultado.travado ? resultado.bruto : brutoSEICalc;
     const glosaSEI = brutoSEI * resultado.pct / 100;
     const liqSEI = brutoSEI - glosaSEI;
     const itensDotacao = [
