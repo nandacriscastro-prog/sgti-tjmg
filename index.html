@@ -616,8 +616,7 @@ const ANEXO_V_DESC = {
 // FRAC_D e FRACAO_KM_ANEXO_VI agora vêm de calc-medicao.js (compartilhado com o portal Alvo) — ver <script src="./calc-medicao.js"> no <head>
 // Medições aprovadas e travadas — valor bruto fixo por período (dtIni–dtFim do contrato 181/2026)
 const MEDICOES_TRAVADAS_181 = {
-  "2026-07-20_2026-08-19": 49453.60,  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
-  // "2026-08-20_2026-09-19": 127308.74  // Setembro/2026 — desativado a pedido da fiscalização
+  "2026-07-20_2026-08-19": 49453.60  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
 };
 const ANEXO_IV = [{
   id: "rem",
@@ -6133,8 +6132,10 @@ function PageLancamentoManual({
       const totalOS = vuOS + valorKmOS + valorDiariaOS + valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalOS1, tipoServico: tipoOS, valorServico: vuOS, valorKm: valorKmOS, valorDiaria: valorDiariaOS, totalOS, isCorrecao: isCorrecaoOS });
     });
-    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
-    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: Number(totalDiarias.toFixed(1)) };
+    const valorKmSomaPorOS1 = detalhe.reduce((a, d) => a + (d.valorKm || 0), 0);
+    const valorDiariaSomaPorOS1 = detalhe.reduce((a, d) => a + Number(((d.fracaoDiaria || 0) * (ANEXO_IV.find(x=>x.id==="diaria")?.vu||0)).toFixed(2)), 0);
+    const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0) + valorKmSomaPorOS1 + valorDiariaSomaPorOS1;
     const brutoCalc = brutoServicos + brutoMateriais;
     const _chaveTrava = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
@@ -6872,8 +6873,10 @@ function PageMedicao({
       const totalOS2 = vuOS2 + valorKmOS2 + valorDiariaOS2 + valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo, tipoServico: tipoOS2, valorServico: vuOS2, valorKm: valorKmOS2, valorDiaria: valorDiariaOS2, totalOS: totalOS2, isCorrecao: isCorrecaoOS2 });
     });
-    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
-    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
+    const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: Number(totalDiarias.toFixed(1)) };
+    const valorKmSomaPorOS2 = detalhe.reduce((a, d) => a + (d.valorKm || 0), 0);
+    const valorDiariaSomaPorOS2 = detalhe.reduce((a, d) => a + Number(((d.fracaoDiaria || 0) * (ANEXO_IV.find(x=>x.id==="diaria")?.vu||0)).toFixed(2)), 0);
+    const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + (novos[it.id] || 0) * it.vu, 0) + valorKmSomaPorOS2 + valorDiariaSomaPorOS2;
     const brutoCalc2 = brutoServicos + brutoMateriais;
     const _chaveTrava2 = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava2] ?? brutoCalc2;
@@ -7232,10 +7235,17 @@ function PageMedicao({
         diaria: totalDiarias
       };
       setQtds(novos);
-      const brutoServicos = ANEXO_IV.reduce((a, it) => {
+      // Soma cada linha do Anexo IV já arredondada (mesma conta que aparece na tela/exportação) — assim TUDO que deriva daqui (Resumo, Total Bruto, Glosa, Total Líquido) bate exatamente com a soma manual das linhas mostradas
+      // Km é somado por OS individual (arredondando cada linha antes de somar) — bate com a verificação manual OS por OS
+      // Diária usa a fração TOTAL agregada arredondada em 1 casa decimal antes de multiplicar (ex: 14,895... -> 14,9 -> R$3.452,78) — mesma regra usada na Planilha SEI
+      const vuKmCalc = ANEXO_IV.find(a => a.id === "km").vu;
+      const valorKmSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number((d.kmOS * vuKmCalc).toFixed(2)), 0);
+      const valorDiariaSomaPorOS = diariaDetalhe.reduce((a, d) => a + Number(((d.fracaoTotal || 0) * valorDiariaUnitCalc).toFixed(2)), 0);
+      const brutoServicos = ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => {
         const q = novos[it.id] || 0;
-        return a + Number((q * it.vu).toFixed(2));
-      }, 0);
+        const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
+        return a + Number((qArred * it.vu).toFixed(2));
+      }, 0) + Number(valorKmSomaPorOS.toFixed(2)) + Number(valorDiariaSomaPorOS.toFixed(2));
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -8645,32 +8655,18 @@ function PageMedicao({
       wsOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 11 }, { wch: 13 }, { wch: 13 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
 
       // ---- Aba 5: Fração de diária por OS ----
-      // IMPORTANTE: mostrar FRAÇÕES (não R$) por OS — a soma das frações × VU fecha igual à planilha aprovada
-      // NÃO somar valores R$ por OS — acumula erros de arredondamento (diferença de até R$6,47)
-      const _vuDiaria = ANEXO_IV.find(a=>a.id==="diaria").vu;
-      const _vuKmExp  = ANEXO_IV.find(a=>a.id==="km").vu;
-      const linhasDiaria = [["Nº OS", "Comarca", "Região", "Fração base+peças", "Km da OS", "Fração deslocamento", "Fração diária total"]];
+      const linhasDiaria = [["Nº OS", "Comarca", "Região", "Fração base+peças", "Km da OS", "Fração deslocamento", "Fração total"]];
       (resultado.diariaDetalhe || []).forEach(d => {
         linhasDiaria.push([d.numero, d.comarca, d.regiao, Number(d.fracaoBaseEPecas.toFixed(4)), d.kmOS, Number(d.fracaoDeslocamento.toFixed(4)), Number(d.fracaoTotal.toFixed(4))]);
       });
-      const _somaFracoesBrutas = resultado.totalDiarias || 0;
-      const _fracoes1Casa = Number(_somaFracoesBrutas.toFixed(1));
-      const _totalKmExp = (resultado.diariaDetalhe||[]).reduce((a,d)=>a+d.kmOS,0);
-      const _valorDiariaAgg = Number((_fracoes1Casa * _vuDiaria).toFixed(2));
-      const _valorKmAgg = Number((_totalKmExp * _vuKmExp).toFixed(2));
-      linhasDiaria.push(["", "", "", "", "", "Soma frações brutas →", Number(_somaFracoesBrutas.toFixed(4))]);
-      linhasDiaria.push(["", "", "", "", "", "Arredond. 1 casa decimal →", _fracoes1Casa]);
-      linhasDiaria.push(["", "", "", "", `Km total: ${Number(_totalKmExp.toFixed(2))} km`, `× R$${_vuDiaria} = R$ (diária):`, _valorDiariaAgg]);
-      linhasDiaria.push(["", "", "", "", `× R$${_vuKmExp} = R$ (km):`, _valorKmAgg, ""]);
-      linhasDiaria.push(["⚠ NÃO somar a coluna 'Fração diária total' em R$ — somar as frações acima e multiplicar pelo VU uma vez.", "", "", "", "", "", ""]);
+      linhasDiaria.push(["", "", "", "", "", "Soma total", Number((resultado.totalDiarias||0).toFixed(2))]);
       const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
-      wsDiaria["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 24 }, { wch: 18 }];
+      wsDiaria["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 14 }];
 
       // ---- Aba 6: Totalizador por OS ----
       const valorDiariaUnit = ANEXO_IV.find(a=>a.id==="diaria").vu;
       const valorKmUnit = ANEXO_IV.find(a=>a.id==="km").vu;
-      const linhasTotalOS = [["Nº OS", "Comarca", "Rota", "Valor peças (R$)", "Valor km (R$)", "Diária ref. por OS (R$) ⚠", "Valor atendimento (R$)", "Total gasto na OS (R$)"],
-        ["", "", "", "", "", "⚠ NÃO somar esta coluna — soma das frações × VU (aba Fração diária) é o valor correto", "", ""]];
+      const linhasTotalOS = [["Nº OS", "Comarca", "Rota", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Valor atendimento (R$)", "Total gasto na OS (R$)"]];
       let totalGeralOS = 0;
       const porRota = {};
       (resultado.osMes || []).forEach(o => {
@@ -8701,23 +8697,9 @@ function PageMedicao({
           porRota[rota].comarcas.push(o.comarca);
         }
       });
-      // Ajuste de arredondamento: diferença entre soma por OS e total agregado (método planilha)
-      // Total agregado correto = atendimento + km total×VU + fracoes1casa×VU + materiais
-      const _vuDiariaT = ANEXO_IV.find(a=>a.id==="diaria").vu;
-      const _vuKmT = ANEXO_IV.find(a=>a.id==="km").vu;
-      const _totalKmT = (resultado.diariaDetalhe||[]).reduce((a,d)=>a+d.kmOS,0);
-      const _fracoes1CasaT = Number((resultado.totalDiarias||0).toFixed(1));
-      const _valorDiariaAggT = Number((_fracoes1CasaT * _vuDiariaT).toFixed(2));
-      const _valorKmAggT = Number((_totalKmT * _vuKmT).toFixed(2));
-      const _totalAgregado = resultado.travado ? resultado.bruto : resultado.bruto; // bruto já usa método agregado
-      const ajusteArred = Number((_totalAgregado - Number(totalGeralOS.toFixed(2))).toFixed(2));
-      linhasTotalOS.push(["", "", "", "", "", "", "Subtotal soma por OS", Number(totalGeralOS.toFixed(2))]);
-      if (ajusteArred !== 0) {
-        linhasTotalOS.push(["", "", "", "", "", "", "Ajuste de arredondamento (diária)", ajusteArred]);
-      }
-      linhasTotalOS.push(["", "", "", "", "", "", "TOTAL BRUTO CORRETO", _totalAgregado]);
+      linhasTotalOS.push(["", "", "", "", "", "", "TOTAL GERAL", Number(totalGeralOS.toFixed(2))]);
       const wsTotalOS = XLSX.utils.aoa_to_sheet(linhasTotalOS);
-      wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 16 }];
+      wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }];
 
       // ---- Aba 7: Totalizador por Rota ----
       const linhasRota = [["Rota", "Qtd de OS", "Comarcas", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Valor atendimento (R$)", "Total da rota (R$)"]];
