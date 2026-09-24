@@ -8709,6 +8709,7 @@ function PageMedicao({
       if (Object.keys(porRota).length) XLSX.utils.book_append_sheet(wb, wsRota, "Total por Rota");
       XLSX.writeFile(wb, `Medicao_${resultado.label.replace(" / ", "_")}.xlsx`);
     } catch(e) { alert("Erro ao gerar Excel: " + e.message); console.error(e); }
+  }
   }, "\u2193 Exportar Excel (.xlsx)")))), resultado && resultado.osSemKm && resultado.osSemKm.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: { borderColor: "var(--amber, #b8860b)" }
