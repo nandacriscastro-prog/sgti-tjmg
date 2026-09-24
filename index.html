@@ -5460,7 +5460,13 @@ function PageAvaliacao({
         const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
         // Sistemas com falha (se avaliação por sistema, usa só os insatisfatórios)
         const TODOS_SIST_C = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso", "Portal", "Scanner"];
-        const sistemasOSC = TODOS_SIST_C.filter(s => (sel.servico || "").includes(s));
+        const _servicoC = sel.servico || "";
+        const sistemasOSC = TODOS_SIST_C.filter(s => {
+          if (!_servicoC.includes(s)) return false;
+          if (s === "Portal" && _servicoC.includes("Portal detector de metais")) return false;
+          if (s === "Scanner" && _servicoC.includes("Scanner de raio-X")) return false;
+          return true;
+        });
         const multi_c = sistemasOSC.length > 1 && Object.keys(avalPorSistema).length > 0;
         const sistemasInsat = multi_c ? sistemasOSC.filter(s => avalPorSistema[s] === "insat") : sistemasOSC;
         const servicoCorrecao = (sel.servico || "").replace(/Manutenção:\s*/, "Manutenção: ").replace(
