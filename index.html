@@ -8725,9 +8725,23 @@ function PageMedicao({
           porRota[rota].comarcas.push(o.comarca);
         }
       });
-      linhasTotalOS.push(["", "", "", "", "", "", "TOTAL GERAL", Number(totalGeralOS.toFixed(2))]);
+      // Ajuste de arredondamento: diferença entre soma por OS e total agregado (método planilha)
+      // Total agregado correto = atendimento + km total×VU + fracoes1casa×VU + materiais
+      const _vuDiariaT = ANEXO_IV.find(a=>a.id==="diaria").vu;
+      const _vuKmT = ANEXO_IV.find(a=>a.id==="km").vu;
+      const _totalKmT = (resultado.diariaDetalhe||[]).reduce((a,d)=>a+d.kmOS,0);
+      const _fracoes1CasaT = Number((resultado.totalDiarias||0).toFixed(1));
+      const _valorDiariaAggT = Number((_fracoes1CasaT * _vuDiariaT).toFixed(2));
+      const _valorKmAggT = Number((_totalKmT * _vuKmT).toFixed(2));
+      const _totalAgregado = resultado.travado ? resultado.bruto : resultado.bruto; // bruto já usa método agregado
+      const ajusteArred = Number((_totalAgregado - Number(totalGeralOS.toFixed(2))).toFixed(2));
+      linhasTotalOS.push(["", "", "", "", "", "", "Subtotal soma por OS", Number(totalGeralOS.toFixed(2))]);
+      if (ajusteArred !== 0) {
+        linhasTotalOS.push(["", "", "", "", "", "", "Ajuste de arredondamento (diária)", ajusteArred]);
+      }
+      linhasTotalOS.push(["", "", "", "", "", "", "TOTAL BRUTO CORRETO", _totalAgregado]);
       const wsTotalOS = XLSX.utils.aoa_to_sheet(linhasTotalOS);
-      wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }];
+      wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 16 }];
 
       // ---- Aba 7: Totalizador por Rota ----
       const linhasRota = [["Rota", "Qtd de OS", "Comarcas", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Valor atendimento (R$)", "Total da rota (R$)"]];
