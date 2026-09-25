@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790333264 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790336567 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -587,9 +587,11 @@ const PRECO_ANEXO_V = {
 // Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
 // (com 6 casas, qtd × VU feito à mão bate com o subtotal mostrado)
 const fmtQtdAnexoIV = (id, q) => Number.isInteger(q) ? String(q) : (id === "diaria" ? q.toFixed(6) : q.toFixed(2));
+// REGRA OFICIAL (Fernanda, 25/09/2026): km e diária são somados POR OS — cada OS arredondada em 2 casas, depois soma.
+// (Set/2026 = R$ 127.302,27.) Não multiplicar o total agregado de km/frações pelo VU.
 // Faz as linhas "por OS" fecharem EXATAMENTE com o total da medição, sem linha de "ajuste de arredondamento":
 // - cada valor é arredondado em 2 casas;
-// - a coluna km fecha com km total × VU (mesma conta do calcular());
+// - a coluna km é a soma das OS (kmOficial = null) ou fecha com o valor informado;
 // - a coluna diária recebe o que faltar para o total (centavos de arredondamento, ou a diferença para o valor aprovado se a medição estiver travada).
 // O resíduo vai sempre na última OS que tem valor naquela coluna.
 function fecharLinhasPorOS(linhas, { campoKm, campoDiaria, camposOutros, kmOficial, totalOficial, valorFixo }) {
@@ -602,15 +604,16 @@ function fecharLinhasPorOS(linhas, { campoKm, campoDiaria, camposOutros, kmOfici
     const ult = [...linhas].reverse().find(l => l[campo] > 0) || linhas[linhas.length - 1];
     ult[campo] = r2(ult[campo] + res);
   };
-  jogarResiduo(campoKm, kmOficial);
+  if (kmOficial != null) jogarResiduo(campoKm, kmOficial);
   const outros = linhas.reduce((a, l) => a + l[campoKm] + camposOutros.reduce((b, c) => b + l[c], 0), 0) + (valorFixo || 0);
   jogarResiduo(campoDiaria, totalOficial - outros);
 }
 // Subtotais das linhas do Anexo IV (qtd × VU em 2 casas). Se totalServicos for informado, a diária é o que completa esse total
 // (só muda algo em medição travada, onde o total de serviços é o aprovado) — assim a soma das linhas sempre fecha com o subtotal.
-const subtotaisAnexoIV = (qtds, totalServicos) => {
+const subtotaisAnexoIV = (qtds, totalServicos, valorKm) => {
   const sub = {};
   ANEXO_IV.forEach(it => { sub[it.id] = Number((((qtds || {})[it.id] || 0) * it.vu).toFixed(2)); });
+  if (valorKm != null) sub.km = Number(Number(valorKm).toFixed(2)); // km = soma por OS
   if (totalServicos != null) {
     const outros = ANEXO_IV.filter(it => it.id !== "diaria").reduce((a, it) => a + sub[it.id], 0);
     sub.diaria = Number((totalServicos - outros).toFixed(2));
@@ -1759,11 +1762,13 @@ function PageDashboard({
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       p.totalDiarias += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       p.totalKm = (p.totalKm || 0) + kmOS;
+      p.valorDiariaOS = (p.valorDiariaOS || 0) + Number(((fracaoBase + fracaoPecasCalc + fracaoDeslocamento) * vuDiariaD).toFixed(2));
+      p.valorKmOS = (p.valorKmOS || 0) + Number((kmOS * vuKmD).toFixed(2));
       p.brutoMateriais += (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
     });
-    // Mesma conta da tela Medição (calcular()): km total × VU e soma das frações × VU; período travado usa o valor aprovado
+    // Mesma conta da tela Medição (calcular()): km e diária somados por OS; período travado usa o valor aprovado
     return Object.entries(porPeriodo).reduce((total, [chave, p]) => {
-      const brutoServicos = vuRemD + Number((p.qtdAlarme * vuPresD).toFixed(2)) + Number((p.qtdPortal * vuPortalD).toFixed(2)) + Number((p.qtdRaio * vuRaioD).toFixed(2)) + Number(((p.totalKm || 0) * vuKmD).toFixed(2)) + Number((p.totalDiarias * vuDiariaD).toFixed(2));
+      const brutoServicos = vuRemD + Number((p.qtdAlarme * vuPresD).toFixed(2)) + Number((p.qtdPortal * vuPortalD).toFixed(2)) + Number((p.qtdRaio * vuRaioD).toFixed(2)) + Number((p.valorKmOS || 0).toFixed(2)) + Number((p.valorDiariaOS || 0).toFixed(2)); // km e diária por OS
       const [aP, mP] = chave.split("-").map(Number);
       const ini = aP + "-" + String(mP + 1).padStart(2, "0") + "-20";
       const fimD = new Date(aP, mP + 1, 19);
@@ -6174,12 +6179,14 @@ function PageLancamentoManual({
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalOS1, tipoServico: tipoOS, valorServico: vuOS, valorKm: valorKmOS, valorDiaria: valorDiariaOS, totalOS, isCorrecao: isCorrecaoOS });
     });
     const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
-    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
+    // REGRA OFICIAL: km e diária somados POR OS (cada OS arredondada em 2 casas)
+    const _r2 = v => Number((Number(v) || 0).toFixed(2));
+    const brutoServicos = _r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + _r2((novos[it.id] || 0) * it.vu), 0) + detalhe.reduce((a, d) => a + _r2(d.valorKm) + _r2(d.valorDiaria), 0));
     const brutoCalc = brutoServicos + brutoMateriais;
     const _chaveTrava = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
     // Tabela "Total por OS": cada OS em 2 casas e fechando exatamente com o total (sem diferença de centavo)
-    fecharLinhasPorOS(detalhe, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorServico", "valorMateriais"], kmOficial: kmOficialMedicao(totalKm), totalOficial: bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem")?.vu || 0 });
+    fecharLinhasPorOS(detalhe, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorServico", "valorMateriais"], kmOficial: null, totalOficial: bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem")?.vu || 0 });
     detalhe.forEach(d => { d.totalOS = Number((d.valorServico + d.valorKm + d.valorDiaria + d.valorMateriais).toFixed(2)); });
     const autoPts = osMedidas.reduce((a, o) => a + (calcPtsAutoOS(o).pts || 0), 0);
     const pct = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
@@ -6846,7 +6853,7 @@ function PageMedicao({
           let r = {};
           try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
           (r.pecas || []).filter(p => p.desc).forEach(p => {
-            total += (PRECO_ANEXO_V[p.cod] || 0) * (parseFloat(p.qtd) || 1);
+            total += (p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1); // inclui Recurso sob Demanda (valor livre)
           });
         });
         setMateriaisAcumulados(total);
@@ -6916,12 +6923,14 @@ function PageMedicao({
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo, tipoServico: tipoOS2, valorServico: vuOS2, valorKm: valorKmOS2, valorDiaria: valorDiariaOS2, totalOS: totalOS2, isCorrecao: isCorrecaoOS2 });
     });
     const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
-    const brutoServicos = ANEXO_IV.reduce((a, it) => a + Number(((novos[it.id]||0) * it.vu).toFixed(2)), 0);
+    // REGRA OFICIAL: km e diária somados POR OS (cada OS arredondada em 2 casas)
+    const _r2 = v => Number((Number(v) || 0).toFixed(2));
+    const brutoServicos = _r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + _r2((novos[it.id] || 0) * it.vu), 0) + detalhe.reduce((a, d) => a + _r2(d.valorKm) + _r2(d.valorDiaria), 0));
     const brutoCalc2 = brutoServicos + brutoMateriais;
     const _chaveTrava2 = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava2] ?? brutoCalc2;
     // Tabela "Total por OS": cada OS em 2 casas e fechando exatamente com o total (sem diferença de centavo)
-    fecharLinhasPorOS(detalhe, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorServico", "valorMateriais"], kmOficial: kmOficialMedicao(totalKm), totalOficial: bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem")?.vu || 0 });
+    fecharLinhasPorOS(detalhe, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorServico", "valorMateriais"], kmOficial: null, totalOficial: bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem")?.vu || 0 });
     detalhe.forEach(d => { d.totalOS = Number((d.valorServico + d.valorKm + d.valorDiaria + d.valorMateriais).toFixed(2)); });
     const autoPts = osMedidas.reduce((a, o) => a + (calcPtsAutoOS(o).pts || 0), 0);
     const pct = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
@@ -7278,10 +7287,11 @@ function PageMedicao({
         diaria: totalDiarias
       };
       setQtds(novos);
-      const brutoServicos = ANEXO_IV.reduce((a, it) => {
-        const q = novos[it.id] || 0;
-        return a + Number((q * it.vu).toFixed(2));
-      }, 0);
+      // REGRA OFICIAL: km e diária somados POR OS (cada OS arredondada em 2 casas); demais itens qtd × VU
+      const _r2 = v => Number((Number(v) || 0).toFixed(2));
+      const valorKmPorOS = _r2(diariaDetalhe.reduce((a, d) => a + _r2(d.kmOS * valorKmUnitCalc), 0));
+      const valorDiariaPorOS = _r2(diariaDetalhe.reduce((a, d) => a + _r2(d.fracaoTotal * valorDiariaUnitCalc), 0));
+      const brutoServicos = _r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + _r2((novos[it.id] || 0) * it.vu), 0) + valorKmPorOS + valorDiariaPorOS);
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
@@ -7322,6 +7332,8 @@ function PageMedicao({
         pecasMes,
         osSemKm,
         diariaDetalhe,
+        valorKm: valorKmPorOS,
+        valorDiaria: valorDiariaPorOS,
         travado: _chaveTravaR in MEDICOES_TRAVADAS_181
       });
     } catch (e) {
@@ -7364,7 +7376,7 @@ function PageMedicao({
       };
     });
     // Linhas fecham exatamente com o valor da medição (mesma conta da tela) — sem diferença de centavo
-    fecharLinhasPorOS(linhasOS, { campoKm: "valorDeslocOS", campoDiaria: "valorDiariaOS", camposOutros: ["vuAtend", "materiaisOS"], kmOficial: kmOficialMedicao(resultado.totalKm), totalOficial: resultado.bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem").vu });
+    fecharLinhasPorOS(linhasOS, { campoKm: "valorDeslocOS", campoDiaria: "valorDiariaOS", camposOutros: ["vuAtend", "materiaisOS"], kmOficial: null, totalOficial: resultado.bruto, valorFixo: ANEXO_IV.find(a => a.id === "rem").vu });
     linhasOS.forEach(l => {
       l.dotacao3921 = Number((l.vuAtend + l.valorDeslocOS + l.valorDiariaOS).toFixed(2));
       l.dotacao5113 = Number(l.materiaisOS.toFixed(2));
@@ -7571,7 +7583,7 @@ function PageMedicao({
     // (igual a soma das frações × VU; se a medição estiver travada, inclui a diferença para o valor aprovado)
     const vuRemSEI = ANEXO_IV.find(a => a.id === "rem").vu, vuPresSEI = ANEXO_IV.find(a => a.id === "pres").vu, vuPortalSEI = ANEXO_IV.find(a => a.id === "portal").vu, vuRaioSEI = ANEXO_IV.find(a => a.id === "raio").vu;
     const brutoSEI = Number(resultado.bruto.toFixed(2));
-    const valorKmAutoritativo = kmOficialMedicao(resultado.totalKm);
+    const valorKmAutoritativo = Number((resultado.valorKm || 0).toFixed(2)); // soma por OS
     const valorDiariaAutoritativo = Number((brutoSEI - (vuRemSEI + Number((resultado.qtdAlarme * vuPresSEI).toFixed(2)) + Number((resultado.qtdPortal * vuPortalSEI).toFixed(2)) + Number((resultado.qtdRaio * vuRaioSEI).toFixed(2)) + valorKmAutoritativo + Number(resultado.brutoMateriais.toFixed(2)))).toFixed(2));
     const glosaSEI = brutoSEI * resultado.pct / 100;
     const liqSEI = brutoSEI - glosaSEI;
@@ -8011,11 +8023,13 @@ function PageMedicao({
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       p.totalDiarias += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       p.totalKm = (p.totalKm || 0) + kmOS;
+      p.valorDiariaOS = (p.valorDiariaOS || 0) + Number(((fracaoBase + fracaoPecasCalc + fracaoDeslocamento) * vuDiariaD).toFixed(2));
+      p.valorKmOS = (p.valorKmOS || 0) + Number((kmOS * vuKmD).toFixed(2));
       p.brutoMateriais += (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
     });
-    // Mesma conta da tela Medição (calcular()): km total × VU e soma das frações × VU; período travado usa o valor aprovado
+    // Mesma conta da tela Medição (calcular()): km e diária somados por OS; período travado usa o valor aprovado
     return Object.entries(porPeriodo).reduce((total, [chave, p]) => {
-      const brutoServicos = vuRemD + Number((p.qtdAlarme * vuPresD).toFixed(2)) + Number((p.qtdPortal * vuPortalD).toFixed(2)) + Number((p.qtdRaio * vuRaioD).toFixed(2)) + Number(((p.totalKm || 0) * vuKmD).toFixed(2)) + Number((p.totalDiarias * vuDiariaD).toFixed(2));
+      const brutoServicos = vuRemD + Number((p.qtdAlarme * vuPresD).toFixed(2)) + Number((p.qtdPortal * vuPortalD).toFixed(2)) + Number((p.qtdRaio * vuRaioD).toFixed(2)) + Number((p.valorKmOS || 0).toFixed(2)) + Number((p.valorDiariaOS || 0).toFixed(2)); // km e diária por OS
       const [aP, mP] = chave.split("-").map(Number);
       const ini = aP + "-" + String(mP + 1).padStart(2, "0") + "-20";
       const fimD = new Date(aP, mP + 1, 19);
@@ -8435,7 +8449,7 @@ function PageMedicao({
   }, "Subtotal"))), /*#__PURE__*/React.createElement("tbody", null, ANEXO_IV.map(it => {
     const q = qtds[it.id] || 0;
     // Mesma conta do calcular(): quantidade com precisão total × VU, arredondado em 2 casas — a soma das linhas = Subtotal serviços
-    const subtotalItem = subtotaisAnexoIV(qtds, resultado.brutoServicos)[it.id];
+    const subtotalItem = subtotaisAnexoIV(qtds, resultado.brutoServicos, resultado.valorKm)[it.id];
     return /*#__PURE__*/React.createElement("tr", {
       key: it.id
     }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
@@ -8553,8 +8567,8 @@ function PageMedicao({
     style: { display: "flex", gap: 24, padding: "8px 0", borderTop: "1px solid var(--border)", marginTop: 6, fontSize: 12, color: "var(--text3)" }
   },
     React.createElement("span", null, "📋 OS no período: ", React.createElement("strong", { style: { color: "var(--text)" } }, resultado.osMes?.length || 0)),
-    React.createElement("span", null, "🚗 km total: ", React.createElement("strong", { style: { color: "var(--text)" } }, (resultado.totalKm || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }), " km")),
-    React.createElement("span", null, "📅 Diárias: ", React.createElement("strong", { style: { color: "var(--text)" } }, (resultado.totalDiarias || 0).toFixed(2)))
+    React.createElement("span", null, "🚗 km total: ", React.createElement("strong", { style: { color: "var(--text)" } }, (resultado.totalKm || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), " km")),
+    React.createElement("span", null, "📅 Diárias: ", React.createElement("strong", { style: { color: "var(--text)" } }, fmtQtdAnexoIV("diaria", resultado.totalDiarias || 0).replace(".", ",")))
   ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -8618,7 +8632,7 @@ function PageMedicao({
       ANEXO_IV.forEach(it => {
         const q = qtds[it.id] || 0;
         // Mesma conta do calcular()/tela: soma das linhas = Subtotal serviços, sem diferença de centavo
-        const subtotalExp = subtotaisAnexoIV(qtds, resultado.brutoServicos)[it.id];
+        const subtotalExp = subtotaisAnexoIV(qtds, resultado.brutoServicos, resultado.valorKm)[it.id];
         linhasAnexoIV.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, q)), brlExp(it.vu), brlExp(subtotalExp)]);
       });
       linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", brlExp(resultado.brutoServicos)]);
@@ -8669,8 +8683,8 @@ function PageMedicao({
       const _somaFracoes = resultado.totalDiarias || 0;
       const _totalKmExp = (resultado.diariaDetalhe||[]).reduce((a,d)=>a+d.kmOS,0);
       linhasDiaria.push(["", "", "", "", "", "Soma das frações →", Number(fmtQtdAnexoIV("diaria", _somaFracoes))]);
-      linhasDiaria.push(["", "", "", "", "", `× R$${_vuDiaria} = Valor diária (R$):`, Number((_somaFracoes * _vuDiaria).toFixed(2))]);
-      linhasDiaria.push(["", "", "", "", `Km total: ${Number(_totalKmExp.toFixed(2))} km`, `× R$${_vuKmExp} = Valor km (R$):`, Number((_totalKmExp * _vuKmExp).toFixed(2))]);
+      linhasDiaria.push(["", "", "", "", "", "Valor diária (R$) — soma das OS, cada uma arredondada:", resultado.valorDiaria]);
+      linhasDiaria.push(["", "", "", "", `Km total: ${Number(_totalKmExp.toFixed(2))} km`, "Valor km (R$) — soma das OS, cada uma arredondada:", resultado.valorKm]);
       const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
       wsDiaria["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 24 }, { wch: 18 }];
 
@@ -8698,7 +8712,7 @@ function PageMedicao({
       // Atendimento Remoto: valor fixo mensal (não é OS) — linha própria para a soma fechar com o total bruto
       const _vuRemT = ANEXO_IV.find(a=>a.id==="rem").vu;
       // Linhas fecham exatamente com o total da medição — sem linha de "ajuste"
-      fecharLinhasPorOS(linhasOSTot, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorPecas", "valorAtend"], kmOficial: kmOficialMedicao(resultado.totalKm), totalOficial: resultado.bruto, valorFixo: _vuRemT });
+      fecharLinhasPorOS(linhasOSTot, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorPecas", "valorAtend"], kmOficial: null, totalOficial: resultado.bruto, valorFixo: _vuRemT });
       const porRota = {};
       linhasOSTot.forEach(l => {
         const totalOS = Number((l.valorPecas + l.valorKm + l.valorDiaria + l.valorAtend).toFixed(2));
@@ -8754,7 +8768,7 @@ function PageMedicao({
         detLinhas.push({ o, r, d, fracaoBase, pecasTxt, fracaoPecas, kmOS, valorDiariaOS, valorKmOS, valorAtendOS, valorMateriaisOS });
       });
       // Colunas de valor fecham exatamente com o total da medição (sem diferença de centavo)
-      fecharLinhasPorOS(detLinhas, { campoKm: "valorKmOS", campoDiaria: "valorDiariaOS", camposOutros: ["valorAtendOS", "valorMateriaisOS"], kmOficial: kmOficialMedicao(resultado.totalKm), totalOficial: resultado.bruto, valorFixo: ANEXO_IV.find(a=>a.id==="rem").vu });
+      fecharLinhasPorOS(detLinhas, { campoKm: "valorKmOS", campoDiaria: "valorDiariaOS", camposOutros: ["valorAtendOS", "valorMateriaisOS"], kmOficial: null, totalOficial: resultado.bruto, valorFixo: ANEXO_IV.find(a=>a.id==="rem").vu });
       detLinhas.forEach(({ o, r, d, fracaoBase, pecasTxt, fracaoPecas, kmOS, valorDiariaOS, valorKmOS, valorAtendOS, valorMateriaisOS }) => {
         linhasDetCompleto.push([
           o.numero, o.comarca || "", d.regiao || "", o.data_conclusao || r.dtconc || "", o.servico || o.tipo || "",
