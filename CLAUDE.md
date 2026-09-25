@@ -199,6 +199,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 | `Rota: N` | Abertura em lote (Rota) |
 | `[SLA_EXCECAO]` | Exceção de SLA (Histórico) → `calcPtsAutoOS` |
 | `[PDF_MAGNETEC:url]` | PDF do portal (tabela `portais_garantia`) |
+| `[CANCELAMENTO] motivo — autor em data` | Cancelamento de OS aberta (Histórico) — ver seção abaixo |
 
 Ao editar observações por código, **preservar esses marcadores**; ao exibir, esconder os que são internos.
 
@@ -207,6 +208,12 @@ Ao editar observações por código, **preservar esses marcadores**; ao exibir, 
 Um bug real quebrou links de anexo compartilhados: o fluxo de "Rota" juntava texto usando `"<br>"` como separador **dentro de `observacoes`**. Como a regex de extração de link usa `\S+`, ela não para no `<br>` e engole o texto seguinte — gerando `https://.../123.pdf<br>Rota: 5`, que dá "InvalidKey". **Regra:** sempre usar `\n` de verdade dentro de `observacoes`; converter com `.replace(/\n/g, "<br>")` **só na hora de exibir**.
 
 ⚠️ **Ainda existem violações dessa regra** na criação automática de OS de Correção: `partesObs.join("<br>")` em `PageAvaliacao` (avaliação individual e em lote por rota) e `[...].join("<br>")` com `<b>Falhas identificadas no atendimento:</b>` em `PageMedicao`/`PageLancamentoManual`. Se a OS original tiver anexo, o link na Correção pode quebrar. Corrigir trocando por `"\n"` (e sem `<b>` no armazenamento).
+
+## Cancelar OS aberta (status `Cancelada`) — desde 25/09/2026
+- Histórico, para OS ainda não Concluída: botão "🚫 Cancelar OS" ao lado de "✎ Editar dados da OS" abre um formulário com **motivo obrigatório**; ao confirmar, faz `PATCH` de `status: "Cancelada"` e acrescenta `[CANCELAMENTO] <motivo> — <autor> em <data>` no fim de `observacoes` (preservando o que já havia, separado por `\n` de verdade — nunca `<br>`, ver seção do bug de `<br>`).
+- `status: "Cancelada"` **já existia** no sistema antes disso (usado como fallback quando o `DELETE` de uma OS falha, e já presente no filtro de status do Histórico e nas cores de badge/Dashboard) — essa mudança só formaliza um fluxo intencional de cancelamento com motivo registrado, sem mudar schema.
+- OS `Cancelada` **já fica automaticamente fora** de todos os contadores de "aberta" (`["Aberta", "Em andamento", "Reaberta"]`), SLA, pendentes de avaliação/medição etc. — não precisou mexer em nenhum desses filtros.
+- Não reaproveitar/duplicar o botão "🗑️ Excluir" — excluir apaga a OS de vez (`DELETE`, com fallback para `Cancelada` se o delete falhar); "Cancelar OS" é a ação intencional que preserva o registro com motivo.
 
 ## Editar OS aberta / excluir do Histórico
 

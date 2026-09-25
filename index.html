@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790345109 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790348017 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -4436,6 +4436,30 @@ function PageHistorico({
       setSalvandoOSBasico(false);
     }
   };
+  const [cancelandoOS, setCancelandoOS] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState("");
+  const [salvandoCancelamento, setSalvandoCancelamento] = useState(false);
+  const salvarCancelamento = async (osSel) => {
+    if (!motivoCancelamento.trim()) { toast("Informe o motivo do cancelamento.", "erro"); return; }
+    setSalvandoCancelamento(true);
+    try {
+      const novasObs = (osSel.observacoes ? osSel.observacoes + "\n" : "") +
+        "[CANCELAMENTO] " + motivoCancelamento.trim() + " — " + (getSession()?.nome || getSession()?.fiscal?.email || "sistema") + " em " + fmtDate(new Date().toISOString().slice(0, 10));
+      await sbFetch(`/ordens_servico?id=eq.${osSel.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "Cancelada", observacoes: novasObs })
+      });
+      setSel(prev => prev && prev.id === osSel.id ? { ...prev, status: "Cancelada", observacoes: novasObs } : prev);
+      setCancelandoOS(false);
+      setMotivoCancelamento("");
+      toast(`✓ OS ${osSel.numero} cancelada.`, "ok");
+      if (typeof reload === "function") reload();
+    } catch (e) {
+      toast("Erro ao cancelar OS: " + e.message, "erro");
+    } finally {
+      setSalvandoCancelamento(false);
+    }
+  };
   const [execForm, setExecForm] = useState(null);
   const [editandoAvaliacao, setEditandoAvaliacao] = useState(false);
   const [salvandoHist, setSalvandoHist] = useState(false);
@@ -5184,9 +5208,27 @@ function PageHistorico({
               React.createElement("button", { className: "btn btn-primary", onClick: () => salvarOSBasico(sel), disabled: salvandoOSBasico }, salvandoOSBasico ? "Salvando..." : "💾 Salvar")
             )
           )
-        : React.createElement("div", { style: { marginBottom: 14 } },
-            React.createElement("button", { className: "btn btn-sm", onClick: () => abrirEdicaoOSBasico(sel) }, "✎ Editar dados da OS (comarca, tipo, prioridade...)")
+        : React.createElement("div", { style: { marginBottom: 14, display: "flex", gap: 8, flexWrap: "wrap" } },
+            React.createElement("button", { className: "btn btn-sm", onClick: () => abrirEdicaoOSBasico(sel) }, "✎ Editar dados da OS (comarca, tipo, prioridade...)"),
+            sel.status !== "Cancelada" && React.createElement("button", {
+              className: "btn btn-sm", style: { borderColor: "var(--red, #c0392b)", color: "var(--red, #c0392b)" },
+              onClick: () => { setMotivoCancelamento(""); setCancelandoOS(true); }
+            }, "🚫 Cancelar OS")
           )
+      ),
+      sel.status !== "Concluída" && cancelandoOS && React.createElement("div", { className: "card", style: { marginBottom: 14, background: "#fff3f2", border: "1.5px solid var(--red, #c0392b)" } },
+        React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 10, color: "var(--red, #c0392b)" } }, "🚫 Cancelar esta OS"),
+        React.createElement("div", { className: "fg full", style: { marginBottom: 10 } },
+          React.createElement("label", null, "Motivo do cancelamento (obrigatório)"),
+          React.createElement("textarea", { value: motivoCancelamento, onChange: e => setMotivoCancelamento(e.target.value), rows: 2, placeholder: "Ex: aberta em duplicidade, demanda cancelada pelo solicitante..." })
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { className: "btn", onClick: () => { setCancelandoOS(false); setMotivoCancelamento(""); }, disabled: salvandoCancelamento }, "Voltar"),
+          React.createElement("button", {
+            onClick: () => salvarCancelamento(sel), disabled: salvandoCancelamento,
+            style: { background: "var(--red, #c0392b)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          }, salvandoCancelamento ? "Cancelando..." : "🚫 Confirmar cancelamento")
+        )
       ),
       /*#__PURE__*/React.createElement("div", {
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }
