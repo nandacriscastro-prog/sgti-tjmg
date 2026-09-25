@@ -1147,6 +1147,11 @@ const NAV = [{
   icon: "list",
   sec: "Gestão"
 }, {
+  id: "busca",
+  label: "Buscar comarca",
+  icon: "search",
+  sec: null
+}, {
   id: "avaliacao",
   label: "Avaliação",
   icon: "check",
@@ -1239,6 +1244,7 @@ const PAGE_LABELS = {
   remoto: "Atendimento remoto",
   campo: "Campo",
   historico: "Histórico",
+  busca: "Buscar comarca",
   avaliacao: "Avaliação",
   medicao: "Medição",
   notas: "Notas Fiscais",
@@ -11274,6 +11280,100 @@ function PageTecnicos() {
 }
 
 // ── PAGE: CONFIGURAÇÕES ───────────────────────────────────────
+// ── BUSCAR COMARCA ─────────────────────────────────────────────
+// Consulta rápida: "tem OS aberta pra essa comarca?". Só leitura, usa a lista de OS já carregada pelo App.
+const STATUS_ABERTOS_BUSCA = ["Aberta", "Em andamento", "Reaberta"];
+function semAcento(t) { return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+function PageBuscaComarca({ os, setPage }) {
+  const [termo, setTermo] = useState("");
+  const [contrato, setContrato] = useState("181/2026");
+  const [aberto, setAberto] = useState(null);
+  const t = semAcento(termo.trim());
+  const lista = (os || []).filter(o => contrato === "todos" || (o.contrato || "") === contrato);
+  const grupos = React.useMemo(() => {
+    if (t.length < 2) return [];
+    const g = {};
+    lista.forEach(o => {
+      const alvo = semAcento((o.comarca || "") + " " + (o.forum || "") + " " + (o.endereco || ""));
+      if (!alvo.includes(t)) return;
+      const k = o.comarca || "—";
+      if (!g[k]) g[k] = { comarca: k, itens: [] };
+      g[k].itens.push(o);
+    });
+    return Object.values(g).map(x => {
+      x.itens.sort((a, b) => String(b.data_os || "").localeCompare(String(a.data_os || "")));
+      x.abertas = x.itens.filter(o => STATUS_ABERTOS_BUSCA.includes(o.status || "")).length;
+      x.ultima = x.itens[0];
+      return x;
+    }).sort((a, b) => (b.abertas - a.abertas) || a.comarca.localeCompare(b.comarca, "pt-BR"));
+  }, [t, contrato, os]);
+  // Comarcas do cadastro (CM) que batem com a busca mas nunca tiveram OS
+  const semNenhumaOS = React.useMemo(() => {
+    if (t.length < 2 || typeof CM === "undefined") return [];
+    const comOS = new Set(grupos.map(g => g.comarca));
+    return Object.keys(CM).filter(k => semAcento(k).includes(t) && !comOS.has(k)).slice(0, 30);
+  }, [t, grupos]);
+  const totalAbertas = grupos.reduce((a, g) => a + g.abertas, 0);
+  const pill = (txt, cor, bg) => React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: cor, background: bg, padding: "3px 9px", borderRadius: 99, whiteSpace: "nowrap" } }, txt);
+  const irHistorico = numero => { window._buscaGlobal = numero; setPage("historico"); };
+
+  return React.createElement("div", null,
+    React.createElement("div", { className: "card", style: { marginBottom: 14 } },
+      React.createElement("div", { style: { fontWeight: 700, fontSize: 15, marginBottom: 4 } }, "🔎 Buscar comarca"),
+      React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } }, "Digite a cidade, o fórum ou parte do endereço para ver se há OS aberta e o histórico de atendimentos."),
+      React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+        React.createElement("input", { autoFocus: true, value: termo, onChange: e => { setTermo(e.target.value); setAberto(null); }, placeholder: "Ex.: Ipatinga, Fórum Lafayette, JESP...", style: { flex: "1 1 260px", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 } }),
+        React.createElement("select", { value: contrato, onChange: e => setContrato(e.target.value), style: { padding: "9px 10px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 } },
+          React.createElement("option", { value: "181/2026" }, "Contrato 181/2026"),
+          React.createElement("option", { value: "todos" }, "Todos os contratos")
+        )
+      )
+    ),
+    t.length < 2 ? React.createElement("div", { className: "empty" }, React.createElement("div", { className: "empty-title" }, "Digite pelo menos 2 letras para buscar")) :
+    React.createElement(React.Fragment, null,
+      React.createElement("div", { className: "card", style: { marginBottom: 14, borderLeft: "4px solid " + (totalAbertas ? "var(--red, #c0392b)" : "var(--green, #1b8a5a)") } },
+        grupos.length === 0
+          ? React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "var(--green, #1b8a5a)" } }, "✅ Nenhuma OS encontrada para \"" + termo.trim() + "\"" + (contrato === "todos" ? "" : " no contrato 181/2026") + " — nem aberta, nem fechada.")
+          : totalAbertas
+            ? React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "var(--red, #c0392b)" } }, "⚠️ " + totalAbertas + " OS aberta" + (totalAbertas === 1 ? "" : "s") + " para \"" + termo.trim() + "\" — confira abaixo antes de abrir outra.")
+            : React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "var(--green, #1b8a5a)" } }, "✅ Nenhuma OS aberta para \"" + termo.trim() + "\". Há " + grupos.reduce((a, g) => a + g.itens.length, 0) + " OS já encerradas no histórico.")
+      ),
+      grupos.map(g => {
+        const exp = aberto === g.comarca;
+        return React.createElement("div", { key: g.comarca, className: "card", style: { marginBottom: 10, padding: 0, overflow: "hidden" } },
+          React.createElement("div", { onClick: () => setAberto(exp ? null : g.comarca), style: { padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" } },
+            React.createElement("div", null,
+              React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, g.comarca),
+              React.createElement("div", { style: { marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" } },
+                badgesRegiaoRota({ comarca: g.comarca, contrato: contrato === "todos" ? (g.ultima.contrato || "") : contrato }, { semRota: true }),
+                React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, "Último atendimento: OS " + g.ultima.numero + " em " + fmtDate(g.ultima.data_os))
+              )
+            ),
+            React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
+              g.abertas ? pill(g.abertas + " aberta" + (g.abertas === 1 ? "" : "s"), "var(--red, #c0392b)", "#fdecea") : pill("Nenhuma aberta", "#1b8a5a", "#e2f5ea"),
+              pill(g.itens.length + " no total", "var(--text3)", "var(--surface)"),
+              React.createElement("span", { style: { fontSize: 13, color: "var(--text3)" } }, exp ? "▲" : "▼")
+            )
+          ),
+          exp && React.createElement("div", { style: { borderTop: "1px solid var(--border)" } },
+            g.itens.map(o => React.createElement("div", { key: o.id || o.numero, onClick: () => irHistorico(o.numero), title: "Abrir no Histórico", style: { padding: "8px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", gap: 10, cursor: "pointer", fontSize: 13, alignItems: "center" } },
+              React.createElement("div", null,
+                React.createElement("strong", null, "OS " + o.numero), " · ", fmtDate(o.data_os), " · ", o.tipo || "—",
+                React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || "—").substring(0, 90))
+              ),
+              pill(o.status || "—", STATUS_ABERTOS_BUSCA.includes(o.status || "") ? "var(--red, #c0392b)" : "var(--text3)", STATUS_ABERTOS_BUSCA.includes(o.status || "") ? "#fdecea" : "var(--surface)")
+            ))
+          )
+        );
+      }),
+      semNenhumaOS.length > 0 && React.createElement("div", { className: "card", style: { marginTop: 4 } },
+        React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 6 } }, "Comarcas cadastradas que batem com a busca e nunca tiveram OS" + (contrato === "todos" ? "" : " no 181/2026") + ":"),
+        React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, semNenhumaOS.map(k => React.cloneElement(pill(k, "var(--text2, #444)", "var(--surface)"), { key: k })))
+      )
+    )
+  );
+}
+
 function PageLimpezaAnexos() {
   const [meses, setMeses] = useState(6);
   const [buscando, setBuscando] = useState(false);
@@ -14755,6 +14855,8 @@ function AppInterno({
           loading: loading,
           reload: loadOS
         });
+      case "busca":
+        return React.createElement(PageBuscaComarca, { os: os, setPage: setPage });
       case "avaliacao":
         return /*#__PURE__*/React.createElement(PageAvaliacao, {
           os: os,
