@@ -9380,6 +9380,25 @@ function PageEstoque() {
     }
   };
 
+  const excluirItemEstoque = async row => {
+    const desc = `"${nomeLimpo(row.item_material)}"` + (ehIndividual ? ` (patrimônio ${row.numero_patrimonio || "—"})` : ` (qtde ${row.qtde_bem ?? 0})`);
+    const aviso = ehIndividual && row.status === statusIndisponivel
+      ? `\n\n⚠️ Esta unidade está como "${row.status}". Excluir aqui NÃO desfaz o ${aba === "comarcas" ? "recolhimento" : "envio"} nem mexe no outro estoque — se a intenção é voltar atrás, use "Desfazer".`
+      : "";
+    if (!confirm(`Excluir ${desc} do estoque ${nomeAba}?${aviso}\n\nIsso não pode ser desfeito.`)) return;
+    setSalvando(true);
+    try {
+      await sbFetch(`/${tabela}?id=eq.${row.id}`, { method: "DELETE" });
+      toast("Item excluído.");
+      carregar(offset);
+      carregarOpcoes();
+    } catch (e) {
+      alert("Erro ao excluir: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const abrirEdicao = row => {
     setEditandoId(row.id);
     setEditForm({ ...row });
@@ -10314,6 +10333,7 @@ function PageEstoque() {
                 React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
                   ehIndividual && badgeStatus(row),
                   React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm" }, "✎"),
+                  React.createElement("button", { onClick: () => excluirItemEstoque(row), disabled: salvando, className: "bsm", title: "Excluir item", style: { color: "var(--red, #c0392b)" } }, "🗑"),
                   aba === "comarcas" && row.status !== "Recolhido" && React.createElement("button", {
                     onClick: () => setConfirmandoRecolherId(row.id),
                     title: "Recolher item",
@@ -10371,6 +10391,7 @@ function PageEstoque() {
               ehIndividual && React.createElement("td", null, badgeStatus(row)),
               React.createElement("td", { style: { whiteSpace: "nowrap" } },
                 React.createElement("button", { onClick: () => abrirEdicao(row), className: "bsm", style: { marginRight: 6 } }, "✎ Editar"),
+                React.createElement("button", { onClick: () => excluirItemEstoque(row), disabled: salvando, className: "bsm", title: "Excluir item", style: { marginRight: 6, color: "var(--red, #c0392b)" } }, "🗑 Excluir"),
                 aba === "comarcas" && row.status !== "Recolhido" && React.createElement("button", {
                   onClick: () => setConfirmandoRecolherId(row.id),
                   style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
