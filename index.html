@@ -9569,23 +9569,31 @@ function PageEstoque() {
         modelo: novoItem.modelo.trim() || null,
         unidade_responsavel: novoItem.unidade_responsavel || null
       };
+      // Cobens/Comarcas são controle INDIVIDUAL (1 linha = 1 equipamento/patrimônio):
+      // quantidade N cria N linhas. Patrimônios podem vir separados por vírgula,
+      // ponto-e-vírgula ou quebra de linha — cada um vai pra uma unidade, na ordem.
+      const patrimonios = String(novoItem.numero_patrimonio || "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+      const qtdInformada = Math.max(0, Math.floor(parseFloat(novoItem.qtde_bem) || 0));
+      const qtdIndividual = Math.max(1, qtdInformada, patrimonios.length);
+      if (qtdIndividual > 500) { alert("Quantidade muito alta para cadastro individual (máx. 500 por vez)."); return; }
+      const linhasIndividuais = Array.from({ length: qtdIndividual }, (_, i) => ({ ...base, numero_patrimonio: patrimonios[i] || null }));
       const promessas = [];
       if (aba === "comarcas") {
         promessas.push(sbFetch(`/estoque_comarcas`, {
           method: "POST",
-          body: JSON.stringify({ ...base, numero_patrimonio: novoItem.numero_patrimonio.trim() || null })
+          body: JSON.stringify(linhasIndividuais)
         }));
       } else {
         if (novoItem.criarEmAmbos || ehIndividual) {
           promessas.push(sbFetch(`/estoque_cobens`, {
             method: "POST",
-            body: JSON.stringify({ ...base, numero_patrimonio: novoItem.numero_patrimonio.trim() || null })
+            body: JSON.stringify(linhasIndividuais)
           }));
         }
         if (novoItem.criarEmAmbos || aba === "cotesi") {
           promessas.push(sbFetch(`/estoque_cotesi`, {
             method: "POST",
-            body: JSON.stringify({ ...base, qtde_bem: parseFloat(novoItem.qtde_bem) || 0 })
+            body: JSON.stringify({ ...base, qtde_bem: (novoItem.criarEmAmbos && ehIndividual) ? qtdIndividual : (parseFloat(novoItem.qtde_bem) || 0) })
           }));
         }
       }
@@ -9978,12 +9986,12 @@ function PageEstoque() {
           )
         ),
         React.createElement("div", null,
-          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio (Cobens)"),
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Nº Patrimônio (se vários, separe por vírgula)"),
           React.createElement("input", { value: novoItem.numero_patrimonio, onChange: e => setNovoItem(n => ({ ...n, numero_patrimonio: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
         ),
         React.createElement("div", null,
-          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, aba === "comarcas" ? "Quantidade (não usado nesta aba)" : "Quantidade (Cotesi)"),
-          React.createElement("input", { type: "number", disabled: aba === "comarcas", value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, ehIndividual ? "Quantidade (cria 1 registro por unidade)" : "Quantidade"),
+          React.createElement("input", { type: "number", min: 1, value: novoItem.qtde_bem, onChange: e => setNovoItem(n => ({ ...n, qtde_bem: e.target.value })), style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } })
         )
       ),
       aba !== "comarcas" && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", marginBottom: 12 } },
