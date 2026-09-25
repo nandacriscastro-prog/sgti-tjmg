@@ -112,6 +112,9 @@ const ANEXO_IV = [
   {id:"diaria",desc:"Diária",unid:"UNID",vu:231.73}
 ];
 const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.89,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60,"RSD":0};
+// Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
+// (com 6 casas, qtd × VU feito à mão bate com o subtotal mostrado) — igual ao sistema principal
+const fmtQtdAnexoIV = (id, q) => Number.isInteger(q) ? String(q) : (id === "diaria" ? q.toFixed(6) : q.toFixed(2));
 const getRsdVu = p => {
   if (p.vu && parseFloat(p.vu) > 0) return parseFloat(p.vu);
   const m = (p.desc || "").match(/R\$\s*([\d.,]+)/);
@@ -264,7 +267,7 @@ async function carregarMedicao(){
       const pecasOS = (r.pecas||[]).filter(p=>p.desc).map(p=>({cod:p.cod, desc:p.desc, vu:p.vu, qtd:parseFloat(p.qtd)||1}));
       osMesDetalhado.push({
         numero: o.numero, comarca: o.comarca, servico: o.servico||o.tipo||"", tipoSistema, regiaoOS,
-        isCorrecaoOS, isColar, kmOS, fracaoBase, fracaoPecasCalc, fracaoDeslocamento, fracaoTotalSalvo,
+        isCorrecaoOS, isColar, isPortalServ, isRaioServ, isPresServ, kmOS, fracaoBase, fracaoPecasCalc, fracaoDeslocamento, fracaoTotalSalvo,
         vuAtend, valorKmOS, valorDiariaOS, matOS, pecas: pecasOS,
         totalOS: vuAtend + valorKmOS + valorDiariaOS + matOS
       });
@@ -282,9 +285,9 @@ async function carregarMedicao(){
     let linhasAnexo = "";
     ANEXO_IV.forEach(it=>{
       const q = qtds[it.id]||0;
-      const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-      const qFmt = Number.isInteger(q) ? q : q.toFixed(2);
-      const subtotalLinha = Number((qArred * it.vu).toFixed(2));
+      // Mesma conta do Total: quantidade com precisão total × VU, em 2 casas — a soma das linhas fecha com "Serviços"
+      const qFmt = fmtQtdAnexoIV(it.id, q);
+      const subtotalLinha = Number((q * it.vu).toFixed(2));
       linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(subtotalLinha)}</td></tr>`;
     });
 
@@ -928,10 +931,11 @@ function exportarDetalhamento() {
   // Totais agregados
   const totalKm = det.reduce((a,d) => a + (d.kmOS||0), 0);
   const totalDiarias = det.reduce((a,d) => a + (d.fracaoTotalSalvo||0), 0);
-  const qtdAlarme = det.filter(d => d.tipoSistema === "Alarme/CFTV/Acesso").length;
-  const qtdPortal = det.filter(d => d.tipoSistema === "Portal detector de metais").length;
-  const qtdRaio   = det.filter(d => d.tipoSistema === "Scanner de raio-X").length;
-  const qtds = { rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:Number(totalDiarias.toFixed(1)) };
+  // Mesma contagem da tela (OS com portal + CFTV conta os dois atendimentos)
+  const qtdAlarme = det.filter(d => d.isPresServ).length;
+  const qtdPortal = det.filter(d => d.isPortalServ).length;
+  const qtdRaio   = det.filter(d => d.isRaioServ).length;
+  const qtds = { rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias };
   const materiaisAcumulados = null; // não disponível no portal
 
   // ---- Aba 1: Resumo ----
@@ -955,13 +959,10 @@ function exportarDetalhamento() {
   const linhasAnexoIV = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
   const vuKmExp = ANEXO_IV.find(a => a.id === "km").vu;
   const vuDiariaExp = ANEXO_IV.find(a => a.id === "diaria").vu;
-  const valorKmAggExp = Number((totalKm * vuKmExp).toFixed(2));
-  const valorDiariaAggExp = Number((Number(totalDiarias.toFixed(1)) * vuDiariaExp).toFixed(2));
   ANEXO_IV.forEach(it => {
     const q = qtds[it.id] || 0;
-    const qArred = Number.isInteger(q) ? q : Number(q.toFixed(2));
-    const subtotalExp = it.id === "km" ? valorKmAggExp : it.id === "diaria" ? valorDiariaAggExp : Number((qArred * it.vu).toFixed(2));
-    linhasAnexoIV.push([it.id, it.desc, it.unid, qArred, brlExp(it.vu), brlExp(subtotalExp)]);
+    const subtotalExp = Number((q * it.vu).toFixed(2));
+    linhasAnexoIV.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, q)), brlExp(it.vu), brlExp(subtotalExp)]);
   });
   linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", brlExp(brutoServicos)]);
   const wsAnexoIV = XLSX.utils.aoa_to_sheet(linhasAnexoIV);
@@ -988,66 +989,52 @@ function exportarDetalhamento() {
   wsOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 10 }];
 
   // ---- Aba 5: Fração de diária por OS ----
-  // IMPORTANTE: mostrar FRAÇÕES (não R$) por OS
+  // Mostra as FRAÇÕES por OS; o valor em R$ é soma das frações × VU (mesma conta da tela)
   const _vuDiaria = ANEXO_IV.find(a=>a.id==="diaria").vu;
   const _vuKmExp  = ANEXO_IV.find(a=>a.id==="km").vu;
   const linhasDiaria = [["Nº OS", "Comarca", "Região", "Fração base+peças", "Km da OS", "Fração deslocamento", "Fração diária total"]];
   det.forEach(d => {
     linhasDiaria.push([d.numero, d.comarca, d.regiaoOS, Number((d.fracaoBase + d.fracaoPecasCalc).toFixed(4)), d.kmOS, Number(d.fracaoDeslocamento.toFixed(4)), Number(d.fracaoTotalSalvo.toFixed(4))]);
   });
-  const _somaFracoesBrutas = totalDiarias;
-  const _fracoes1Casa = Number(_somaFracoesBrutas.toFixed(1));
-  const _totalKmExp = totalKm;
-  const _valorDiariaAgg = Number((_fracoes1Casa * _vuDiaria).toFixed(2));
-  const _valorKmAgg = Number((_totalKmExp * _vuKmExp).toFixed(2));
-  linhasDiaria.push(["", "", "", "", "", "Soma frações brutas →", Number(_somaFracoesBrutas.toFixed(4))]);
-  linhasDiaria.push(["", "", "", "", "", "Arredond. 1 casa decimal →", _fracoes1Casa]);
-  linhasDiaria.push(["", "", "", "", `Km total: ${Number(_totalKmExp.toFixed(2))} km`, `× R$${_vuDiaria} = R$ (diária):`, _valorDiariaAgg]);
-  linhasDiaria.push(["", "", "", "", `× R$${_vuKmExp} = R$ (km):`, _valorKmAgg, ""]);
-  linhasDiaria.push(["⚠ NÃO somar a coluna 'Fração diária total' em R$ — somar as frações acima e multiplicar pelo VU uma vez.", "", "", "", "", "", ""]);
+  linhasDiaria.push(["", "", "", "", "", "Soma das frações →", Number(fmtQtdAnexoIV("diaria", totalDiarias))]);
+  linhasDiaria.push(["", "", "", "", "", `× R$${_vuDiaria} = Valor diária (R$):`, Number((totalDiarias * _vuDiaria).toFixed(2))]);
+  linhasDiaria.push(["", "", "", "", `Km total: ${Number(totalKm.toFixed(2))} km`, `× R$${_vuKmExp} = Valor km (R$):`, Number((totalKm * _vuKmExp).toFixed(2))]);
   const wsDiaria = XLSX.utils.aoa_to_sheet(linhasDiaria);
   wsDiaria["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 24 }, { wch: 18 }];
 
   // ---- Aba 6: Totalizador por OS ----
   const valorDiariaUnit = ANEXO_IV.find(a=>a.id==="diaria").vu;
   const valorKmUnit = ANEXO_IV.find(a=>a.id==="km").vu;
-  const linhasTotalOS = [
-    ["Nº OS", "Comarca", "Serviço", "Valor peças (R$)", "Valor km (R$)", "Diária ref. por OS (R$) ⚠", "Valor atendimento (R$)", "Total gasto na OS (R$)"],
-    ["", "", "", "", "", "⚠ NÃO somar esta coluna — soma das frações × VU (aba Fração diária) é o valor correto", "", ""]
-  ];
-  let totalGeralOS = 0;
+  const linhasTotalOS = [["Nº OS", "Comarca", "Serviço", "Valor peças (R$)", "Valor km (R$)", "Valor diária (R$)", "Valor atendimento (R$)", "Total gasto na OS (R$)"]];
+  const linhasOSTot = det.map(d => ({
+    numero: d.numero, comarca: d.comarca || "", servico: d.servico || "", rota: d.rota || "",
+    valorPecas: Number(((d.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+(p.cod==="RSD"?getRsdVu(p):(PRECO_ANEXO_V[p.cod]||0))*(parseFloat(p.qtd)||1),0)).toFixed(2)),
+    valorKm: Number((d.kmOS * valorKmUnit).toFixed(2)),
+    valorDiaria: Number((d.fracaoTotalSalvo * valorDiariaUnit).toFixed(2)),
+    valorAtend: Number((d.vuAtend || ANEXO_IV.find(a=>a.id==="pres").vu).toFixed(2))
+  }));
+  // Atendimento Remoto é valor fixo mensal (não é uma OS) — linha própria
+  const _vuRemExp = ANEXO_IV.find(a=>a.id==="rem").vu;
+  // Resíduo de arredondamento (centavos entre a soma por OS e o total) vai para a diária da última OS que tem diária — sem linha de "ajuste"
+  const _somaLinhas = linhasOSTot.reduce((a,l) => a + l.valorPecas + l.valorKm + l.valorDiaria + l.valorAtend, 0) + _vuRemExp;
+  const _residuo = Number((bruto - _somaLinhas).toFixed(2));
+  if (linhasOSTot.length && _residuo !== 0) {
+    const _ult = [...linhasOSTot].reverse().find(l => l.valorDiaria > 0) || linhasOSTot[linhasOSTot.length - 1];
+    _ult.valorDiaria = Number((_ult.valorDiaria + _residuo).toFixed(2));
+  }
   const porRota = {};
-  det.forEach(d => {
-    const valorPecas = Number(((d.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+(p.cod==="RSD"?getRsdVu(p):(PRECO_ANEXO_V[p.cod]||0))*(parseFloat(p.qtd)||1),0)).toFixed(2));
-    const valorKmOS = Number((d.kmOS * valorKmUnit).toFixed(2));
-    const valorDiariaOS = Number((d.fracaoTotalSalvo * valorDiariaUnit).toFixed(2));
-    const valorAtend = d.vuAtend || ANEXO_IV.find(a=>a.id==="pres").vu;
-    const totalOS = Number((valorPecas + valorKmOS + valorDiariaOS + valorAtend).toFixed(2));
-    totalGeralOS += totalOS;
-    const rota = d.rota || "";
-    linhasTotalOS.push([d.numero, d.comarca||"", d.servico||"", valorPecas, valorKmOS, valorDiariaOS, Number(valorAtend.toFixed(2)), totalOS]);
-    if (rota) {
-      if (!porRota[rota]) porRota[rota] = { qtdOS:0, valorPecas:0, valorKm:0, valorDiaria:0, valorAtend:0, total:0, comarcas:[] };
-      porRota[rota].qtdOS++;
-      porRota[rota].valorPecas += valorPecas;
-      porRota[rota].valorKm += valorKmOS;
-      porRota[rota].valorDiaria += valorDiariaOS;
-      porRota[rota].valorAtend += valorAtend;
-      porRota[rota].total += totalOS;
-      porRota[rota].comarcas.push(d.comarca);
+  linhasOSTot.forEach(l => {
+    const totalOS = Number((l.valorPecas + l.valorKm + l.valorDiaria + l.valorAtend).toFixed(2));
+    linhasTotalOS.push([l.numero, l.comarca, l.servico, l.valorPecas, l.valorKm, l.valorDiaria, l.valorAtend, totalOS]);
+    if (l.rota) {
+      if (!porRota[l.rota]) porRota[l.rota] = { qtdOS:0, valorPecas:0, valorKm:0, valorDiaria:0, valorAtend:0, total:0, comarcas:[] };
+      const pr = porRota[l.rota];
+      pr.qtdOS++; pr.valorPecas += l.valorPecas; pr.valorKm += l.valorKm; pr.valorDiaria += l.valorDiaria; pr.valorAtend += l.valorAtend; pr.total += totalOS;
+      pr.comarcas.push(l.comarca);
     }
   });
-  // Atendimento Remoto é valor fixo mensal (não é uma OS) — entra como linha própria para o subtotal fechar com o total bruto
-  const _vuRemExp = ANEXO_IV.find(a=>a.id==="rem").vu;
   linhasTotalOS.push(["181-REMOTO", "Belo Horizonte", "Atendimento Remoto (fixo contratual)", 0, 0, 0, _vuRemExp, _vuRemExp]);
-  totalGeralOS += _vuRemExp;
-  const _totalAgregado = bruto;
-  const ajusteArred = Number((_totalAgregado - Number(totalGeralOS.toFixed(2))).toFixed(2));
-  linhasTotalOS.push(["", "", "", "", "", "", "Subtotal soma por OS", Number(totalGeralOS.toFixed(2))]);
-  if (ajusteArred !== 0) {
-    linhasTotalOS.push(["", "", "", "", "", "", "Ajuste de arredondamento (diária)", ajusteArred]);
-  }
-  linhasTotalOS.push(["", "", "", "", "", "", "TOTAL BRUTO CORRETO", _totalAgregado]);
+  linhasTotalOS.push(["", "", "", "", "", "", travado ? "TOTAL GERAL (medição aprovada)" : "TOTAL GERAL", Number(bruto.toFixed(2))]);
   const wsTotalOS = XLSX.utils.aoa_to_sheet(linhasTotalOS);
   wsTotalOS["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 16 }];
 
