@@ -82,7 +82,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 
 ### Itens novos do Anexo V (aditivo) — desde 25/09/2026
 - Adicionados `3.1.14` (Módulo Ethernet Intelbras XE 4000 Smart, R$160,00) e `3.8.9`–`3.8.14` (conversor de mídia, cordões/adaptadores/terminador ópticos, R$132,50–R$395,00) em `PRECO_ANEXO_V`/`ANEXO_V_DESC` (`index.html` **e** `alvo/index.html`) e em `FRAC_D` (`calc-medicao.js`, compartilhado).
-- ⚠️ **`FRAC_D` desses itens foi estimado em 0,125 (mesmo peso dos demais itens de instalação/material avulso do 3.8), por analogia — não veio de um Anexo VI oficial atualizado.** Confirmar com a Fernanda se o aditivo trouxe frações diferentes; se sim, ajustar só em `calc-medicao.js`.
+- `FRAC_D` desses itens **confirmado pela Fernanda em 25/09/2026**: 0,125 para os itens do 3.8.9–3.8.14 (conversor/cordões/adaptador/terminador ópticos); **0,25** para o 3.1.14 (Módulo Ethernet Intelbras XE 4000 Smart).
 - Não têm `ANEXO_V_QTD_CONTRATADA`/`ANEXO_V_VALOR_TOTAL_CONTRATADO` (itens novos, sem quantidade contratada ainda) — Controle de Ativos cai no fallback `qtdContratada = 0` / `valorContratado = qtd × vu`, então "restante" fica negativo assim que usado uma vez. Aceitável por ora; se a Fernanda informar quantidade contratada do aditivo, adicionar essas chaves.
 
 ### Garantia de serviço (90 dias) — aviso, desde 25/09/2026
