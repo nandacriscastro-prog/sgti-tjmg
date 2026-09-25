@@ -115,6 +115,37 @@ const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.
 // Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
 // (com 6 casas, qtd × VU feito à mão bate com o subtotal mostrado) — igual ao sistema principal
 const fmtQtdAnexoIV = (id, q) => Number.isInteger(q) ? String(q) : (id === "diaria" ? q.toFixed(6) : q.toFixed(2));
+// Faz as linhas "por OS" fecharem EXATAMENTE com o total da medição, sem linha de "ajuste de arredondamento":
+// - cada valor é arredondado em 2 casas;
+// - a coluna km fecha com km total × VU (mesma conta do calcular());
+// - a coluna diária recebe o que faltar para o total (centavos de arredondamento, ou a diferença para o valor aprovado se a medição estiver travada).
+// O resíduo vai sempre na última OS que tem valor naquela coluna.
+function fecharLinhasPorOS(linhas, { campoKm, campoDiaria, camposOutros, kmOficial, totalOficial, valorFixo }) {
+  if (!linhas || !linhas.length) return;
+  const r2 = v => Number((Number(v) || 0).toFixed(2));
+  linhas.forEach(l => { [campoKm, campoDiaria, ...camposOutros].forEach(c => { l[c] = r2(l[c]); }); });
+  const jogarResiduo = (campo, alvo) => {
+    const res = r2(alvo - linhas.reduce((a, l) => a + l[campo], 0));
+    if (res === 0) return;
+    const ult = [...linhas].reverse().find(l => l[campo] > 0) || linhas[linhas.length - 1];
+    ult[campo] = r2(ult[campo] + res);
+  };
+  jogarResiduo(campoKm, kmOficial);
+  const outros = linhas.reduce((a, l) => a + l[campoKm] + camposOutros.reduce((b, c) => b + l[c], 0), 0) + (valorFixo || 0);
+  jogarResiduo(campoDiaria, totalOficial - outros);
+}
+// Subtotais das linhas do Anexo IV (qtd × VU em 2 casas). Se totalServicos for informado, a diária é o que completa esse total
+// (só muda algo em medição travada, onde o total de serviços é o aprovado) — assim a soma das linhas sempre fecha com o subtotal.
+const subtotaisAnexoIV = (qtds, totalServicos) => {
+  const sub = {};
+  ANEXO_IV.forEach(it => { sub[it.id] = Number((((qtds || {})[it.id] || 0) * it.vu).toFixed(2)); });
+  if (totalServicos != null) {
+    const outros = ANEXO_IV.filter(it => it.id !== "diaria").reduce((a, it) => a + sub[it.id], 0);
+    sub.diaria = Number((totalServicos - outros).toFixed(2));
+  }
+  return sub;
+};
+const kmOficialMedicao = totalKm => Number(((Number(totalKm) || 0) * ANEXO_IV.find(a => a.id === "km").vu).toFixed(2));
 const getRsdVu = p => {
   if (p.vu && parseFloat(p.vu) > 0) return parseFloat(p.vu);
   const m = (p.desc || "").match(/R\$\s*([\d.,]+)/);
@@ -281,13 +312,16 @@ async function carregarMedicao(){
     const brutoCalc = brutoServicos + brutoMateriais;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
     const travado = _chaveTrava in MEDICOES_TRAVADAS_181;
+    // Medição travada: serviços = valor aprovado − materiais (diferença entra na linha de diária) → Serviços + Materiais = Total
+    const brutoServicosExib = travado ? Number((bruto - brutoMateriais).toFixed(2)) : brutoServicos;
+    const subAnexo = subtotaisAnexoIV(qtds, brutoServicosExib);
 
     let linhasAnexo = "";
     ANEXO_IV.forEach(it=>{
       const q = qtds[it.id]||0;
       // Mesma conta do Total: quantidade com precisão total × VU, em 2 casas — a soma das linhas fecha com "Serviços"
       const qFmt = fmtQtdAnexoIV(it.id, q);
-      const subtotalLinha = Number((q * it.vu).toFixed(2));
+      const subtotalLinha = subAnexo[it.id];
       linhasAnexo += `<tr><td>${it.desc}<div class="muted">${it.unid} · ${fmtR(it.vu)}</div></td><td style="text-align:center">${qFmt}</td><td style="text-align:right">${fmtR(it.vu)}</td><td style="text-align:right;font-weight:700">${fmtR(subtotalLinha)}</td></tr>`;
     });
 
@@ -296,7 +330,8 @@ async function carregarMedicao(){
     // Guarda dados para exportação detalhada
     window._medDetalhamento = osMesDetalhado;
     window._medBruto = bruto;
-    window._medBrutoServicos = brutoServicos;
+    window._medBrutoServicos = brutoServicosExib;
+    window._medTotalKm = totalKm;
     window._medBrutoMateriais = brutoMateriais;
     window._medTravado = travado;
     window._medPeriodo = `${MESES[medMes]}/${medAno}`;
@@ -306,7 +341,7 @@ async function carregarMedicao(){
       ${travado ? `<div style="background:#fff3cd;border:1.5px solid #f5a623;border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:700;color:#7a4f00">🔒 Medição aprovada e travada — valor fixo pelo TJMG</div>` : ""}
       <div class="kpis">
         <div class="kpi"><div class="val">${osMes.length}</div><div class="lbl">OS no período</div></div>
-        <div class="kpi"><div class="val">${fmtR(brutoServicos)}</div><div class="lbl">Serviços (calculado)</div></div>
+        <div class="kpi"><div class="val">${fmtR(brutoServicosExib)}</div><div class="lbl">Serviços</div></div>
         <div class="kpi"><div class="val">${fmtR(brutoMateriais)}</div><div class="lbl">Materiais</div></div>
         <div class="kpi"><div class="val" style="color:var(--navy);font-weight:900">${fmtR(bruto)}</div><div class="lbl">${travado ? "🔒 Total Bruto (aprovado)" : "Total Bruto"}</div></div>
       </div>
@@ -327,7 +362,7 @@ async function carregarMedicao(){
     <div class="card">
       <h3>Total do mês</h3>
       <table>
-        <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicos)}</td></tr>
+        <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicosExib)}</td></tr>
         <tr><td>+ Materiais/equipamentos (peças substituídas)</td><td style="text-align:right;font-weight:700">${fmtR(brutoMateriais)}</td></tr>
         <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Bruto</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(bruto)}</td></tr>
       </table>
@@ -721,6 +756,29 @@ function simLimparTudo(){
   renderSim();
 }
 
+// Totais da simulação com a MESMA conta da medição real (km total × VU, soma das frações × VU)
+// e as linhas por OS fechando exatamente com o total (sem diferença de centavo).
+function simTotais(){
+  let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0;
+  const r2 = v => Number((Number(v)||0).toFixed(2));
+  const linhas = simOS.map(o=>{
+    const c = simCalcularOS(o);
+    if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
+    totalKm += o.km; totalDiarias += c.fracaoTotal;
+    return { o, c, valorDiaria: c.valorDiaria, valorKm: c.valorKm, valorAtendimento: c.valorAtendimento, valorMateriais: r2(c.valorMateriais) };
+  });
+  const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
+  const sub = subtotaisAnexoIV(qtds);
+  const brutoServicos = r2(Object.values(sub).reduce((a,b)=>a+b,0));
+  const brutoMateriais = r2(linhas.reduce((a,l)=>a+l.valorMateriais,0));
+  const brutoTotal = r2(brutoServicos + brutoMateriais);
+  const valorRemoto = ANEXO_IV.find(a=>a.id==="rem").vu;
+  fecharLinhasPorOS(linhas, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorAtendimento", "valorMateriais"], kmOficial: kmOficialMedicao(totalKm), totalOficial: brutoTotal, valorFixo: valorRemoto });
+  const porId = {};
+  linhas.forEach(l => { l.total = r2(l.valorDiaria + l.valorKm + l.valorAtendimento + l.valorMateriais); porId[l.o.id] = l; });
+  return { linhas, porId, qtds, sub, brutoServicos, brutoMateriais, brutoTotal, valorRemoto, totalKm, totalDiarias, qtdAlarme, qtdPortal, qtdRaio };
+}
+
 function simRenderTabela(){
   const elT = document.getElementById("simTabela");
   const elTot = document.getElementById("simTotais");
@@ -737,14 +795,14 @@ function simRenderTabela(){
     if(!grupos[chave]) grupos[chave] = [];
     grupos[chave].push(o);
   });
-  let totalGeral = 0;
+  const T = simTotais();
   let html = "";
   Object.keys(grupos).forEach(rota=>{
     let rows = "";
     let totalRota = 0;
     grupos[rota].forEach(o=>{
-      const c = simCalcularOS(o);
-      totalGeral += c.total;
+      const L = T.porId[o.id];
+      const c = { ...L.c, valorDiaria: L.valorDiaria, valorKm: L.valorKm, valorAtendimento: L.valorAtendimento, valorMateriais: L.valorMateriais, total: L.total };
       totalRota += c.total;
       const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
       rows += `<tr>
@@ -775,8 +833,8 @@ function simRenderTabela(){
     </div>`;
   });
   elT.innerHTML = html;
-  const valorRemoto = ANEXO_IV.find(a=>a.id==="rem").vu;
-  const totalComRemoto = totalGeral + valorRemoto;
+  const valorRemoto = T.valorRemoto;
+  const totalComRemoto = T.brutoTotal;
   let totalPts = 0;
   simOS.forEach(o=>{ totalPts += simCalcPtsGlosa(o).pts; });
   const pct = totalPts <= 10 ? 0 : totalPts <= 20 ? 2 : totalPts <= 30 ? 4 : totalPts <= 40 ? 6 : totalPts <= 50 ? 8 : 10;
@@ -793,18 +851,17 @@ function simRenderTabela(){
 function simExportar(){
   
 
-  // Agregados para Anexo IV e Resumo
-  let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, brutoServicos=0, totalPtsGlosa=0;
+  // Agregados para Anexo IV e Resumo — mesma conta da tela (simTotais), linhas fechando no centavo
+  const T = simTotais();
+  const { qtdAlarme, qtdPortal, qtdRaio, totalKm, totalDiarias, brutoMateriais, valorRemoto } = T;
+  const brutoServicos = T.brutoServicos; // já inclui o Atendimento Remoto
+  const brutoTotal = T.brutoTotal;
+  let totalPtsGlosa = 0;
   const detalheRows = [];
   const pecasRows = [];
   const glosaRows = [];
-  simOS.forEach(o=>{
-    const c = simCalcularOS(o);
-    if(o.sistema==="portal") qtdPortal++; else if(o.sistema==="raio") qtdRaio++; else qtdAlarme++;
-    totalKm += o.km;
-    totalDiarias += c.fracaoTotal;
-    brutoMateriais += c.valorMateriais;
-    brutoServicos += c.valorDiaria + c.valorKm + c.valorAtendimento;
+  T.linhas.forEach(L=>{
+    const o = L.o, c = L.c;
     const g = simCalcPtsGlosa(o);
     if (g.pts > 0) {
       totalPtsGlosa += g.pts;
@@ -816,16 +873,14 @@ function simExportar(){
     detalheRows.push([
       o.rota || "—", o.comarca, regiaoTxt, sistemaTxt, pecasTxt,
       Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), o.km, Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
-      Number(c.valorDiaria.toFixed(2)), Number(c.valorKm.toFixed(2)), Number(c.valorAtendimento.toFixed(2)), Number(c.valorMateriais.toFixed(2)), Number(c.total.toFixed(2))
+      L.valorDiaria, L.valorKm, L.valorAtendimento, L.valorMateriais, L.total
     ]);
     o.pecas.forEach(p=>{
       const vUnit = p.cod==="RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod]||0);
       pecasRows.push([o.rota||"—", o.comarca, `[${p.cod}] ${p.desc}`, p.qtd, Number(vUnit.toFixed(2)), Number((vUnit*p.qtd).toFixed(2))]);
     });
   });
-  const valorRemoto = ANEXO_IV.find(a=>a.id==="rem").vu;
-  brutoServicos += valorRemoto;
-  const brutoTotal = brutoServicos + brutoMateriais;
+  detalheRows.push(["—", "Belo Horizonte", "", "Atendimento Remoto (fixo mensal)", "—", "", "", "", "", "", 0, 0, valorRemoto, 0, valorRemoto]);
   const pctGlosa = totalPtsGlosa <= 10 ? 0 : totalPtsGlosa <= 20 ? 2 : totalPtsGlosa <= 30 ? 4 : totalPtsGlosa <= 40 ? 6 : totalPtsGlosa <= 50 ? 8 : 10;
   const valorGlosa = brutoTotal * (pctGlosa/100);
   const totalLiquido = brutoTotal - valorGlosa;
@@ -836,7 +891,7 @@ function simExportar(){
     [],
     ["Quantidade de OS simuladas", simOS.length],
     ["Km total percorrido", totalKm],
-    ["Soma das frações de diária", Number(totalDiarias.toFixed(3))],
+    ["Soma das frações de diária", Number(fmtQtdAnexoIV("diaria", totalDiarias))],
     [],
     ["Dotação", "Valor (R$)"],
     ["1 - Serviços (atendimento/diária/km)", Number((brutoServicos - valorRemoto).toFixed(2))],
@@ -855,11 +910,10 @@ function simExportar(){
   wsResumo["!merges"] = [{s:{r:0,c:0},e:{r:0,c:1}}];
 
   // ---- Aba 2: Anexo IV - Serviços ----
-  const qtds = {rem:1, pres:qtdAlarme, portal:qtdPortal, raio:qtdRaio, km:totalKm, diaria:totalDiarias};
   const linhasAnexo = [["Item","Descrição","Unidade","Quantidade","Valor unitário (R$)","Subtotal (R$)"]];
   ANEXO_IV.forEach(it=>{
-    const q = qtds[it.id]||0;
-    linhasAnexo.push([it.id, it.desc, it.unid, Number.isInteger(q)?q:Number(q.toFixed(2)), it.vu, Number((q*it.vu).toFixed(2))]);
+    const q = T.qtds[it.id]||0;
+    linhasAnexo.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, q)), it.vu, T.sub[it.id]]);
   });
   linhasAnexo.push(["","","","","Subtotal serviços", Number(brutoServicos.toFixed(2))]);
   const wsAnexo = XLSX.utils.aoa_to_sheet(linhasAnexo);
@@ -898,7 +952,7 @@ function simExportar(){
     const linhasRota = [["Rota/Grupo","Qtd de OS","Comarcas","Total (R$)"]];
     rotasUsadas.forEach(rota=>{
       const itens = simOS.filter(o=>o.rota===rota);
-      const totalRota = itens.reduce((a,o)=>a+simCalcularOS(o).total,0);
+      const totalRota = itens.reduce((a,o)=>a+T.porId[o.id].total,0);
       linhasRota.push([rota, itens.length, [...new Set(itens.map(o=>o.comarca))].join(", "), Number(totalRota.toFixed(2))]);
     });
     const wsRota = XLSX.utils.aoa_to_sheet(linhasRota);
@@ -961,7 +1015,7 @@ function exportarDetalhamento() {
   const vuDiariaExp = ANEXO_IV.find(a => a.id === "diaria").vu;
   ANEXO_IV.forEach(it => {
     const q = qtds[it.id] || 0;
-    const subtotalExp = Number((q * it.vu).toFixed(2));
+    const subtotalExp = subtotaisAnexoIV(qtds, brutoServicos)[it.id];
     linhasAnexoIV.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, q)), brlExp(it.vu), brlExp(subtotalExp)]);
   });
   linhasAnexoIV.push(["", "", "", "", "Subtotal serviços", brlExp(brutoServicos)]);
@@ -1015,13 +1069,8 @@ function exportarDetalhamento() {
   }));
   // Atendimento Remoto é valor fixo mensal (não é uma OS) — linha própria
   const _vuRemExp = ANEXO_IV.find(a=>a.id==="rem").vu;
-  // Resíduo de arredondamento (centavos entre a soma por OS e o total) vai para a diária da última OS que tem diária — sem linha de "ajuste"
-  const _somaLinhas = linhasOSTot.reduce((a,l) => a + l.valorPecas + l.valorKm + l.valorDiaria + l.valorAtend, 0) + _vuRemExp;
-  const _residuo = Number((bruto - _somaLinhas).toFixed(2));
-  if (linhasOSTot.length && _residuo !== 0) {
-    const _ult = [...linhasOSTot].reverse().find(l => l.valorDiaria > 0) || linhasOSTot[linhasOSTot.length - 1];
-    _ult.valorDiaria = Number((_ult.valorDiaria + _residuo).toFixed(2));
-  }
+  // Linhas fecham exatamente com o total da medição — sem linha de "ajuste"
+  fecharLinhasPorOS(linhasOSTot, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorPecas", "valorAtend"], kmOficial: kmOficialMedicao(totalKm), totalOficial: bruto, valorFixo: _vuRemExp });
   const porRota = {};
   linhasOSTot.forEach(l => {
     const totalOS = Number((l.valorPecas + l.valorKm + l.valorDiaria + l.valorAtend).toFixed(2));
@@ -1055,23 +1104,26 @@ function exportarDetalhamento() {
     "Valor diária (fração×R$)", "Valor km (km×R$)", "Valor atendimento",
     "Valor materiais/peças (R$)", "TOTAL DA OS (R$)"
   ]];
-  det.forEach(d => {
-    const fracaoBase = d.fracaoBase || 0;
-    const fracaoPecas = d.fracaoPecasCalc || 0;
-    const kmOS = d.kmOS || 0;
-    const valorKmOS = kmOS * vuKmExp;
-    const valorDiariaOS = (d.fracaoTotalSalvo || 0) * vuDiariaExp;
-    const valorAtendOS = d.vuAtend || ANEXO_IV.find(a=>a.id==="pres").vu;
-    const valorMatOS = d.matOS || 0;
-    const totalOS = valorDiariaOS + valorKmOS + valorAtendOS + valorMatOS;
+  const detLinhas = det.map(d => ({
+    d, kmOS: d.kmOS || 0,
+    valorKmOS: (d.kmOS || 0) * vuKmExp,
+    valorDiariaOS: (d.fracaoTotalSalvo || 0) * vuDiariaExp,
+    valorAtendOS: d.vuAtend || ANEXO_IV.find(a=>a.id==="pres").vu,
+    valorMatOS: d.matOS || 0
+  }));
+  // Colunas de valor fecham exatamente com o total da medição (sem diferença de centavo)
+  fecharLinhasPorOS(detLinhas, { campoKm: "valorKmOS", campoDiaria: "valorDiariaOS", camposOutros: ["valorAtendOS", "valorMatOS"], kmOficial: kmOficialMedicao(totalKm), totalOficial: bruto, valorFixo: ANEXO_IV.find(a=>a.id==="rem").vu });
+  detLinhas.forEach(({ d, kmOS, valorKmOS, valorDiariaOS, valorAtendOS, valorMatOS }) => {
     linhasDetCompleto.push([
       d.numero, d.comarca||"", d.regiaoOS||"", d.servico||"",
-      Number(fracaoBase.toFixed(4)), Number(fracaoPecas.toFixed(4)),
+      Number((d.fracaoBase || 0).toFixed(4)), Number((d.fracaoPecasCalc || 0).toFixed(4)),
       kmOS, Number((d.fracaoDeslocamento||0).toFixed(4)), Number((d.fracaoTotalSalvo||0).toFixed(4)),
-      Number(valorDiariaOS.toFixed(2)), Number(valorKmOS.toFixed(2)), Number(valorAtendOS.toFixed(2)),
-      Number(valorMatOS.toFixed(2)), Number(totalOS.toFixed(2))
+      valorDiariaOS, valorKmOS, valorAtendOS, valorMatOS,
+      Number((valorDiariaOS + valorKmOS + valorAtendOS + valorMatOS).toFixed(2))
     ]);
   });
+  linhasDetCompleto.push(["181-REMOTO", "Belo Horizonte", "", "Atendimento Remoto (fixo contratual)", "", "", "", "", "", 0, 0, ANEXO_IV.find(a=>a.id==="rem").vu, 0, ANEXO_IV.find(a=>a.id==="rem").vu]);
+  linhasDetCompleto.push(["", "", "", "", "", "", "", "", "", "", "", "", travado ? "TOTAL GERAL (medição aprovada)" : "TOTAL GERAL", Number(bruto.toFixed(2))]);
   const wsDetCompleto = XLSX.utils.aoa_to_sheet(linhasDetCompleto);
   wsDetCompleto["!cols"] = [
     { wch: 9 }, { wch: 24 }, { wch: 18 }, { wch: 20 },
