@@ -726,6 +726,25 @@ function classificarRegiao181(comarca) {
   if (COLAR_METROPOLITANO_PROPRIO.has(mun)) return "Colar";
   return "Interior";
 }
+// Badges de região (RM/Colar/Interior) e rota — mesmo visual do "Fechar OS" da Medição.
+// Usado no Histórico. opts.semRota: não mostra o badge de rota (ex.: lista já agrupada por rota).
+function badgesRegiaoRota(o, opts = {}) {
+  const mun = (o.comarca || "").split(" - ")[0];
+  if (!mun) return null;
+  const regiao3 = (o.contrato || "") === "181/2026" ? classificarRegiao181(mun) : (COLAR_CIDADES.has(mun) ? "Colar" : "Interior");
+  const b = {
+    RM: { cor: "#1b8a5a", bg: "#e2f5ea", txt: "🏙️ Região Metropolitana" },
+    Colar: { cor: "#b8860b", bg: "#fff8e6", txt: "🌆 Colar Metropolitano" },
+    Interior: { cor: "#2563eb", bg: "#e8f0fe", txt: "📍 Interior" }
+  }[regiao3];
+  const mRota = /Rota:\s*([^|\n<]+)/i.exec(o.observacoes || "");
+  const rota = mRota ? mRota[1].trim() : null;
+  const pill = (cor, bg, txt) => React.createElement("span", { style: { fontSize: 10.5, fontWeight: 700, color: cor, background: bg, padding: "2px 7px", borderRadius: 99, whiteSpace: "nowrap" } }, txt);
+  return React.createElement("span", { style: { display: "inline-flex", gap: 5, flexWrap: "wrap", alignItems: "center" } },
+    pill(b.cor, b.bg, b.txt),
+    !opts.semRota && rota && pill("#7c3aed", "#f3ecfd", "🛣️ " + rota)
+  );
+}
 const COLAR_CIDADES = new Set(["Baldim", "Barão de Cocais", "Belo Horizonte", "Belo Vale", "Betim", "Brumadinho", "Caeté", "Contagem", "Esmeraldas", "Ibirité", "Igarapé", "Itabirito", "Itaguara", "Jaboticatubas", "Juatuba", "Lagoa Santa", "Mateus Leme", "Matozinhos", "Nova Lima", "Pedro Leopoldo", "Raposos", "Ribeirão das Neves", "Rio Acima", "Sabará", "Santa Bárbara", "Santa Luzia", "Sarzedo", "Sete Lagoas", "Vespasiano"]);
 const TEL_SLA = {
   "318/2023": [{
@@ -4710,7 +4729,8 @@ function PageHistorico({
       },
         React.createElement("div", null,
           React.createElement("strong", null, "OS " + o.numero), " — ", o.comarca || "—", " — ",
-          React.createElement("span", { className: "text-muted" }, (o.servico || "—").substring(0, 60))
+          React.createElement("span", { className: "text-muted" }, (o.servico || "—").substring(0, 60)),
+          React.createElement("div", { style: { marginTop: 3 } }, badgesRegiaoRota(o, { semRota: true }))
         ),
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } },
           React.createElement("span", { className: `badge ${stColor[o.status || "Concluída"] || "bg-gray"}` }, o.status || "Concluída"),
@@ -4835,7 +4855,7 @@ function PageHistorico({
     }
   }, o.comarca || "—"), /*#__PURE__*/React.createElement("div", {
     className: "text-sm text-muted"
-  }, o.forum || "")), /*#__PURE__*/React.createElement("td", {
+  }, o.forum || ""), React.createElement("div", { style: { marginTop: 3 } }, badgesRegiaoRota(o))), /*#__PURE__*/React.createElement("td", {
     style: {
       maxWidth: 240,
       overflow: "hidden",
