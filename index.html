@@ -9158,6 +9158,8 @@ function PageEstoque() {
   const [resultadoImport, setResultadoImport] = useState(null);
   const [novoItem, setNovoItem] = useState({ codigo_item: "", item_material: "", marca: "", modelo: "", numero_patrimonio: "", qtde_bem: "1", criarEmAmbos: true, unidade_responsavel: "" });
   const [salvandoNovo, setSalvandoNovo] = useState(false);
+  const [contagemGrupos, setContagemGrupos] = useState({}); // "item||codigo" -> {total, indisp, enviados} contados no BANCO (não só na página)
+  const [loteEditando, setLoteEditando] = useState(null); // {chave, grupo, form:{...}, soDisponiveis}
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
   const [buscaFiltro, setBuscaFiltro] = useState("");
   const [grupoAberto, setGrupoAberto] = useState(null);
@@ -9237,11 +9239,112 @@ function PageEstoque() {
       setDados(rows || []);
       setTemMais((rows || []).length === LIMITE);
       setOffset(off);
+      carregarContagemGrupos(rows || []);
     } catch (e) {
       setMsg("Erro ao carregar: " + e.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // A lista é paginada (LIMITE por página), então um grupo grande (ex.: 427 unidades) fica
+  // espalhado em várias páginas. Esta função conta no banco o total real de cada grupo da página.
+  const carregarContagemGrupos = async rows => {
+    try {
+      const codigos = [...new Set(rows.map(r => r.codigo_item).filter(c => c != null && c !== ""))];
+      if (!codigos.length) { setContagemGrupos({}); return; }
+      const mapa = {};
+      for (let i = 0; i < codigos.length; i += 40) {
+        const lote = codigos.slice(i, i + 40).map(c => `"${String(c).replace(/"/g, '\\"')}"`).join(",");
+        const campos = ehIndividual ? "codigo_item,item_material,status" : "codigo_item,item_material,qtde_bem";
+        for (let off = 0, voltas = 0; voltas < 50; off += 1000, voltas++) {
+          const parte = await sbFetch(`/${tabela}?select=${campos}&codigo_item=in.(${encodeURIComponent(lote)})&order=id.asc&limit=1000&offset=${off}`);
+          (parte || []).forEach(r => {
+            const k = (r.item_material || "—") + "||" + (r.codigo_item || "");
+            if (!mapa[k]) mapa[k] = { total: 0, indisp: 0, enviados: 0, qtde: 0 };
+            mapa[k].total++;
+            if (ehIndividual && r.status === statusIndisponivel) mapa[k].indisp++;
+            if (ehIndividual && r.status === "Enviado") mapa[k].enviados++;
+            if (!ehIndividual) mapa[k].qtde += parseFloat(r.qtde_bem) || 0;
+          });
+          if (!parte || parte.length < 1000) break;
+        }
+      }
+      setContagemGrupos(mapa);
+    } catch (e) {
+      setContagemGrupos({});
+    }
+  };
+
+  const abrirLote = grupo => {
+    const r0 = grupo.itens[0] || {};
+    setLoteEditando({
+      chave: grupo.nomeCompleto + "||" + grupo.codigo, grupo, soDisponiveis: false,
+      form: { codigo_item: r0.codigo_item || "", item_material: r0.item_material || "", marca: r0.marca || "", modelo: r0.modelo || "", unidade_responsavel: r0.unidade_responsavel || "" }
+    });
+  };
+  const salvarLote = async () => {
+    if (!loteEditando) return;
+    const { grupo, form, soDisponiveis } = loteEditando;
+    const r0 = grupo.itens[0] || {};
+    const mudancas = {};
+    ["codigo_item", "item_material", "marca", "modelo", "unidade_responsavel"].forEach(k => {
+      const novo = String(form[k] ?? "").trim();
+      const antigo = String(r0[k] ?? "").trim();
+      if (novo !== antigo) mudancas[k] = novo || null;
+    });
+    if (!mudancas.codigo_item && mudancas.codigo_item !== undefined) { alert("O código do item não pode ficar vazio."); return; }
+    if (!mudancas.item_material && mudancas.item_material !== undefined) { alert("A especificação não pode ficar vazia."); return; }
+    if (!Object.keys(mudancas).length) { alert("Nenhum campo foi alterado."); return; }
+    let filtro = `codigo_item=eq.${encodeURIComponent(grupo.codigo || "")}&item_material=eq.${encodeURIComponent(grupo.nomeCompleto || "")}`;
+    if (ehIndividual && soDisponiveis) filtro += `&or=(status.is.null,status.neq.${encodeURIComponent(statusIndisponivel)})`;
+    const cont = contagemGrupos[(grupo.nomeCompleto || "—") + "||" + (grupo.codigo || "")];
+    const qtdAfetada = cont ? (ehIndividual && soDisponiveis ? cont.total - cont.indisp : cont.total) : grupo.itens.length;
+    const resumo = Object.entries(mudancas).map(([k, v]) => "• " + k.replace("_", " ") + ": " + (v || "(vazio)")).join("\n");
+    if (!confirm(`Aplicar em ${qtdAfetada} registro${qtdAfetada === 1 ? "" : "s"} de "${grupo.nome}"${ehIndividual && soDisponiveis ? " (só disponíveis)" : ""}?\n\n${resumo}`)) return;
+    setSalvando(true);
+    try {
+      await sbFetch(`/${tabela}?${filtro}`, { method: "PATCH", body: JSON.stringify({ ...mudancas, atualizado_em: new Date().toISOString() }) });
+      toast("Lote atualizado.");
+      setLoteEditando(null);
+      setGrupoAberto(null);
+      carregar(offset);
+      carregarOpcoes();
+    } catch (e) {
+      alert("Erro ao editar lote: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const renderFormLote = () => {
+    const f = loteEditando.form;
+    const setF = (k, v) => setLoteEditando(l => ({ ...l, form: { ...l.form, [k]: v } }));
+    const inp = (k, label) => React.createElement("div", { key: k },
+      React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, label),
+      React.createElement("input", { value: f[k], onChange: e => setF(k, e.target.value), style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } }));
+    return React.createElement("div", { style: { padding: 12, background: "#fff8e6", borderBottom: "1px solid var(--border)" }, onClick: e => e.stopPropagation() },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 8 } }, "✎ Editar lote — altera todas as unidades deste grupo de uma vez"),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 8 } },
+        inp("codigo_item", "Código Item"), inp("item_material", "Especificação"), inp("marca", "Marca"), inp("modelo", "Modelo"),
+        React.createElement("div", null,
+          React.createElement("label", { style: { fontSize: 11, color: "var(--text3)" } }, "Unidade Responsável"),
+          React.createElement("select", { value: f.unidade_responsavel, onChange: e => setF("unidade_responsavel", e.target.value), style: { width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 } },
+            React.createElement("option", { value: "" }, "— Nenhuma —"),
+            f.unidade_responsavel && !unidadesEstoque.some(u => u.codigo_unidade + " - " + u.nome === f.unidade_responsavel) && React.createElement("option", { value: f.unidade_responsavel }, f.unidade_responsavel),
+            unidadesEstoque.map(u => React.createElement("option", { key: u.id, value: u.codigo_unidade + " - " + u.nome }, u.codigo_unidade + " - " + u.nome))
+          )
+        )
+      ),
+      ehIndividual && React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginBottom: 8, cursor: "pointer" } },
+        React.createElement("input", { type: "checkbox", checked: loteEditando.soDisponiveis, onChange: e => setLoteEditando(l => ({ ...l, soDisponiveis: e.target.checked })) }),
+        "Aplicar só nas unidades disponíveis (não mexer nas " + (aba === "comarcas" ? "recolhidas" : "enviadas") + ")"),
+      React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginBottom: 8 } }, "Só os campos que você alterar serão gravados. Patrimônio e status de cada unidade não mudam."),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: () => setLoteEditando(null), disabled: salvando }, "Cancelar"),
+        React.createElement("button", { onClick: salvarLote, disabled: salvando, style: { background: "var(--green)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, salvando ? "Salvando..." : "💾 Aplicar no lote")
+      )
+    );
   };
 
   useEffect(() => { carregar(0); setGrupoAberto(null); setFiltroEquip([]); setFiltroMarcas([]); setFiltroModelos([]); setFiltroBaixoAtivo(false); carregarOpcoes(); }, [aba]);
@@ -10287,8 +10390,10 @@ function PageEstoque() {
 
     modoView === "cartoes" ? React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 } },
       grupos.map(grupo => {
-        const disp = grupo.itens.filter(r => aba === "cotesi" || r.status !== statusIndisponivel).length;
-        const env = ehIndividual ? grupo.itens.filter(r => r.status === "Enviado").length : 0;
+        const contG = contagemGrupos[(grupo.nomeCompleto || "—") + "||" + (grupo.codigo || "")];
+        const disp = contG ? contG.total - contG.indisp : grupo.itens.filter(r => aba === "cotesi" || r.status !== statusIndisponivel).length;
+        const env = ehIndividual ? (contG ? contG.enviados : grupo.itens.filter(r => r.status === "Enviado").length) : 0;
+        const totalGrupo = contG ? contG.total : grupo.itens.length;
         const chaveGrupo = grupo.nomeCompleto + "||" + grupo.codigo;
         const aberto = grupoAberto === chaveGrupo;
         return React.createElement("div", { key: chaveGrupo, className: "card", style: { padding: 0, overflow: "hidden" } },
@@ -10303,7 +10408,7 @@ function PageEstoque() {
             React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 4 } }, "Código " + grupo.codigo),
             React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" } },
               aba === "cotesi"
-                ? React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--navy)" } }, "Qtde total: " + grupo.itens.reduce((a, r) => a + (parseFloat(r.qtde_bem) || 0), 0))
+                ? React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--navy)" } }, "Qtde total: " + (contG ? contG.qtde : grupo.itens.reduce((a, r) => a + (parseFloat(r.qtde_bem) || 0), 0)))
                 : React.createElement(React.Fragment, null,
                     React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#1b8a5a", background: "#e2f5ea", padding: "3px 9px", borderRadius: 99 } }, disp + " disponível" + (disp === 1 ? "" : "eis")),
                     env > 0 && React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#2563eb", background: "#e8f0fe", padding: "3px 9px", borderRadius: 99 } }, env + " enviado" + (env === 1 ? "" : "s"))
@@ -10311,10 +10416,17 @@ function PageEstoque() {
             )
           ),
           aberto && React.createElement("div", { style: { borderTop: "1px solid var(--border)", background: "var(--surface)" } },
-            ehIndividual && React.createElement("div", { style: { padding: "8px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 } },
-              React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, grupo.itens.length + " unidade" + (grupo.itens.length === 1 ? "" : "s") + " neste grupo"),
-              React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); ajustarQuantidadeGrupo(grupo); } }, "✎ Editar quantidade")
+            React.createElement("div", { style: { padding: "8px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+              React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } },
+                ehIndividual
+                  ? (totalGrupo + " unidade" + (totalGrupo === 1 ? "" : "s") + " no total" + (grupo.itens.length < totalGrupo ? " · " + grupo.itens.length + " listada" + (grupo.itens.length === 1 ? "" : "s") + " nesta página (use Próxima → para ver as demais)" : ""))
+                  : (totalGrupo + " registro" + (totalGrupo === 1 ? "" : "s"))),
+              React.createElement("div", { style: { display: "flex", gap: 6 } },
+                React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); loteEditando && loteEditando.chave === chaveGrupo ? setLoteEditando(null) : abrirLote(grupo); } }, "✎ Editar lote"),
+                ehIndividual && React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); ajustarQuantidadeGrupo(grupo); } }, "± Editar quantidade")
+              )
             ),
+            loteEditando && loteEditando.chave === chaveGrupo && renderFormLote(),
             grupo.itens.map(row => React.createElement("div", { key: row.id, style: { padding: "10px 16px", borderBottom: "1px solid var(--border)" } },
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
