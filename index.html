@@ -9335,6 +9335,51 @@ function PageEstoque() {
 
   const buscar = () => carregar(0);
 
+  // Cobens/Comarcas: cada linha é 1 unidade, então "editar quantidade" = criar ou remover unidades do grupo.
+  // Ao diminuir, só remove unidades DISPONÍVEIS e SEM patrimônio (nunca apaga item enviado/recolhido ou patrimoniado).
+  const ajustarQuantidadeGrupo = async grupo => {
+    try {
+      const filtro = `codigo_item=eq.${encodeURIComponent(grupo.codigo || "")}&item_material=eq.${encodeURIComponent(grupo.nomeCompleto || "")}`;
+      const todas = await sbFetch(`/${tabela}?${filtro}&select=id,codigo_item,item_material,marca,modelo,unidade_responsavel,numero_patrimonio,status&order=id.asc`);
+      const atual = todas.length;
+      const resp = prompt(`"${grupo.nome}" tem hoje ${atual} unidade${atual === 1 ? "" : "s"} no estoque ${nomeAba}.\n\nInforme a nova quantidade total:`, String(atual));
+      if (resp === null) return;
+      const nova = Math.floor(Number(String(resp).replace(",", ".")));
+      if (!Number.isFinite(nova) || nova < 0) { alert("Quantidade inválida."); return; }
+      if (nova === atual) return;
+      setSalvando(true);
+      if (nova > atual) {
+        const qtdNovas = nova - atual;
+        if (qtdNovas > 500) { alert("Máximo de 500 unidades novas por vez."); return; }
+        const modelo = todas[0] || { codigo_item: grupo.codigo, item_material: grupo.nomeCompleto };
+        const linhas = Array.from({ length: qtdNovas }, () => ({
+          codigo_item: modelo.codigo_item, item_material: modelo.item_material,
+          marca: modelo.marca || null, modelo: modelo.modelo || null,
+          unidade_responsavel: modelo.unidade_responsavel || null, numero_patrimonio: null
+        }));
+        await sbFetch(`/${tabela}`, { method: "POST", body: JSON.stringify(linhas) });
+        toast(`${qtdNovas} unidade${qtdNovas === 1 ? "" : "s"} adicionada${qtdNovas === 1 ? "" : "s"}. Total agora: ${nova}.`);
+      } else {
+        const remover = atual - nova;
+        const candidatas = todas.filter(r => r.status !== statusIndisponivel && r.status !== "Enviado" && !String(r.numero_patrimonio || "").trim()).reverse();
+        if (candidatas.length < remover) {
+          alert(`Não dá para reduzir para ${nova} automaticamente.\n\nSó ${candidatas.length} unidade(s) estão disponíveis e sem nº de patrimônio — essas são as únicas que o sistema remove sozinho, para não apagar item enviado, recolhido ou patrimoniado.\n\nPara as demais, abra o cartão e trate a unidade específica.`);
+          return;
+        }
+        if (!confirm(`Remover ${remover} unidade${remover === 1 ? "" : "s"} disponíve${remover === 1 ? "l" : "is"} e sem patrimônio de "${grupo.nome}"?\n\nTotal passa de ${atual} para ${nova}. Isso não pode ser desfeito.`)) return;
+        const ids = candidatas.slice(0, remover).map(r => r.id);
+        await sbFetch(`/${tabela}?id=in.(${ids.join(",")})`, { method: "DELETE" });
+        toast(`${remover} unidade${remover === 1 ? "" : "s"} removida${remover === 1 ? "" : "s"}. Total agora: ${nova}.`);
+      }
+      carregar(offset);
+      carregarOpcoes();
+    } catch (e) {
+      alert("Erro ao ajustar quantidade: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const abrirEdicao = row => {
     setEditandoId(row.id);
     setEditForm({ ...row });
@@ -10247,6 +10292,10 @@ function PageEstoque() {
             )
           ),
           aberto && React.createElement("div", { style: { borderTop: "1px solid var(--border)", background: "var(--surface)" } },
+            ehIndividual && React.createElement("div", { style: { padding: "8px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 } },
+              React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, grupo.itens.length + " unidade" + (grupo.itens.length === 1 ? "" : "s") + " neste grupo"),
+              React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); ajustarQuantidadeGrupo(grupo); } }, "✎ Editar quantidade")
+            ),
             grupo.itens.map(row => React.createElement("div", { key: row.id, style: { padding: "10px 16px", borderBottom: "1px solid var(--border)" } },
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
