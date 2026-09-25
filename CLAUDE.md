@@ -91,21 +91,21 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - Em Histórico, OS **Concluída** tem botão "🛡️ Marcar como exceção" / "✕ Remover exceção" (autorização do coordenador).
 - Grava o marcador `[SLA_EXCECAO]` dentro de `observacoes` (sem mudança de schema). `calcPtsAutoOS` retorna `pts: 0, excecao: true` para essas OS; a Medição lista as exceções no bloco de SLA ("Exceções SLA autorizadas pelo coordenador").
 
-## Arredondamento — estado atual (⚠️ inconsistente, precisa decisão da Fernanda)
+## Arredondamento — regra em uso (24/09/2026)
 
-A "regra final consolidada" de 02/09 (diária = fração agregada arredondada em **1 casa** × R$231,73; km = soma por OS) **não vale mais para todas as telas**. Estado do código em 24/09/2026:
+Método do `calcular()` (tela Medição), que é o que vale para o valor da medição — Set/2026 = R$ 127.302,28 no sistema e no Alvo:
+- **Km:** km total do período × R$2,95, arredondado em 2 casas.
+- **Diária:** soma das frações de todas as OS (**precisão total, sem arredondar em 1 casa**) × R$231,73, arredondado em 2 casas.
+- **Demais itens do Anexo IV:** qtd × VU, arredondado em 2 casas. Subtotal serviços = soma dessas linhas.
 
-| Onde | Km | Diária |
-|---|---|---|
-| `calcular()` (tela Medição → Resumo/Total Líquido) e `medicaoResumo` | **agregado**: km total × R$2,95, arredondado em 2 casas | **agregado sem arredondar a fração**: soma das frações (precisão total) × R$231,73, arredondado em 2 casas |
-| Planilha SEI (`gerarPlanilhaSEI`) quando **não** travada | soma por OS (cada linha em 2 casas) | **soma por OS** (cada `fração × VU` em 2 casas) |
-| Exportar Excel — aba "Fração diária" e "Total por OS" | mostra km total × VU | mostra soma das frações **arredondada em 1 casa** × VU e manda "não somar R$ por OS"; o TOTAL BRUTO CORRETO exibido = `resultado.bruto` + linha "Ajuste de arredondamento" |
-| Portal Alvo (`carregarMedicao`) | agregado (igual `calcular()`) | agregado sem 1 casa (igual `calcular()`); exportação do Alvo usa 1 casa na aba Anexo IV |
-| Controle de Ativos / Item 4 da SEI (consumo acumulado) | soma por OS (`kmValor`) | 4 casas |
+**Sem "ajuste de 1 centavo" (pedido da Fernanda, 24/09):** telas e planilhas têm que fechar exatamente, sem linha de ajuste.
+- Tabela Anexo IV (tela da Medição, aba "Anexo IV - Serviços" do Excel, tela e exportação do Alvo): cada linha = `Number((q * vu).toFixed(2))` com a quantidade **sem arredondar** → a soma das linhas é exatamente o Subtotal. A quantidade é exibida com `fmtQtdAnexoIV()` (km 2 casas, diária **6 casas**) para que qtd × VU feito à mão dê o mesmo valor.
+- Aba "Fração diária": soma das frações (6 casas) × VU — mesmo valor da linha de diária do Anexo IV. As linhas antigas "Arredond. 1 casa decimal" e o aviso "NÃO somar" foram removidos.
+- Aba "Total por OS" (sistema e Alvo): tem linha `181-REMOTO` (fixo mensal) e o resíduo de centavos entre a soma por OS e `resultado.bruto` é **absorvido na diária da última OS que tem diária** — não existe mais linha "Ajuste de arredondamento". Última linha: "TOTAL GERAL" (ou "TOTAL GERAL (medição aprovada)" quando travado) = `resultado.bruto`. Em período travado, o resíduo inclui a diferença para o valor aprovado (Ago/2026: R$ 1,12).
+- Planilha SEI / Atestados: mesma ideia (última linha absorve o resíduo) — não mexido nesta rodada.
+- Controle de Ativos / Item 4 da SEI (consumo acumulado): km soma por OS (`kmValor`), demais 4 casas.
 
-**Regra de trabalho:** antes de mexer em qualquer arredondamento, perguntar à Fernanda qual é o método oficial e aplicar em **todos** os lugares da tabela acima (+ Alvo). Não "corrigir" só um deles. Enquanto os períodos aprovados estiverem em `MEDICOES_TRAVADAS_181`, a diferença não afeta o valor final deles.
-
-- Tabelas que mostram linha por OS (Medição Global, Total por OS) reconciliam com o total agregado: a última linha absorve o resíduo (SEI/Atestado) ou aparece uma linha "Ajuste de arredondamento" (Excel).
+**Regra de trabalho:** se a Fernanda definir outro método (ex.: diária em 1 casa), mudar em `calcular()`, `medicaoResumo`, Lançamento Manual, SEI, tela/exportação e **Alvo** ao mesmo tempo — e continuar sem linha de ajuste.
 - `ANEXO_V_VALOR_TOTAL_CONTRATADO`: usar sempre esse valor oficial por item, nunca recalcular qtd×preço.
 
 ## Telas principais
@@ -203,7 +203,7 @@ Um bug real quebrou links de anexo compartilhados: o fluxo de "Rota" juntava tex
 
 1. 🚨 **`service_role` key no `index.html`** — ver seção Segurança. Prioridade máxima.
 2. ~~Alvo desatualizado~~ — **resolvido em 24/09/2026**: Correção cobrando como presencial (Medição, Simulação e exportação), atendimento portal+presencial somado, RSD valorado nas abas de peças/total por OS, e linha `181-REMOTO` na aba "Total por OS" do Alvo. Conferido com dados reais: Set/2026 = R$ 127.302,28 nos dois (antes o Alvo mostrava 126.902,49 por causa da OS 181-62-R).
-3. **Arredondamento inconsistente** entre `calcular()`, SEI e exportação — ver tabela na seção de Arredondamento.
+3. Arredondamento: tela e exportação Excel (sistema e Alvo) alinhadas ao `calcular()` e sem linha de ajuste em 24/09. Falta só confirmar se a Planilha SEI (quando não travada) deve seguir o mesmo método — hoje ela soma km/diária por OS.
 4. **Lógica de cálculo repetida** em muitos blocos do `index.html` (Dashboard, `calcular()`, `medicaoResumo` da Medição, `PageLancamentoManual`, Controle de Ativos, SEI item 4, Atestado, exportação) + Alvo. `calcularFracaoOS()` em `calc-medicao.js` existe mas não é usada — ela ainda tem a regra antiga (zera Correção, sem base 2,0 de portal+presencial). Ou atualizar e passar a usar em todos os blocos, ou apagar pra não confundir.
 5. `<br>` em `observacoes` na criação de OS de Correção (ver seção acima).
 6. Variáveis `osMedidasRaw1/2`, `osMesRaw` são só aliases (`osMedidas = osMedidasRaw1`) — sobra de um filtro removido; podem ser simplificadas.

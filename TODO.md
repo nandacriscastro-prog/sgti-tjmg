@@ -27,7 +27,8 @@ Backlog rastreável no git. Ver `CLAUDE.md` para contexto/arquitetura completos.
 - [x] Avaliação por sistema + avaliação parcial (22–24/09)
 - [x] Correção cobrando igual a presencial no sistema principal (24/09)
 - [x] Medição de Agosto/2026 travada em R$ 49.453,60 (`MEDICOES_TRAVADAS_181`) (24/09)
-- [ ] Definir com a Fernanda o método oficial de arredondamento (km/diária) e aplicar igual em `calcular()`, SEI, exportação e Alvo
+- [x] Exportação Excel e tabela Anexo IV (sistema e Alvo) fechando exatamente com o total, sem linha de "ajuste de arredondamento" (24/09)
+- [ ] Confirmar se a Planilha SEI (não travada) deve usar o mesmo método do `calcular()` (hoje soma km/diária por OS)
 - [x] Sincronizar Alvo: Correção cobrando como presencial; atendimento somado portal+presencial; RSD nas abas de peças/total por OS; linha 181-REMOTO no Total por OS (24/09 — Set/2026 = 127.302,28 nos dois)
 - [ ] Trocar `join("<br>")` por `"\n"` na criação de OS de Correção (`PageAvaliacao`, `PageMedicao`, `PageLancamentoManual`)
 
