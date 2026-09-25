@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790339196 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790345109 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -569,7 +569,7 @@ const STORAGE_MED = "geasi_medicoes_hist";
 const PRECO_ANEXO_V = {
   "3.1.1": 143.70, "3.1.2": 211.93, "3.1.3": 798.73, "3.1.4": 453.23, "3.1.5": 115.11,
   "3.1.6": 738.21, "3.1.7": 83.06, "3.1.8": 87.99, "3.1.9": 178.37, "3.1.10": 79.19,
-  "3.1.11": 359.40, "3.1.12": 119.21, "3.1.13": 502.12,
+  "3.1.11": 359.40, "3.1.12": 119.21, "3.1.13": 502.12, "3.1.14": 160.00,
   "3.2.1": 690.86, "3.2.2": 1360.08, "3.2.3": 116.89, "3.2.4": 164.59, "3.2.5": 180.97, "3.2.6": 155.81,
   "3.3.1": 2900.53, "3.3.2": 4699.49,
   "3.4": 50.90,
@@ -579,6 +579,7 @@ const PRECO_ANEXO_V = {
   "3.7.1": 135.72, "3.7.2": 1545.25, "3.7.3": 141.28, "3.7.4": 1566.02,
   "3.8.1": 690.70, "3.8.2": 401.62, "3.8.3": 2909.10, "3.8.4": 471.89, "3.8.5": 1576.37,
   "3.8.6": 1232.89, "3.8.7": 7595.55,
+  "3.8.9": 395.00, "3.8.10": 140.00, "3.8.11": 132.50, "3.8.12": 260.00, "3.8.13": 155.00, "3.8.14": 140.00,
   "3.9.1": 523.21, "3.9.2": 680.48, "3.9.3": 897.28, "3.9.4": 1254.13, "3.9.5": 1019.36,
   "3.9.6": 1047.00, "3.9.7": 3115.63, "3.9.8": 203.35,
   "3.10": 3498.98, "3.11": 36.60,
@@ -637,6 +638,7 @@ const ANEXO_V_DESC = {
   "3.1.4":"Placa expansora central de alarme","3.1.5":"Sensor de fumaça","3.1.6":"Sensor infravermelho dupla tecnologia",
   "3.1.7":"Sensor infravermelho passivo (IVP)","3.1.8":"Sensor magnético para alarme","3.1.9":"Sensor de porta pesada",
   "3.1.10":"Sirene para alarme","3.1.11":"Teclado para alarme","3.1.12":"Transformador central de alarme","3.1.13":"Módulo/discadora GSM",
+  "3.1.14":"Módulo Ethernet Intelbras XE 4000 Smart",
   "3.2.1":"HD interno 2TB","3.2.2":"HD interno 4TB","3.2.3":"Fonte chaveada 2A","3.2.4":"Fonte chaveada 5A","3.2.5":"Fonte chaveada 10A",
   "3.2.6":"Adaptador chaveador 4 portas VGA","3.3.1":"HD interno 10TB","3.3.2":"Joystick","3.4":"Remanejamento de câmera",
   "3.5.1":"Placa CHL portal Magnetec","3.5.2":"Fonte chaveada portal","3.5.3":"Placa pictograma portal","3.5.4":"Placa CV007 portal",
@@ -645,7 +647,11 @@ const ANEXO_V_DESC = {
   "3.6.4":"Transporte de scanner de raio-X (km)","3.7.1":"Infraestrutura elétrica interna","3.7.2":"Infraestrutura lógica interna",
   "3.7.3":"Infraestrutura elétrica externa","3.7.4":"Infraestrutura lógica externa","3.8.1":"Câmera bullet analógica",
   "3.8.2":"Câmera dome analógica","3.8.3":"DVR gravador 16 canais","3.8.4":"Monitor de vídeo 18.5\"","3.8.5":"Câmera bullet IP",
-  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP","3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
+  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP",
+  "3.8.9":"Conversor de mídia (Intelbras KFM 112)","3.8.10":"Cordão óptico duplex multimodo 2,50m (SC/SC UPC)",
+  "3.8.11":"Adaptador óptico SC macho/LC fêmea","3.8.12":"Terminador óptico (Fibracem F12)",
+  "3.8.13":"Cordão óptico LC/UPC-LC/UPC 1,5m multimodo","3.8.14":"Cordão óptico duplex LC-UPC/SC-UPC 2,5m",
+  "3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
   "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês",
   "RSD":"Recurso sob demanda (valor a preencher)"
@@ -3054,6 +3060,49 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
     )
   );
 }
+// Garantia de serviço (90 dias) — desde 25/09/2026: dentro de 90 dias da última OS presencial
+// do MESMO sistema na MESMA comarca (comarca completa: cidade + edificação), avisa (não bloqueia)
+// que o sistema já foi atendido recentemente e ainda está no prazo de garantia do serviço.
+const GARANTIA_SERVICO_DIAS = 90;
+// Normaliza um rótulo de sistema (curto, como em PageNovaOS: "CFTV"/"Portal"/"Scanner"/"Acesso",
+// ou completo, como em PageRota: "Portal detector de metais"/"Scanner de raio-X"/"Controle de acesso")
+// pra uma chave única, pra comparar OS criadas pelos dois fluxos entre si.
+const sistemaCanonico = s => {
+  const t = (s || "").toLowerCase();
+  if (t.includes("cftv") || t.includes("videomonitor")) return "cftv";
+  if (t.includes("alarme")) return "alarme";
+  if (t.includes("portal")) return "portal";
+  if (t.includes("scanner") || t.includes("raio")) return "raiox";
+  if (t.includes("acesso")) return "acesso";
+  return t;
+};
+const servicoTemSistema = (servico, chave) => (servico || "").toLowerCase().includes(chave === "raiox" ? "raio" : chave) ||
+  (chave === "raiox" && (servico || "").toLowerCase().includes("scanner")) ||
+  (chave === "cftv" && (servico || "").toLowerCase().includes("videomonitor"));
+function verificarGarantiaServico(comarca, sistemasSel, todasOS, contratoSel, dataRefStr) {
+  if (!comarca || !sistemasSel?.length || contratoSel !== "181/2026") return [];
+  const dataRef = new Date((dataRefStr || new Date().toISOString().slice(0, 10)) + "T12:00");
+  const achados = [];
+  const chavesSel = [...new Set(sistemasSel.map(sistemaCanonico))];
+  chavesSel.forEach(chave => {
+    const candidatas = (todasOS || []).filter(o =>
+      (o.contrato || "") === "181/2026" &&
+      (o.comarca || "") === comarca &&
+      servicoTemSistema(o.servico, chave) &&
+      o.tipo !== "Atendimento Remoto" &&
+      o.status !== "Cancelada" &&
+      o.data_os
+    );
+    if (!candidatas.length) return;
+    const maisRecente = candidatas.reduce((a, b) => (b.data_os > a.data_os ? b : a));
+    const dataServico = new Date(maisRecente.data_os + "T12:00");
+    const diasPassados = Math.floor((dataRef - dataServico) / 86400000);
+    if (diasPassados >= 0 && diasPassados < GARANTIA_SERVICO_DIAS) {
+      achados.push({ sistema: sistemasSel.find(s => sistemaCanonico(s) === chave) || chave, os: maisRecente, diasRestantes: GARANTIA_SERVICO_DIAS - diasPassados });
+    }
+  });
+  return achados;
+}
 function PageRota({ onOsCriada, os: todasOS }) {
   const SISTEMAS = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
   const rotasExistentes = (() => {
@@ -3410,6 +3459,17 @@ function PageRota({ onOsCriada, os: todasOS }) {
           ))
         )
       ),
+      (() => {
+        const garantias = verificarGarantiaServico(s.comarca, s.sistemas, todasOS, contratoSel, dt);
+        return garantias.length > 0 && React.createElement("div", {
+          style: { background: "#fff7e6", border: "1.5px solid var(--amber, #e6a700)", borderRadius: 8, padding: "10px 12px", marginBottom: 10, fontSize: 12.5 }
+        },
+          garantias.map(g => React.createElement("div", { key: g.sistema, style: { marginBottom: 4 } },
+            "⚠️ ", React.createElement("strong", null, g.sistema), " nesta comarca já foi atendido pela OS ",
+            React.createElement("strong", null, g.os.numero), " (", fmtDate(g.os.data_os), ") — ainda dentro dos 90 dias de garantia do serviço (faltam ", g.diasRestantes, " dia(s)). Confirme se é mesmo necessário abrir nova OS."
+          ))
+        );
+      })(),
       React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
         React.createElement("label", null, "Contato no local (opcional)"),
         React.createElement("input", { value: s.contato, onChange: e => setStopContato(i, e.target.value), placeholder: "Ex: João - (31) 99999-9999" })
@@ -4015,7 +4075,18 @@ function PageNovaOS({
     value: servDesc,
     onChange: e => setServDesc(e.target.value),
     placeholder: "Detalhe se necess\xE1rio"
-  })), garantiaPortalAtiva && /*#__PURE__*/React.createElement("div", {
+  })), (() => {
+    const garantias = verificarGarantiaServico(comarca, sistemas, todasOS, contratoSel, dt);
+    return garantias.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "fg full",
+      style: { background: "#fff7e6", border: "1.5px solid var(--amber, #e6a700)", borderRadius: 8, padding: "10px 12px", fontSize: 12.5 }
+    },
+      garantias.map(g => React.createElement("div", { key: g.sistema, style: { marginBottom: 4 } },
+        "⚠️ ", React.createElement("strong", null, g.sistema), " nesta comarca já foi atendido pela OS ",
+        React.createElement("strong", null, g.os.numero), " (", fmtDate(g.os.data_os), ") — ainda dentro dos 90 dias de garantia do serviço (faltam ", g.diasRestantes, " dia(s)). Confirme se é mesmo necessário abrir nova OS."
+      ))
+    );
+  })(), garantiaPortalAtiva && /*#__PURE__*/React.createElement("div", {
     className: "fg full",
     style: { background: "#fff3cd", border: "1px solid #f0b429", borderRadius: 8, padding: 12 }
   },

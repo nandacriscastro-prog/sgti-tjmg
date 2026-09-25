@@ -111,7 +111,7 @@ const ANEXO_IV = [
   {id:"km",desc:"Deslocamento",unid:"KM",vu:2.95},
   {id:"diaria",desc:"Diária",unid:"UNID",vu:231.73}
 ];
-const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.89,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60,"RSD":0};
+const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.1.14":160.00,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.89,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.8.9":395.00,"3.8.10":140.00,"3.8.11":132.50,"3.8.12":260.00,"3.8.13":155.00,"3.8.14":140.00,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60,"RSD":0};
 // Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
 // (com 6 casas, qtd × VU feito à mão bate com o subtotal mostrado) — igual ao sistema principal
 const fmtQtdAnexoIV = (id, q) => Number.isInteger(q) ? String(q) : (id === "diaria" ? q.toFixed(6) : q.toFixed(2));
@@ -383,6 +383,7 @@ const ANEXO_V_DESC = {
   "3.1.4":"Placa expansora central de alarme","3.1.5":"Sensor de fumaça","3.1.6":"Sensor infravermelho dupla tecnologia",
   "3.1.7":"Sensor infravermelho passivo (IVP)","3.1.8":"Sensor magnético para alarme","3.1.9":"Sensor de porta pesada",
   "3.1.10":"Sirene para alarme","3.1.11":"Teclado para alarme","3.1.12":"Transformador central de alarme","3.1.13":"Módulo/discadora GSM",
+  "3.1.14":"Módulo Ethernet Intelbras XE 4000 Smart",
   "3.2.1":"HD interno 2TB","3.2.2":"HD interno 4TB","3.2.3":"Fonte chaveada 2A","3.2.4":"Fonte chaveada 5A","3.2.5":"Fonte chaveada 10A",
   "3.2.6":"Adaptador chaveador 4 portas VGA","3.3.1":"HD interno 10TB","3.3.2":"Joystick","3.4":"Remanejamento de câmera",
   "3.5.1":"Placa CHL portal Magnetec","3.5.2":"Fonte chaveada portal","3.5.3":"Placa pictograma portal","3.5.4":"Placa CV007 portal",
@@ -391,7 +392,11 @@ const ANEXO_V_DESC = {
   "3.6.4":"Transporte de scanner de raio-X (km)","3.7.1":"Infraestrutura elétrica interna","3.7.2":"Infraestrutura lógica interna",
   "3.7.3":"Infraestrutura elétrica externa","3.7.4":"Infraestrutura lógica externa","3.8.1":"Câmera bullet analógica",
   "3.8.2":"Câmera dome analógica","3.8.3":"DVR gravador 16 canais","3.8.4":"Monitor de vídeo 18.5\"","3.8.5":"Câmera bullet IP",
-  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP","3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
+  "3.8.6":"Câmera dome IP","3.8.7":"Câmera speed dome IP",
+  "3.8.9":"Conversor de mídia (Intelbras KFM 112)","3.8.10":"Cordão óptico duplex multimodo 2,50m (SC/SC UPC)",
+  "3.8.11":"Adaptador óptico SC macho/LC fêmea","3.8.12":"Terminador óptico (Fibracem F12)",
+  "3.8.13":"Cordão óptico LC/UPC-LC/UPC 1,5m multimodo","3.8.14":"Cordão óptico duplex LC-UPC/SC-UPC 2,5m",
+  "3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
   "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
 };

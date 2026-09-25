@@ -80,6 +80,17 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - **Valores oficiais do Anexo V:** o documento original do contrato tem pequenas inconsistências de arredondamento linha a linha (~R$4,93 no total). Por isso existe `ANEXO_V_VALOR_TOTAL_CONTRATADO` com o valor **oficial** de cada item, usada em vez de recalcular qtd×preço unitário — garante que o total bate exatamente R$1.327.474,62.
 - **CONTRATO_VALOR_181 = R$2.222.831,00** | **CONTRATO_VALOR_ANEXO_V_181 = R$1.327.474,62**
 
+### Itens novos do Anexo V (aditivo) — desde 25/09/2026
+- Adicionados `3.1.14` (Módulo Ethernet Intelbras XE 4000 Smart, R$160,00) e `3.8.9`–`3.8.14` (conversor de mídia, cordões/adaptadores/terminador ópticos, R$132,50–R$395,00) em `PRECO_ANEXO_V`/`ANEXO_V_DESC` (`index.html` **e** `alvo/index.html`) e em `FRAC_D` (`calc-medicao.js`, compartilhado).
+- ⚠️ **`FRAC_D` desses itens foi estimado em 0,125 (mesmo peso dos demais itens de instalação/material avulso do 3.8), por analogia — não veio de um Anexo VI oficial atualizado.** Confirmar com a Fernanda se o aditivo trouxe frações diferentes; se sim, ajustar só em `calc-medicao.js`.
+- Não têm `ANEXO_V_QTD_CONTRATADA`/`ANEXO_V_VALOR_TOTAL_CONTRATADO` (itens novos, sem quantidade contratada ainda) — Controle de Ativos cai no fallback `qtdContratada = 0` / `valorContratado = qtd × vu`, então "restante" fica negativo assim que usado uma vez. Aceitável por ora; se a Fernanda informar quantidade contratada do aditivo, adicionar essas chaves.
+
+### Garantia de serviço (90 dias) — aviso, desde 25/09/2026
+- `verificarGarantiaServico(comarca, sistemasSel, todasOS, contratoSel, dataRefStr)` (definida antes de `PageRota`, usada em `PageNovaOS` e `PageRota`): se o **mesmo sistema** (CFTV/Alarme/Portal/Scanner raio-X/Controle de acesso) já foi atendido por outra OS presencial do contrato 181/2026 na **mesma comarca completa** (cidade + edificação) há **menos de 90 dias** (contado de `data_os`, não da conclusão), mostra um **aviso amarelo** (não bloqueia o envio) citando o número da OS anterior e quantos dias faltam.
+- `sistemaCanonico`/`servicoTemSistema` normalizam os dois formatos de rótulo usados no sistema (`PageNovaOS` usa sigla curta "CFTV"/"Portal"/"Scanner"/"Acesso"; `PageRota` usa nome completo "Portal detector de metais"/"Scanner de raio-X"/"Controle de acesso") pra comparar OS criadas pelos dois fluxos entre si.
+- Ignora `Atendimento Remoto` e OS `Cancelada`. Não distingue Correção de presencial normal (uma Correção também "reinicia" o prazo de garantia, propositalmente — é um novo atendimento no mesmo sistema).
+- Igual ao aviso de garantia de Portal (Magnetec): **avisa, não bloqueia** — a Fernanda pode confirmar e abrir a OS mesmo assim se for realmente necessário.
+
 ### Medições travadas (`MEDICOES_TRAVADAS_181`) — desde 24/09/2026
 - Constante no `index.html` **e** no `alvo/index.html` (manter as duas iguais) com o **valor bruto aprovado** de períodos já fechados, chave `"AAAA-MM-DD_AAAA-MM-DD"` (dtIni_dtFim):
   - `"2026-07-20_2026-08-19": 49453.60` — Agosto/2026, aprovado em planilha, travado em 24/09/2026.
