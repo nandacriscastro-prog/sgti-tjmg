@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790607995 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790609135 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3868,6 +3868,10 @@ function PageNovaOS({
       toast(contratoSel === "181/2026" ? "Preencha comarca, tipo e selecione ao menos um sistema" : "Preencha comarca, tipo e serviço", "error");
       return;
     }
+    if (tipo === "Correção" && !osVinculada.trim()) {
+      toast("Informe o número da OS original desta correção.", "error");
+      return;
+    }
     setPv({
       comarca,
       forum: dadosComarca.f || "",
@@ -3906,8 +3910,14 @@ function PageNovaOS({
       let novoNum = null;
       while (tentativas < 5) {
         tentativas++;
-        const rows = await buscarProximoNum(contratoSel);
-        novoNum = proximoNumeroComTentativa(rows?.[0], tentativas);
+        if (pv.tipo === "Correção" && pv.os_origem) {
+          // Numeração de Correção segue o padrão "{original}-R" (igual ao fluxo automático da Avaliação),
+          // não a sequência normal — senão o os_origem não seria reconhecido pela regra de garantia de 90 dias.
+          novoNum = pv.os_origem + "-R" + (tentativas > 1 ? tentativas : "");
+        } else {
+          const rows = await buscarProximoNum(contratoSel);
+          novoNum = proximoNumeroComTentativa(rows?.[0], tentativas);
+        }
         const obsExtras = [
           pv.infra_backbone ? "Necessário fazer infraestrutura - Backbone" : "",
           tipoInstalacao === "somente" ? "Somente instalação (sem fornecimento de equipamento pela Alvo)" : "",
@@ -4112,23 +4122,29 @@ function PageNovaOS({
     value: empresa,
     onChange: e => setEmpresa(e.target.value),
     placeholder: "Ex: Alvo Seguran\xE7a Ltda"
-  })), contratoSel !== "181/2026" && /*#__PURE__*/React.createElement("div", {
+  })), (contratoSel !== "181/2026" || tipo === "Corre\u00e7\u00e3o") && /*#__PURE__*/React.createElement("div", {
     className: "fg"
-  }, /*#__PURE__*/React.createElement("label", null, "OS vinculada (reexecu\xE7\xE3o ou relacionada)"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", null, tipo === "Corre\u00e7\u00e3o" ? "OS original desta corre\u00e7\u00e3o (obrigat\u00f3rio)" : "OS vinculada (reexecu\xE7\xE3o ou relacionada)"), /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative"
     }
   }, /*#__PURE__*/React.createElement("input", {
     value: osVinculada,
     onChange: e => setOsVinculada(e.target.value),
-    placeholder: "N\xBA da OS de origem (opcional)"
+    placeholder: "N\xBA da OS de origem" + (tipo === "Corre\u00e7\u00e3o" ? "" : " (opcional)")
   }), osVinculada && todasOS?.find(o => o.numero === osVinculada) && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
       color: "var(--green)",
       marginTop: 3
     }
-  }, "\u2713 OS ", osVinculada, ": ", todasOS.find(o => o.numero === osVinculada)?.comarca, " \u2014 ", (todasOS.find(o => o.numero === osVinculada)?.servico || "").substring(0, 50))))), /*#__PURE__*/React.createElement("div", {
+  }, "\u2713 OS ", osVinculada, ": ", todasOS.find(o => o.numero === osVinculada)?.comarca, " \u2014 ", (todasOS.find(o => o.numero === osVinculada)?.servico || "").substring(0, 50)), tipo === "Corre\u00e7\u00e3o" && osVinculada && !todasOS?.find(o => o.numero === osVinculada) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "var(--red)",
+      marginTop: 3
+    }
+  }, "\u26a0\ufe0f N\xE3o encontrei essa OS \u2014 confira o n\xFAmero. Sem a OS original, a garantia de servi\xE7o (90 dias) n\xE3o \xE9 aplicada e essa Corre\xE7\xE3o cobra como presencial normal.")))), /*#__PURE__*/React.createElement("div", {
     className: "form-grid"
   }, /*#__PURE__*/React.createElement("div", {
     className: "fg"
@@ -4201,7 +4217,7 @@ function PageNovaOS({
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Selecione..."), /*#__PURE__*/React.createElement("option", null, "Presencial Programado"), /*#__PURE__*/React.createElement("option", null, "Presencial Emergencial"))), /*#__PURE__*/React.createElement("div", {
+  }, "Selecione..."), /*#__PURE__*/React.createElement("option", null, "Presencial Programado"), /*#__PURE__*/React.createElement("option", null, "Presencial Emergencial"), /*#__PURE__*/React.createElement("option", { value: "Correção" }, "Correção / Retorno de garantia"))), /*#__PURE__*/React.createElement("div", {
     className: "fg"
   }, /*#__PURE__*/React.createElement("label", null, "Prioridade"), (() => {
     const _munAtual = (comarca || "").split(" - ")[0];
