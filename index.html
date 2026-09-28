@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790348017 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790598879 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -129,6 +129,23 @@ async function authLogout() {
     } catch (e) {}
   }
   clearAuthTokens();
+}
+// Troca de senha pelo próprio usuário logado (Supabase Auth) — não precisa de service_role,
+// só o token de acesso do usuário. Endpoint: PUT /auth/v1/user, body { password: "..." }.
+async function authTrocarSenha(novaSenha) {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sessão expirada — faça login novamente.");
+  const r = await fetch(SB_URL + "/auth/v1/user", {
+    method: "PUT",
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ password: novaSenha })
+  });
+  if (!r.ok) {
+    let msg = "Erro ao trocar senha.";
+    try { const j = await r.json(); msg = j?.msg || j?.error_description || j?.error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return true;
 }
 
 async function sbFetch(path, opts = {}) {
@@ -1338,6 +1355,27 @@ function Topbar({
   const par = page.startsWith("tel-") ? "Telefonia" : page === "home" ? "SGTI" : "GEASI";
   const [buscaTopo, setBuscaTopo] = useState("");
   const [tema, setTema] = useState(() => localStorage.getItem("sgti_theme") || "light");
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmSenha, setConfirmSenha] = useState("");
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [msgSenha, setMsgSenha] = useState("");
+  const fecharTrocarSenha = () => { setTrocandoSenha(false); setNovaSenha(""); setConfirmSenha(""); setMsgSenha(""); };
+  const confirmarTrocaSenha = async () => {
+    setMsgSenha("");
+    if (novaSenha.length < 6) { setMsgSenha("A senha precisa ter pelo menos 6 caracteres."); return; }
+    if (novaSenha !== confirmSenha) { setMsgSenha("As senhas não coincidem."); return; }
+    setSalvandoSenha(true);
+    try {
+      await authTrocarSenha(novaSenha);
+      toast("✓ Senha alterada com sucesso!", "ok");
+      fecharTrocarSenha();
+    } catch (e) {
+      setMsgSenha(e.message || "Erro ao trocar senha.");
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
   useEffect(() => {
     if (tema === "dark") document.documentElement.setAttribute("data-theme", "dark");
     else document.documentElement.removeAttribute("data-theme");
@@ -1421,7 +1459,12 @@ function Topbar({
       borderLeft: "1px solid var(--border)",
       paddingLeft: 8
     }
-  }, user.nome.split(" ")[0]), onSair && /*#__PURE__*/React.createElement("button", {
+  }, user.nome.split(" ")[0]), user && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    style: { fontSize: 11, border: "none", background: "none", color: "var(--text3)" },
+    title: "Trocar minha senha",
+    onClick: () => setTrocandoSenha(true)
+  }, "🔑"), onSair && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sm",
     style: {
       fontSize: 11,
@@ -1429,7 +1472,27 @@ function Topbar({
       borderColor: "var(--accent)"
     },
     onClick: onSair
-  }, "Sair")));
+  }, "Sair")), trocandoSenha && /*#__PURE__*/React.createElement(Modal, {
+    title: "🔑 Trocar minha senha",
+    width: 420,
+    onClose: fecharTrocarSenha,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("button", { className: "btn", onClick: fecharTrocarSenha, disabled: salvandoSenha }, "Cancelar"),
+      /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-primary", disabled: salvandoSenha, onClick: confirmarTrocaSenha
+      }, salvandoSenha ? "Salvando..." : "Salvar nova senha")
+    )
+  },
+    /*#__PURE__*/React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+      /*#__PURE__*/React.createElement("label", null, "Nova senha (mín. 6 caracteres)"),
+      /*#__PURE__*/React.createElement("input", { type: "password", value: novaSenha, onChange: e => setNovaSenha(e.target.value), autoComplete: "new-password" })
+    ),
+    /*#__PURE__*/React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+      /*#__PURE__*/React.createElement("label", null, "Confirmar nova senha"),
+      /*#__PURE__*/React.createElement("input", { type: "password", value: confirmSenha, onChange: e => setConfirmSenha(e.target.value), autoComplete: "new-password" })
+    ),
+    msgSenha && /*#__PURE__*/React.createElement("div", { style: { fontSize: 12.5, color: "var(--red, #c0392b)" } }, msgSenha)
+  ));
 }
 
 // ── MODAL ─────────────────────────────────────────────────────

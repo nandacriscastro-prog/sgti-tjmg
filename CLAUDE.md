@@ -49,6 +49,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
   update auth.users set encrypted_password = extensions.crypt('nova_senha', extensions.gen_salt('bf')) where email = '...';
   ```
 - Técnicos (tela "Técnicos", `PageTecnicos`) **não têm login** — são só registros de pessoal (nome/CI/CPF) usados em OS.
+- **Trocar a própria senha (desde 28/09/2026):** botão 🔑 na `Topbar`, ao lado do nome do usuário, abre modal (nova senha + confirmação, mín. 6 caracteres) e chama `authTrocarSenha(novaSenha)`, que faz `PUT /auth/v1/user` com o **token de acesso do próprio usuário logado** (`getAccessToken()`) — não usa `SB_SVC`/service_role, então é seguro do jeito que está. Não pede a senha atual (o Supabase Auth não exige pra esse endpoint — a sessão logada já é a prova de identidade). Só funciona pra quem loga via Supabase Auth de verdade (não afeta o portal Alvo, que usa senha única compartilhada, nem os fiscais hardcoded sem login criado no Supabase).
 
 ### RLS
 - **Só autenticado (leitura e escrita):** `atas_portais`, `contratos_demanda_portal`, `demandas_cotesi`, `notas_fiscais`, `unidades_estoque`, `usuarios_sistema`, `estoque_cotesi`, `estoque_comarcas`, `estoque_cobens`, `numeracao`, `configuracoes`, `chamados_portal`.
