@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790609135 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790610248 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3151,7 +3151,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
 // Garantia de serviço (90 dias) — desde 25/09/2026: dentro de 90 dias da última OS presencial
 // do MESMO sistema na MESMA comarca (comarca completa: cidade + edificação), avisa (não bloqueia)
 // que o sistema já foi atendido recentemente e ainda está no prazo de garantia do serviço.
-const GARANTIA_SERVICO_DIAS = 90;
+// GARANTIA_SERVICO_DIAS vem de calc-medicao.js (compartilhado com isCorrecaoDentroGarantia) — não redeclarar aqui.
 // Normaliza um rótulo de sistema (curto, como em PageNovaOS: "CFTV"/"Portal"/"Scanner"/"Acesso",
 // ou completo, como em PageRota: "Portal detector de metais"/"Scanner de raio-X"/"Controle de acesso")
 // pra uma chave única, pra comparar OS criadas pelos dois fluxos entre si.
