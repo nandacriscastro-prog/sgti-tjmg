@@ -32,7 +32,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - **Fração de diária** = base (1.0 normal / 1.25 raio-X / 0 se Colar-RM ou Correção) + soma das frações de peça trocada (`FRAC_D`) + km × 0,0032468.
 - **Diária (regra final, muito debatida):** usa a fração **agregada** de todo o período, arredondada em **1 casa decimal**, × R$231,73. Não é soma das frações individuais por OS.
 - **Km/Deslocamento:** soma por OS individual (cada linha arredondada em 2 casas antes de somar), × R$2,95/km.
-- **Correção/reabertura:** só a fração de diária é zerada. Km e atendimento continuam sendo cobrados normalmente (o técnico foi lá de verdade).
+- **Correção/reabertura (número `{original}-R`, campo `os_origem` = número da OS original) — regra atual (28/09/2026):** se aberta **dentro dos 90 dias de garantia de serviço** da OS original, não cobra atendimento, km/deslocamento nem diária — só as peças eventualmente substituídas. Fora dessa janela, cobra **igual a uma OS presencial normal** (atendimento + km + diária + peças). Ver detalhamento completo no `CLAUDE.md` da raiz do repo (`isCorrecaoDentroGarantia` em `calc-medicao.js`).
 - **Valores oficiais do Anexo V:** o documento original do contrato tem pequenas inconsistências de arredondamento linha a linha (~R$4,93 no total). Por isso existe uma constante `ANEXO_V_VALOR_TOTAL_CONTRATADO` com o valor **oficial** de cada item, usada em vez de recalcular qtd×preço unitário — garante que o total bate exatamente R$1.327.474,62.
 - **CONTRATO_VALOR_181 = R$2.222.831,00** | **CONTRATO_VALOR_ANEXO_V_181 = R$1.327.474,62**
 

@@ -250,23 +250,26 @@ async function carregarMedicao(){
     const medAnoAnt = medMes === 0 ? medAno - 1 : medAno;
     const dtIni = `${medAnoAnt}-${String(medMesAnt+1).padStart(2,"0")}-20`;
     const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-19`;
-    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo`);
+    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo,data_os,data_conclusao,os_origem`);
+    // Lookup leve de todas as OS do contrato (qualquer status/avaliação) só com numero+data_os, pra achar a OS
+    // original de uma Correção mesmo quando ela foi insatisfatória (por isso não entra no filtro acima)
+    const osLookupGarantia = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&select=numero,data_os&limit=5000`);
 
     let qtdAlarme=0, qtdPortal=0, qtdRaio=0, totalKm=0, totalDiarias=0, brutoMateriais=0, valorKmSomaPorOS=0, valorDiariaSomaPorOS=0;
     const pecasDetalhe = [];
     const osMesDetalhado = [];
     osMes.forEach(o=>{
       const s=(o.servico||o.tipo||"").toLowerCase();
-      const tipo = o.tipo || "";
-      const isCorrecaoOS = tipo === "Correção";
+      // Correção dentro dos 90 dias de garantia de serviço: só peças, sem atendimento/km/diária (confirmado pela fiscal em 28/09/2026)
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, osLookupGarantia);
       const _p = s.includes("portal") || s.includes("detector");
       const _r = s.includes("raio") || s.includes("scanner");
       const _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r));
-      if(_p) qtdPortal++;
-      if(_r) qtdRaio++;
-      if(_a) qtdAlarme++;
+      if(!isCorrecaoOS && _p) qtdPortal++;
+      if(!isCorrecaoOS && _r) qtdRaio++;
+      if(!isCorrecaoOS && _a) qtdAlarme++;
       let r={}; try{ r=JSON.parse(o.retorno_campo||"{}"); }catch(e){}
-      const kmOS = parseFloat(r.km||0)||0;
+      const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km||0)||0);
       totalKm += kmOS;
       const vuKm = ANEXO_IV.find(a=>a.id==="km").vu;
       const valorKmOS = Number((kmOS*vuKm).toFixed(2));
@@ -277,19 +280,18 @@ async function carregarMedicao(){
       const isRaioServ = _r;
       const isPortalServ = _p;
       const isPresServ = _a;
-      // OS de Correção cobra igual a presencial (mesma regra do sistema principal desde 24/09/2026)
-      const fracaoBase = isColar ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
+      const fracaoBase = (isColar || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
       const fracaoPecasCalc = isColar ? 0 : (r.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
-      const fracaoDeslocamento = isColar ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
+      const fracaoDeslocamento = (isColar || isCorrecaoOS) ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
       const fracaoTotalSalvo = fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       totalDiarias += fracaoTotalSalvo;
       const vuDiaria = ANEXO_IV.find(a=>a.id==="diaria").vu;
-      const valorDiariaOS = Number((fracaoTotalSalvo * vuDiaria).toFixed(2));
+      const valorDiariaOS = isCorrecaoOS ? 0 : Number((fracaoTotalSalvo * vuDiaria).toFixed(2));
       valorDiariaSomaPorOS += valorDiariaOS;
       const tipoSistema = isPortalServ ? "Portal detector de metais" : isRaioServ ? "Scanner de raio-X" : "Alarme/CFTV/Acesso";
       const regiaoOS = isColar ? "Colar Metropolitano" : "Interior";
       // Portal + presencial na mesma OS soma os dois atendimentos (igual ao sistema principal)
-      const vuAtend = ((isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0)) || ANEXO_IV.find(a=>a.id==="pres").vu;
+      const vuAtend = isCorrecaoOS ? 0 : (((isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0)) || ANEXO_IV.find(a=>a.id==="pres").vu);
       let matOS = 0;
       (r.pecas||[]).filter(p=>p.desc).forEach(p=>{
         const vUnit = p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod]||0);
@@ -537,8 +539,14 @@ function renderSim(){
         <select id="simTipoOS" style="width:100%" onchange="simMostrarPrioridade(); simAtualizarPreviewGlosa();">
           <option value="programado">Presencial Programado</option>
           <option value="emergencial">Presencial Emergencial</option>
-          <option value="correcao">Correção / Reabertura (cobra igual a presencial)</option>
+          <option value="correcao">Correção / Reabertura</option>
         </select>
+      </div>
+      <div id="simGarantiaWrap" style="display:none"><label class="muted">&nbsp;</label><br>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-top:6px">
+          <input type="checkbox" id="simDentroGarantia" onchange="simAtualizarPreviewGlosa()">
+          Dentro dos 90 dias de garantia de serviço (só peças, sem atendimento/km/diária)
+        </label>
       </div>
       <div id="simPrioridadeWrap" style="display:none"><label class="muted">Prioridade (só emergencial)</label><br>
         <select id="simPrioridade" style="width:100%" onchange="simAtualizarPreviewGlosa()">
@@ -627,26 +635,29 @@ function simMostrarClassificacao(){
 function simCalcularOS(o){
   const isColar = ehColar(o.comarca);
   const isCorrecao = o.tipoOS === "correcao";
+  // Correção dentro dos 90 dias de garantia de serviço: só peças, sem atendimento/km/diária (confirmado pela fiscal em 28/09/2026).
+  // Fora da garantia (ou tipo não informado na simulação), cobra igual a presencial.
+  const dentroGarantia = isCorrecao && !!o.dentroGarantia;
   const isPortalSim = o.sistema === "portal" || o.sistema === "detector";
   const isPresSim = o.sistema === "alarme" || o.sistema === "cftv" || (!isPortalSim && o.sistema !== "raio" && o.sistema !== "scanner");
-  const base = isColar ? 0 : (o.sistema === "raio" ? 1.25 : (isPortalSim && isPresSim) ? 2.0 : 1.0);
+  const base = (isColar || dentroGarantia) ? 0 : (o.sistema === "raio" ? 1.25 : (isPortalSim && isPresSim) ? 2.0 : 1.0);
   const fracaoPecasRaw = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
   const fracaoPecas = isColar ? 0 : fracaoPecasRaw;
-  const fracaoDeslocamento = isColar ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
+  const fracaoDeslocamento = (isColar || dentroGarantia) ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
   const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;
-  const valorDiaria = fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu;
-  // Correção cobra igual a presencial (atendimento + km + diária + peças) — mesma regra do sistema principal desde 24/09/2026
-  const valorKm = o.km * ANEXO_IV.find(a=>a.id==="km").vu;
+  const valorDiaria = dentroGarantia ? 0 : (fracaoTotal * ANEXO_IV.find(a=>a.id==="diaria").vu);
+  const valorKm = dentroGarantia ? 0 : (o.km * ANEXO_IV.find(a=>a.id==="km").vu);
   const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
-  const valorAtendimento = atendItem.vu;
+  const valorAtendimento = dentroGarantia ? 0 : atendItem.vu;
   const valorMateriais = o.pecas.reduce((a,p)=>a+((p.cod==="RSD"?getRsdVu(p):(PRECO_ANEXO_V[p.cod]||0))*p.qtd),0);
   const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
-  return {isColar, isCorrecao, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
+  return {isColar, isCorrecao, dentroGarantia, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
 }
 
 function simMostrarPrioridade(){
   const t = document.getElementById("simTipoOS").value;
   document.getElementById("simPrioridadeWrap").style.display = t === "emergencial" ? "block" : "none";
+  document.getElementById("simGarantiaWrap").style.display = t === "correcao" ? "block" : "none";
 }
 function simDiasUteisEntre(d1, d2){
   let u = 0; const cur = new Date(d1);
@@ -698,6 +709,7 @@ function simAddOS(){
   const km = parseFloat(document.getElementById("simKm").value) || 0;
   const sistema = document.getElementById("simTipoSistema").value;
   const tipoOS = document.getElementById("simTipoOS").value;
+  const dentroGarantia = document.getElementById("simDentroGarantia").checked;
   const prioridade = document.getElementById("simPrioridade").value;
   const dtAbertura = document.getElementById("simDtAbertura").value;
   const dtFechamento = document.getElementById("simDtFechamento").value;
@@ -705,15 +717,16 @@ function simAddOS(){
   if(!comarca){ alert("Informe a comarca."); return; }
   if(simEditandoId){
     const idx = simOS.findIndex(o=>o.id===simEditandoId);
-    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, tipoOS, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() };
+    if(idx>-1) simOS[idx] = { id: simEditandoId, comarca, km, sistema, tipoOS, dentroGarantia, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() };
     simEditandoId = null;
   } else {
-    simOS.push({ id: simIdSeq++, comarca, km, sistema, tipoOS, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() });
+    simOS.push({ id: simIdSeq++, comarca, km, sistema, tipoOS, dentroGarantia, prioridade, dtAbertura, dtFechamento, rota, pecas: simPecasTemp.slice() });
   }
   simPecasTemp = [];
   document.getElementById("simComarca").value = "";
   document.getElementById("simKm").value = "0";
   document.getElementById("simTipoOS").value = "programado";
+  document.getElementById("simDentroGarantia").checked = false;
   document.getElementById("simDtAbertura").value = "";
   document.getElementById("simDtFechamento").value = "";
   document.getElementById("simGlosaPreview").innerHTML = "";
@@ -731,6 +744,7 @@ function simEditarOS(id){
   document.getElementById("simComarca").value = o.comarca;
   document.getElementById("simKm").value = o.km;
   document.getElementById("simTipoOS").value = o.tipoOS || "programado";
+  document.getElementById("simDentroGarantia").checked = !!o.dentroGarantia;
   document.getElementById("simTipoSistema").value = o.sistema;
   document.getElementById("simPrioridade").value = o.prioridade || "P2 - Alta";
   document.getElementById("simDtAbertura").value = o.dtAbertura || "";
@@ -1046,7 +1060,7 @@ function exportarDetalhamento() {
   wsPecas["!cols"] = [{ wch: 9 }, { wch: 24 }, { wch: 18 }, { wch: 38 }, { wch: 6 }, { wch: 14 }, { wch: 14 }];
 
   // ---- Aba 4: OS do período (km, atraso) ----
-  const linhasOS = [["Nº OS", "Comarca", "Serviço", "Tipo Sistema", "Região", "Km da OS", "Valor km (R$)", "Correção?"]];
+  const linhasOS = [["Nº OS", "Comarca", "Serviço", "Tipo Sistema", "Região", "Km da OS", "Valor km (R$)", "Correção dentro da garantia (só peças)?"]];
   det.forEach(d => {
     linhasOS.push([d.numero, d.comarca||"", d.servico||"", d.tipoSistema||"", d.regiaoOS||"", d.kmOS, Number((d.kmOS * vuKmExp).toFixed(2)), d.isCorrecaoOS ? "Sim" : "Não"]);
   });

@@ -24,6 +24,27 @@ function calcularFracaoOS({ isColarOS, isCorrecaoOS, isRaioServ, kmOS, pecas }) 
   return base + fracaoPecas + fracaoDeslocamento;
 }
 
+// ── Garantia de serviço (90 dias) — regra confirmada pela fiscal em 28/09/2026 ──
+// OS de Correção (retorno de uma OS original, número "{original}-R", campo
+// os_origem = numero da OS original) aberta DENTRO da janela de garantia de
+// serviço não pode cobrar atendimento, km/deslocamento nem diária — só as
+// peças eventualmente substituídas (materiais são cobrados sempre, mesmo
+// dentro da garantia). Fora da janela de 90 dias, a Correção cobra igual a
+// uma OS presencial normal.
+// AVISO: não mexer nesse prazo/regra sem confirmar antes com a fiscal.
+const GARANTIA_SERVICO_DIAS = 90;
+function isCorrecaoDentroGarantia(o, todasOS, dias) {
+  dias = dias || GARANTIA_SERVICO_DIAS;
+  if (!o || o.tipo !== "Correção" || !o.os_origem) return false;
+  const original = (todasOS || []).find(x => x.numero === o.os_origem);
+  if (!original) return false; // original não encontrada: cobra normal (comportamento anterior, conservador)
+  const dtOriginal = new Date((original.data_os || "") + "T12:00");
+  const dtAtual = new Date((o.data_os || o.data_conclusao || "") + "T12:00");
+  if (isNaN(dtOriginal) || isNaN(dtAtual)) return false;
+  const diffDias = (dtAtual - dtOriginal) / 86400000;
+  return diffDias >= 0 && diffDias <= dias;
+}
+
 if (typeof window !== "undefined") {
-  window.SGTI_CALC = { FRAC_D, FRACAO_KM_ANEXO_VI, calcularFracaoOS };
+  window.SGTI_CALC = { FRAC_D, FRACAO_KM_ANEXO_VI, calcularFracaoOS, GARANTIA_SERVICO_DIAS, isCorrecaoDentroGarantia };
 }

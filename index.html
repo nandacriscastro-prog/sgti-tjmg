@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790598879 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790607995 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1841,16 +1841,16 @@ function PageDashboard({
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS = false; // OS de Correção cobra igual a presencial
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const mun = (o.comarca || "").split(" - ")[0];
       const isColarOS = COLAR_181.has(mun);
-      const kmOS = parseFloat(r.km || 0) || 0;
+      const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
       const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
-      if (isPortalServ) p.qtdPortal++;
-      if (isRaioServ) p.qtdRaio++;
-      if (isPresServ_) p.qtdAlarme++;
+      if (!isCorrecaoOS && isPortalServ) p.qtdPortal++;
+      if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
+      if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
       const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -2349,7 +2349,7 @@ function blocoOS(os, numOS) {
 ${os.tipo === "Correção" ? `<table><tr><td style="background:#f8d7da;border:2px solid #c0392b;padding:8px">
   <div style="text-align:center">
     <div style="font-size:14px;font-weight:800;color:#7a1f1f;letter-spacing:.02em">⚠️ OS DE REABERTURA — ACIONAMENTO DA GARANTIA DE SERVIÇO</div>
-    <div style="font-size:11px;color:#7a1f1f;margin-top:2px">Referente à OS original nº ${os.os_origem || "—"}. Esta visita não gera nova cobrança de atendimento, deslocamento ou diária base — só peças eventualmente substituídas.</div>
+    <div style="font-size:11px;color:#7a1f1f;margin-top:2px">Referente à OS original nº ${os.os_origem || "—"}. Se esta correção ocorrer dentro dos 90 dias de garantia de serviço da OS original, não gera cobrança de atendimento, deslocamento ou diária base — só peças eventualmente substituídas. Fora desse prazo, cobra normalmente.</div>
   </div>
   <div style="font-size:10px;color:#7a1f1f;margin-top:8px;line-height:1.5;border-top:1px solid #e2a6a6;padding-top:6px">${labelPrazoReabertura(os)}</div>
 </td></tr></table>` : ""}
@@ -6357,7 +6357,7 @@ function PageLancamentoManual({
     const detalhe = [];
     osMedidas.forEach(o => {
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS = false; // OS de Correção cobra igual a presencial
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const _isPortal = s.includes("portal") || s.includes("detector");
       const _isRaio = s.includes("raio") || s.includes("scanner");
       const _isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal && !_isRaio));
@@ -7100,7 +7100,7 @@ function PageMedicao({
     const detalhe = [];
     osMedidas.forEach(o => {
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS2 = false; // OS de Correção cobra igual a presencial
+      const isCorrecaoOS2 = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const _isPortal2 = s.includes("portal") || s.includes("detector");
       const _isRaio2 = s.includes("raio") || s.includes("scanner");
       const _isPres2 = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal2 && !_isRaio2));
@@ -7114,8 +7114,7 @@ function PageMedicao({
       const _mun = (o.comarca || "").split(" - ")[0];
       const isColarOS = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
       const fracaoTotalSalvo = (() => {
-        if (isColarOS) return 0;
-        const isCorrecaoOS = false;
+        if (isColarOS || isCorrecaoOS2) return 0;
         const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
         const baseCalc = isRaioServ ? 1.25 : (_isPortal2 && _isPres2) ? 2.0 : 1.0;
         const pecasCalc = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
@@ -7406,7 +7405,7 @@ function PageMedicao({
     const dtIni = `${anoAnt}-${String(mesAnt + 1).padStart(2, "0")}-20`;
     const dtFim = `${ano}-${String(mes + 1).padStart(2, "0")}-19`;
     try {
-      const osMesRaw = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes,numero_pedido&limit=500`)) || [];
+      const osMesRaw = (await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,tipo,servico,retorno_campo,comarca,prioridade,contrato,data_os,data_conclusao,observacoes,numero_pedido,os_origem&limit=500`)) || [];
       const osMes = osMesRaw;
       let qtdAlarme = 0,
         qtdPortal = 0,
@@ -7437,7 +7436,7 @@ function PageMedicao({
       const valorKmUnitCalc = ANEXO_IV.find(a => a.id === "km").vu;
       const diariaDetalhe = [];
       osMes.forEach(o => {
-        const isCorrecaoOS = false; // OS de Correção cobra igual a presencial
+        const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
         const s = (o.servico || o.tipo || "").toLowerCase();
         { const _p = s.includes("portal") || s.includes("detector"), _r = s.includes("raio") || s.includes("scanner"), _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r)); if (!isCorrecaoOS && _p) qtdPortal++; if (!isCorrecaoOS && _r) qtdRaio++; if (!isCorrecaoOS && _a) qtdAlarme++; }
         try {
@@ -7568,7 +7567,7 @@ function PageMedicao({
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS = false;
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
@@ -7879,7 +7878,7 @@ function PageMedicao({
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS = false;
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
@@ -8002,21 +8001,21 @@ function PageMedicao({
     let mesesRemotoAll = 0;
     const vuKmSEI4 = ANEXO_IV.find(a => a.id === "km").vu;
     try {
-      const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
+      const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem&limit=5000`);
       const periodosMedidos = new Set();
       (rowsAll || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
         const s = (o.servico || o.tipo || "").toLowerCase();
-        const isCorrecaoOS = false;
+        const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
         const mun = (o.comarca || "").split(" - ")[0];
         const isColarOS = COLAR_181.has(mun);
-        const kmOS = parseFloat(r.km || 0) || 0;
+        const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
         const isRaioServ = s.includes("raio") || s.includes("scanner");
         const isPortalServ = s.includes("portal") || s.includes("detector");
         const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
         const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
-        usoAprovadoIVAll[itemAtend]++;
+        if (!isCorrecaoOS) usoAprovadoIVAll[itemAtend]++;
         usoAprovadoIVAll.km += kmOS;
         usoAprovadoIVAll.kmValor += Number((kmOS * vuKmSEI4).toFixed(2));
         const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
@@ -8219,16 +8218,16 @@ function PageMedicao({
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
-      const isCorrecaoOS = false; // OS de Correção cobra igual a presencial
+      const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
       const mun = (o.comarca || "").split(" - ")[0];
       const isColarOS = COLAR_181.has(mun);
-      const kmOS = parseFloat(r.km || 0) || 0;
+      const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
       const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
-      if (isPortalServ) p.qtdPortal++;
-      if (isRaioServ) p.qtdRaio++;
-      if (isPresServ_) p.qtdAlarme++;
+      if (!isCorrecaoOS && isPortalServ) p.qtdPortal++;
+      if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
+      if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
       const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -11768,7 +11767,7 @@ function PageControleAtivos() {
     setCarregando(true);
     setErro("");
     try {
-      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=numero,avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao&limit=5000`);
+      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=numero,avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem&limit=5000`);
       const aprovado = {};
       const reservado = {};
       const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0, kmValor: 0 };
@@ -11780,10 +11779,10 @@ function PageControleAtivos() {
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
         const pecas = (r.pecas || []).filter(p => p.desc && p.cod);
         const s = (o.servico || o.tipo || "").toLowerCase();
-        const isCorrecaoOS = false; // OS de Correção cobra igual a presencial
+        const isCorrecaoOS = isCorrecaoDentroGarantia(o, rows); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
         const mun = (o.comarca || "").split(" - ")[0];
         const isColarOS = COLAR_181.has(mun);
-        const kmOS = parseFloat(r.km || 0) || 0;
+        const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
         const isRaioServ = s.includes("raio") || s.includes("scanner");
         const isPortalServ = s.includes("portal") || s.includes("detector");
         const isPresServ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
@@ -11801,7 +11800,7 @@ function PageControleAtivos() {
               aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
             }
           });
-          aprovadoIV[itemAtend]++;
+          if (!isCorrecaoOS) aprovadoIV[itemAtend]++;
           aprovadoIV.km += kmOS;
           aprovadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           aprovadoIV.diaria += fracaoTotal;
@@ -11820,7 +11819,7 @@ function PageControleAtivos() {
               reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
             }
           });
-          reservadoIV[itemAtend]++;
+          if (!isCorrecaoOS) reservadoIV[itemAtend]++;
           reservadoIV.km += kmOS;
           reservadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           reservadoIV.diaria += fracaoTotal;
@@ -14792,7 +14791,7 @@ function AppInterno({
       let rows = [],
         offset = 0;
       while (true) {
-        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,data_conclusao,atendido_2h,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes,criado_em&order=data_os.desc&limit=1000&offset=${offset}`);
+        const batch = await sbFetch(`/ordens_servico?select=id,numero,comarca,forum,endereco,contato,servico,tipo,status,data_os,data_conclusao,atendido_2h,avaliacao,retorno_campo,prioridade,polo,empresa,contrato,observacoes,criado_em,os_origem&order=data_os.desc&limit=1000&offset=${offset}`);
         if (!batch?.length) break;
         rows = [...rows, ...batch];
         offset += batch.length;
