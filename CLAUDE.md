@@ -99,6 +99,11 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - Ignora `Atendimento Remoto` e OS `Cancelada`. Não distingue Correção de presencial normal (uma Correção também "reinicia" o prazo de garantia, propositalmente — é um novo atendimento no mesmo sistema).
 - Igual ao aviso de garantia de Portal (Magnetec): **avisa, não bloqueia** — a Fernanda pode confirmar e abrir a OS mesmo assim se for realmente necessário.
 
+### Filtro de período abre no ciclo aberto, não no que já fechou — desde 29/09/2026
+- Medição e Lançamento Manual tinham `mes`/`ano` inicial = `hoje.getMonth()`/`hoje.getFullYear()` (mês calendário atual) — errado, porque o período do contrato fecha dia 19, não fim de mês. Passando do dia 19, a tela abria sozinha no período que **acabou de fechar** (já podendo estar aprovado/travado), obrigando a trocar o filtro toda vez.
+- Agora usa `periodoAbertoAtual()` (função global, antes de `PageLancamentoManual`): se hoje é dia < 20, o período aberto termina no mês atual (`mes = hoje.getMonth()`); se dia ≥ 20, o período de 20 do mês atual a 19 do mês seguinte já começou, então `mes = hoje.getMonth() + 1` (com virada de ano em dezembro→janeiro).
+- Replicado no Alvo (`periodoAbertoAtual()`, usada pra inicializar `medMes`/`medAno`).
+
 ### Medições travadas (`MEDICOES_TRAVADAS_181`) — desde 24/09/2026
 - Constante no `index.html` **e** no `alvo/index.html` (manter as duas iguais) com o **valor bruto aprovado** de períodos já fechados, chave `"AAAA-MM-DD_AAAA-MM-DD"` (dtIni_dtFim):
   - `"2026-07-20_2026-08-19": 49453.60` — Agosto/2026, aprovado em planilha, travado em 24/09/2026.

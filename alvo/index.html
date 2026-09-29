@@ -95,8 +95,17 @@ function sair(){
   sessionStorage.removeItem("alvo_ok");
   location.reload();
 }
-let medMes = new Date().getMonth();
-let medAno = new Date().getFullYear();
+// Mês/ano do período de medição (20 do mês anterior a 19 do mês) que está ABERTO hoje —
+// pra não abrir sempre no período que já fechou (e possivelmente já foi aprovado) no dia 19 passado.
+function periodoAbertoAtual() {
+  const hoje = new Date();
+  if (hoje.getDate() < 20) return { mes: hoje.getMonth(), ano: hoje.getFullYear() };
+  const mesSeg = hoje.getMonth() + 1;
+  return mesSeg > 11 ? { mes: 0, ano: hoje.getFullYear() + 1 } : { mes: mesSeg, ano: hoje.getFullYear() };
+}
+const _periodoAbertoInicial = periodoAbertoAtual();
+let medMes = _periodoAbertoInicial.mes;
+let medAno = _periodoAbertoInicial.ano;
 // Medições aprovadas e travadas — valor bruto fixo por período (dtIni–dtFim do contrato 181/2026)
 const MEDICOES_TRAVADAS_181 = {
   "2026-07-20_2026-08-19": 49453.60,  // Agosto/2026 — aprovado em planilha; valor travado em 24/09/2026
