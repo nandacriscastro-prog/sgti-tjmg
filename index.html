@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790680932 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1790877567 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1964,7 +1964,8 @@ function PageDashboard({
     )
   );
   const atencaoItens = [
-    correcaoAbertas > 0 && { label: "OS de reabertura em aberto", val: correcaoAbertas, page: "medicao", cls: "amber" },
+    correcaoAbertas > 0 && { label: "OS de reabertura em aberto", val: correcaoAbertas, page: "historico", cls: "amber",
+      hist: { tipo: "Correção", statusMulti: ["Aberta", "Em andamento", "Reaberta"], contrato: "181/2026" } },
     remotoPendente > 0 && { label: "Atendimento remoto aguardando resposta", val: remotoPendente, page: "remoto", cls: "blue" },
     (vencidasPresencial.length + vencidasRemoto.length) > 0 && { label: "OS vencidas precisam de atenção", val: vencidasPresencial.length + vencidasRemoto.length, page: "avaliacao", filtroAval: "vencidas", cls: "red" }
   ].filter(Boolean);
@@ -1992,7 +1993,8 @@ function PageDashboard({
     { label: "Pendentes de avaliação", val: pendentesAvaliacaoTotal, cls: "purple", icon: "clip", page: "avaliacao", filtroAval: "pendente", filtroContrato: "181/2026" },
     { label: "⏳ SLA em risco (≤3 dias)", val: emRisco.length, cls: "amber", icon: "alert", page: "avaliacao", filtroAval: "risco", filtroContrato: "181/2026" },
     { label: "SLA vencido", val: vencidasTodas.length, cls: "red", icon: "x", page: "avaliacao", filtroAval: "vencidas", filtroContrato: "181/2026" },
-    { label: "Reaberturas em aberto", val: correcaoAbertas, cls: "amber", icon: "refresh", page: "medicao" },
+    { label: "Reaberturas em aberto", val: correcaoAbertas, cls: "amber", icon: "refresh", page: "historico",
+      hist: { tipo: "Correção", statusMulti: ["Aberta", "Em andamento", "Reaberta"], contrato: "181/2026" } },
     { label: "Técnicos/equipes cadastrados", val: tecnicosTotal, cls: "navy", icon: "users", page: "tecnicos" }
   ].map(kpi2)),
   /*#__PURE__*/React.createElement("div", { className: "grid3", style: { marginBottom: 24, alignItems: "stretch" } },
@@ -2005,7 +2007,7 @@ function PageDashboard({
         : /*#__PURE__*/React.createElement("div", { className: "alert-list" },
             atencaoItens.map(a => /*#__PURE__*/React.createElement("div", {
               key: a.label, className: "alert-row",
-              onClick: () => { if (a.filtroAval) window._avaliacaoFiltro = a.filtroAval; setPage(a.page); },
+              onClick: () => { if (a.filtroAval) window._avaliacaoFiltro = a.filtroAval; if (a.hist) window._historicoFiltro = a.hist; setPage(a.page); },
               style: { cursor: "pointer" }
             },
               /*#__PURE__*/React.createElement("div", { className: "alert-ico " + a.cls }, /*#__PURE__*/React.createElement(Icon, { n: a.cls === "red" ? "x" : "alert", s: 15 })),
@@ -4471,7 +4473,7 @@ function PageHistorico({
 }) {
   const [busca, setBusca] = useState(() => { const v = window._buscaGlobal || ""; window._buscaGlobal = ""; return v; });
   const [fSt, setFSt] = useState("");
-  const [fTipo, setFTipo] = useState("");
+  const [fTipo, setFTipo] = useState(() => window._historicoFiltro?.tipo || "");
   const [fDt1, setFDt1] = useState(() => window._historicoFiltro?.dtIni || "");
   const [fDt2, setFDt2] = useState(() => window._historicoFiltro?.dtFim || "");
   const [fStMulti, setFStMulti] = useState(() => window._historicoFiltro?.statusMulti || null);
