@@ -9254,6 +9254,7 @@ function PageEstoque() {
   const [enviarComarca, setEnviarComarca] = useState("");
   const [enviarDadosComarca, setEnviarDadosComarca] = useState({});
   const [enviarPatrimonioCotesi, setEnviarPatrimonioCotesi] = useState("");
+  const [enviarPatrimonioUnidade, setEnviarPatrimonioUnidade] = useState("");
   const [enviarData, setEnviarData] = useState(new Date().toISOString().slice(0, 10));
   const [enviarSala, setEnviarSala] = useState("");
   const [enviarCanal, setEnviarCanal] = useState("");
@@ -9650,17 +9651,24 @@ function PageEstoque() {
     setEnviarComarca("");
     setEnviarDadosComarca({});
     setEnviarPatrimonioCotesi("");
+    setEnviarPatrimonioUnidade("");
     setEnviarData(new Date().toISOString().slice(0, 10));
     setEnviarSala("");
     setEnviarCanal("");
   };
   const confirmarEnvio = async (row) => {
     if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
+    const novoPatr = String(enviarPatrimonioUnidade || "").trim();
     setSalvando(true);
     try {
+      if (novoPatr) {
+        const ja = await sbFetch(`/${tabela}?select=id&numero_patrimonio=eq.${encodeURIComponent(novoPatr)}&id=neq.${row.id}&limit=1`);
+        if (ja && ja.length) { alert("O patrimônio " + novoPatr + " já está cadastrado em outra unidade do estoque " + nomeAba + "."); return; }
+      }
       await sbFetch(`/${tabela}?id=eq.${row.id}`, {
         method: "PATCH",
         body: JSON.stringify({
+          ...(novoPatr ? { numero_patrimonio: novoPatr } : {}),
           status: "Enviado",
           unidade_responsavel: enviarComarca,
           unidade_responsavel_original: row.unidade_responsavel_original || row.unidade_responsavel,
@@ -9716,7 +9724,7 @@ function PageEstoque() {
     setEnviarSala("");
     setEnviarCanal("");
     const chave = grupo.nomeCompleto + "||" + grupo.codigo;
-    setEnvioLote({ chave, grupo, rowId: rowId || null, qtd: "", patrimonios: "", disponiveis: null });
+    setEnvioLote({ chave, grupo, rowId: rowId || null, qtd: "", patrimonios: "", novosPatrimonios: "", disponiveis: null });
     try {
       const disp = await buscarDisponiveisGrupo(grupo);
       setEnvioLote(l => l && l.chave === chave ? { ...l, disponiveis: disp.length } : l);
@@ -9728,10 +9736,14 @@ function PageEstoque() {
     if (!envioLote) return;
     const { grupo } = envioLote;
     if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
-    const patrs = String(envioLote.patrimonios || "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+    const patrs = String(envioLote.patrimonios || "").split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    // Patrimônios NOVOS (ex.: lista do SEI) para gravar nas unidades enviadas que ainda não têm patrimônio
+    const novos = String(envioLote.novosPatrimonios || "").split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    const dupNovos = novos.filter((x, i) => novos.indexOf(x) !== i);
+    if (dupNovos.length) { alert("Patrimônio repetido na lista:\n\n" + [...new Set(dupNovos)].join(", ")); return; }
     const qtdDigitada = Math.floor(Number(String(envioLote.qtd || "").replace(",", ".")) || 0);
-    const qtd = Math.max(qtdDigitada, patrs.length);
-    if (qtd < 1) { alert("Informe a quantidade a enviar (ou os números de patrimônio)."); return; }
+    const qtd = Math.max(qtdDigitada, patrs.length, novos.length);
+    if (qtd < 1) { alert("Informe a quantidade a enviar."); return; }
     setSalvando(true);
     try {
       const disp = await buscarDisponiveisGrupo(grupo);
@@ -9746,7 +9758,20 @@ function PageEstoque() {
       const resto = disp.filter(r => !escolhidas.includes(r)).sort((a, b) => (String(a.numero_patrimonio || "").trim() ? 1 : 0) - (String(b.numero_patrimonio || "").trim() ? 1 : 0) || a.id - b.id);
       while (escolhidas.length < qtd && resto.length) escolhidas.push(resto.shift());
       if (escolhidas.length < qtd) { alert(`Só há ${disp.length} unidade(s) disponível(is) de "${grupo.nome}". Não dá para enviar ${qtd}.`); return; }
-      if (!confirm(`Enviar ${qtd} unidade${qtd === 1 ? "" : "s"} de "${grupo.nome}" para ${enviarComarca}?\n\nO saldo do Cotesi será abatido em ${qtd}.`)) return;
+      // distribui os patrimônios novos entre as unidades escolhidas que estão SEM patrimônio
+      const semPatr = escolhidas.filter(r => !String(r.numero_patrimonio || "").trim());
+      if (novos.length > semPatr.length) { alert(`Você informou ${novos.length} patrimônio(s) novo(s), mas só ${semPatr.length} das ${escolhidas.length} unidades a enviar estão sem patrimônio (as outras já têm número cadastrado). Reduza a lista ou envie mais unidades.`); return; }
+      if (novos.length) {
+        const jaExistem = [];
+        for (let i = 0; i < novos.length; i += 100) {
+          const lote = novos.slice(i, i + 100).map(x => `"${x.replace(/"/g, '\\"')}"`).join(",");
+          const r = await sbFetch(`/${tabela}?select=numero_patrimonio&numero_patrimonio=in.(${encodeURIComponent(lote)})`);
+          (r || []).forEach(x => jaExistem.push(x.numero_patrimonio));
+        }
+        if (jaExistem.length) { alert("Estes patrimônios já estão cadastrados em outra unidade do estoque " + nomeAba + ":\n\n" + [...new Set(jaExistem)].join(", ") + "\n\nSe é para mandar essas unidades, use o campo de selecionar por patrimônio."); return; }
+      }
+      const atribuicoes = novos.map((pt, i) => ({ id: semPatr[i].id, numero_patrimonio: pt }));
+      if (!confirm(`Enviar ${qtd} unidade${qtd === 1 ? "" : "s"} de "${grupo.nome}" para ${enviarComarca}?` + (atribuicoes.length ? `\n\n${atribuicoes.length} patrimônio(s) novo(s) serão gravados nas unidades.` : "") + `\n\nO saldo do Cotesi será abatido em ${qtd}.`)) return;
       const agora = new Date().toISOString();
       const base = {
         status: "Enviado",
@@ -9764,6 +9789,9 @@ function PageEstoque() {
         for (let i = 0; i < ids.length; i += 200) {
           await sbFetch(`/${tabela}?id=in.(${ids.slice(i, i + 200).join(",")})`, { method: "PATCH", body: JSON.stringify({ ...base, unidade_responsavel_original: origem || null }) });
         }
+      }
+      for (const a of atribuicoes) {
+        await sbFetch(`/${tabela}?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ numero_patrimonio: a.numero_patrimonio }) });
       }
       // abate do Cotesi, podendo passar por mais de uma linha do mesmo código
       let faltaAbater = qtd;
@@ -9788,7 +9816,8 @@ function PageEstoque() {
   const renderFormEnvioLote = () => {
     const l = envioLote;
     const setL = (k, v) => setEnvioLote(x => ({ ...x, [k]: v }));
-    const nPatr = String(l.patrimonios || "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean).length;
+    const nPatr = String(l.patrimonios || "").split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).length;
+    const nNovos = String(l.novosPatrimonios || "").split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).length;
     return React.createElement("div", { style: { padding: 12, background: "#eef6ff", borderBottom: "1px solid var(--border)" }, onClick: e => e.stopPropagation() },
       React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 4 } }, "📤 Enviar em lote — \"" + l.grupo.nome + "\""),
       React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginBottom: 10 } },
@@ -9811,9 +9840,14 @@ function PageEstoque() {
             React.createElement("option", { value: "E-mail" }, "E-mail")
           ))
       ),
-      React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Patrimônios específicos (opcional — separados por vírgula)"),
-        React.createElement("input", { value: l.patrimonios, onChange: e => setL("patrimonios", e.target.value), placeholder: "Se deixar vazio, o sistema escolhe as unidades disponíveis (sem patrimônio primeiro)" }),
-        nPatr > 0 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, nPatr + " patrimônio(s) informado(s)" + (Number(l.qtd) > nPatr ? " + " + (Number(l.qtd) - nPatr) + " unidade(s) escolhida(s) pelo sistema" : ""))),
+      React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº de patrimônio para gravar nas unidades enviadas (opcional — ex.: lista do SEI)"),
+        React.createElement("textarea", { rows: 2, value: l.novosPatrimonios, onChange: e => setL("novosPatrimonios", e.target.value), placeholder: "Cole os números (um por linha, ou separados por vírgula/espaço). Pode deixar vazio e enviar sem patrimônio.", style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, resize: "vertical" } }),
+        nNovos > 0 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, nNovos + " patrimônio(s) — vão ser gravados, em ordem, nas unidades enviadas que estão sem patrimônio")),
+      React.createElement("details", { style: { marginBottom: 10 } },
+        React.createElement("summary", { style: { fontSize: 11, color: "var(--text3)", cursor: "pointer" } }, "Escolher unidades que JÁ têm patrimônio cadastrado (opcional)"),
+        React.createElement("div", { className: "fld", style: { marginTop: 6 } },
+          React.createElement("input", { value: l.patrimonios, onChange: e => setL("patrimonios", e.target.value), placeholder: "Patrimônios já existentes no estoque, para mandar exatamente essas unidades" }),
+          nPatr > 0 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, nPatr + " unidade(s) escolhida(s) por patrimônio" + (Number(l.qtd) > nPatr ? " + " + (Number(l.qtd) - nPatr) + " escolhida(s) pelo sistema" : "")))),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
         React.createElement("button", { className: "btn", onClick: () => setEnvioLote(null), disabled: salvando }, "Cancelar"),
         React.createElement("button", {
@@ -10254,6 +10288,8 @@ function PageEstoque() {
           React.createElement("option", { value: "E-mail" }, "E-mail")
         ))
     ),
+    !String(row.numero_patrimonio || "").trim() && React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº de patrimônio desta unidade (opcional — pode enviar sem)"),
+      React.createElement("input", { value: enviarPatrimonioUnidade, onChange: e => setEnviarPatrimonioUnidade(e.target.value), placeholder: "Ex.: número que veio no SEI" })),
     React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº patrimônio no Cotesi (opcional)"),
       React.createElement("input", { value: enviarPatrimonioCotesi, onChange: e => setEnviarPatrimonioCotesi(e.target.value), placeholder: "Pra rastrear qual unidade saiu" })),
     React.createElement("div", { style: { display: "flex", gap: 8 } },
