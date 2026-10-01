@@ -9397,10 +9397,11 @@ function PageEstoque() {
     }
   };
 
-  const abrirLote = grupo => {
+  const abrirLote = (grupo, rowId) => {
     const r0 = grupo.itens[0] || {};
+    setEnvioLote(null);
     setLoteEditando({
-      chave: grupo.nomeCompleto + "||" + grupo.codigo, grupo, soDisponiveis: false,
+      chave: grupo.nomeCompleto + "||" + grupo.codigo, grupo, rowId: rowId || null, soDisponiveis: false,
       form: { codigo_item: r0.codigo_item || "", item_material: r0.item_material || "", marca: r0.marca || "", modelo: r0.modelo || "", unidade_responsavel: r0.unidade_responsavel || "" }
     });
   };
@@ -9705,7 +9706,7 @@ function PageEstoque() {
     }
     return todas;
   };
-  const abrirEnvioLote = async grupo => {
+  const abrirEnvioLote = async (grupo, rowId) => {
     setEnviandoId(null);
     setLoteEditando(null);
     setEnviarComarca("");
@@ -9715,7 +9716,7 @@ function PageEstoque() {
     setEnviarSala("");
     setEnviarCanal("");
     const chave = grupo.nomeCompleto + "||" + grupo.codigo;
-    setEnvioLote({ chave, grupo, qtd: "", patrimonios: "", disponiveis: null });
+    setEnvioLote({ chave, grupo, rowId: rowId || null, qtd: "", patrimonios: "", disponiveis: null });
     try {
       const disp = await buscarDisponiveisGrupo(grupo);
       setEnvioLote(l => l && l.chave === chave ? { ...l, disponiveis: disp.length } : l);
@@ -10172,6 +10173,9 @@ function PageEstoque() {
     });
     return Object.values(g).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   })();
+
+  const grupoDaLinha = row => grupos.find(g => g.nomeCompleto === row.item_material && g.codigo === row.codigo_item)
+    || { nome: nomeLimpo(row.item_material), nomeCompleto: row.item_material, codigo: row.codigo_item, itens: [row] };
 
   const totalDisponivel = dados.filter(r => aba === "cotesi" || r.status !== statusIndisponivel).length;
   const totalEnviado = aba === "comarcas" ? dados.filter(r => r.status === "Recolhido").length : ehIndividual ? dados.filter(r => r.status === "Enviado").length : 0;
@@ -10678,8 +10682,8 @@ function PageEstoque() {
                 ehIndividual && React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); ajustarQuantidadeGrupo(grupo); } }, "± Editar quantidade")
               )
             ),
-            loteEditando && loteEditando.chave === chaveGrupo && renderFormLote(),
-            envioLote && envioLote.chave === chaveGrupo && renderFormEnvioLote(),
+            loteEditando && !loteEditando.rowId && loteEditando.chave === chaveGrupo && renderFormLote(),
+            envioLote && !envioLote.rowId && envioLote.chave === chaveGrupo && renderFormEnvioLote(),
             grupo.itens.map(row => React.createElement("div", { key: row.id, style: { padding: "10px 16px", borderBottom: "1px solid var(--border)" } },
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
@@ -10744,6 +10748,8 @@ function PageEstoque() {
         )),
         React.createElement("tbody", null,
           dados.map(row => React.createElement(React.Fragment, { key: row.id },
+            envioLote && envioLote.rowId === row.id && React.createElement("tr", null, React.createElement("td", { colSpan: 6, style: { padding: 0 } }, renderFormEnvioLote())),
+            loteEditando && loteEditando.rowId === row.id && React.createElement("tr", null, React.createElement("td", { colSpan: 6, style: { padding: 0 } }, renderFormLote())),
             editandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEdicao())) :
             enviandoId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderFormEnvio(row))) :
             confirmandoDesfazerId === row.id ? React.createElement("tr", null, React.createElement("td", { colSpan: 6 }, renderConfirmDesfazer(row))) :
@@ -10767,8 +10773,17 @@ function PageEstoque() {
                 }, "↩️ Desfazer recolhimento"),
                 aba !== "comarcas" && ehIndividual && row.status !== "Enviado" && React.createElement("button", {
                   onClick: () => abrirEnvio(row),
-                  style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }
+                  style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", marginRight: 6 }
                 }, "📤 Enviar"),
+                aba === "cobens" && row.status !== "Enviado" && React.createElement("button", {
+                  onClick: () => { const g = grupoDaLinha(row); envioLote && envioLote.rowId === row.id ? setEnvioLote(null) : abrirEnvioLote(g, row.id); },
+                  disabled: salvando, title: "Enviar várias unidades deste item de uma vez",
+                  style: { background: "var(--navy, #0d1b36)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", marginRight: 6 }
+                }, "📤 Enviar lote"),
+                React.createElement("button", {
+                  onClick: () => { const g = grupoDaLinha(row); loteEditando && loteEditando.rowId === row.id ? setLoteEditando(null) : abrirLote(g, row.id); },
+                  disabled: salvando, className: "bsm", title: "Editar todas as unidades deste item de uma vez"
+                }, "✎ Editar lote"),
                 aba !== "comarcas" && ehIndividual && row.status === "Enviado" && React.createElement("button", {
                   onClick: () => setConfirmandoDesfazerId(row.id),
                   style: { background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 10px", fontSize: 12, cursor: "pointer" }
