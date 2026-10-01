@@ -9280,6 +9280,7 @@ function PageEstoque() {
   const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [contagemGrupos, setContagemGrupos] = useState({}); // "item||codigo" -> {total, indisp, enviados} contados no BANCO (não só na página)
   const [loteEditando, setLoteEditando] = useState(null); // {chave, grupo, form:{...}, soDisponiveis}
+  const [envioLote, setEnvioLote] = useState(null); // {chave, grupo, qtd, patrimonios, disponiveis}
   const [opcoes, setOpcoes] = useState([]); // {codigo, nome, marca, modelo}, únicos, pra montar os filtros
   const [buscaFiltro, setBuscaFiltro] = useState("");
   const [grupoAberto, setGrupoAberto] = useState(null);
@@ -9690,6 +9691,136 @@ function PageEstoque() {
     } finally {
       setSalvando(false);
     }
+  };
+
+  // ── Envio em LOTE (Cobens): manda N unidades disponíveis do mesmo item para a mesma comarca de uma vez.
+  // Cada unidade continua sendo uma linha própria (status Enviado), então "↩️ Desfazer" individual segue funcionando.
+  const buscarDisponiveisGrupo = async grupo => {
+    const filtro = `codigo_item=eq.${encodeURIComponent(grupo.codigo || "")}&item_material=eq.${encodeURIComponent(grupo.nomeCompleto || "")}&or=(status.is.null,status.neq.Enviado)`;
+    const todas = [];
+    for (let off = 0, voltas = 0; voltas < 50; off += 1000, voltas++) {
+      const parte = await sbFetch(`/${tabela}?${filtro}&select=id,numero_patrimonio,unidade_responsavel,unidade_responsavel_original&order=id.asc&limit=1000&offset=${off}`);
+      todas.push(...(parte || []));
+      if (!parte || parte.length < 1000) break;
+    }
+    return todas;
+  };
+  const abrirEnvioLote = async grupo => {
+    setEnviandoId(null);
+    setLoteEditando(null);
+    setEnviarComarca("");
+    setEnviarDadosComarca({});
+    setEnviarPatrimonioCotesi("");
+    setEnviarData(new Date().toISOString().slice(0, 10));
+    setEnviarSala("");
+    setEnviarCanal("");
+    const chave = grupo.nomeCompleto + "||" + grupo.codigo;
+    setEnvioLote({ chave, grupo, qtd: "", patrimonios: "", disponiveis: null });
+    try {
+      const disp = await buscarDisponiveisGrupo(grupo);
+      setEnvioLote(l => l && l.chave === chave ? { ...l, disponiveis: disp.length } : l);
+    } catch (e) {
+      setEnvioLote(l => l && l.chave === chave ? { ...l, disponiveis: -1 } : l);
+    }
+  };
+  const confirmarEnvioLote = async () => {
+    if (!envioLote) return;
+    const { grupo } = envioLote;
+    if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
+    const patrs = String(envioLote.patrimonios || "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+    const qtdDigitada = Math.floor(Number(String(envioLote.qtd || "").replace(",", ".")) || 0);
+    const qtd = Math.max(qtdDigitada, patrs.length);
+    if (qtd < 1) { alert("Informe a quantidade a enviar (ou os números de patrimônio)."); return; }
+    setSalvando(true);
+    try {
+      const disp = await buscarDisponiveisGrupo(grupo);
+      // 1) patrimônios informados primeiro (na ordem), 2) completa com as demais disponíveis — sem patrimônio antes
+      const escolhidas = [];
+      const naoAchados = [];
+      patrs.forEach(pt => {
+        const u = disp.find(r => String(r.numero_patrimonio || "").trim() === pt && !escolhidas.includes(r));
+        if (u) escolhidas.push(u); else naoAchados.push(pt);
+      });
+      if (naoAchados.length) { alert("Estes patrimônios não estão disponíveis neste item (não existem ou já foram enviados):\n\n" + naoAchados.join(", ")); return; }
+      const resto = disp.filter(r => !escolhidas.includes(r)).sort((a, b) => (String(a.numero_patrimonio || "").trim() ? 1 : 0) - (String(b.numero_patrimonio || "").trim() ? 1 : 0) || a.id - b.id);
+      while (escolhidas.length < qtd && resto.length) escolhidas.push(resto.shift());
+      if (escolhidas.length < qtd) { alert(`Só há ${disp.length} unidade(s) disponível(is) de "${grupo.nome}". Não dá para enviar ${qtd}.`); return; }
+      if (!confirm(`Enviar ${qtd} unidade${qtd === 1 ? "" : "s"} de "${grupo.nome}" para ${enviarComarca}?\n\nO saldo do Cotesi será abatido em ${qtd}.`)) return;
+      const agora = new Date().toISOString();
+      const base = {
+        status: "Enviado",
+        unidade_responsavel: enviarComarca,
+        comarca_destino: enviarComarca,
+        data_envio: enviarData || agora.slice(0, 10),
+        sala_destinacao: enviarSala || null,
+        canal_demanda: enviarCanal || null,
+        atualizado_em: agora
+      };
+      // agrupa por unidade de origem pra gravar unidade_responsavel_original certo (usado no Desfazer)
+      const porOrigem = {};
+      escolhidas.forEach(r => { const o = r.unidade_responsavel_original || r.unidade_responsavel || ""; (porOrigem[o] = porOrigem[o] || []).push(r.id); });
+      for (const [origem, ids] of Object.entries(porOrigem)) {
+        for (let i = 0; i < ids.length; i += 200) {
+          await sbFetch(`/${tabela}?id=in.(${ids.slice(i, i + 200).join(",")})`, { method: "PATCH", body: JSON.stringify({ ...base, unidade_responsavel_original: origem || null }) });
+        }
+      }
+      // abate do Cotesi, podendo passar por mais de uma linha do mesmo código
+      let faltaAbater = qtd;
+      const linhasCotesi = await sbFetch(`/estoque_cotesi?codigo_item=eq.${encodeURIComponent(grupo.codigo || "")}&qtde_bem=gt.0&order=id.asc`);
+      for (const item of (linhasCotesi || [])) {
+        if (faltaAbater <= 0) break;
+        const saldo = parseFloat(item.qtde_bem) || 0;
+        const tira = Math.min(saldo, faltaAbater);
+        await sbFetch(`/estoque_cotesi?id=eq.${item.id}`, { method: "PATCH", body: JSON.stringify({ qtde_bem: saldo - tira, atualizado_em: agora }) });
+        faltaAbater -= tira;
+      }
+      if (faltaAbater > 0) setMsg(`Aviso: ${qtd} unidade(s) enviada(s), mas o Cotesi não tinha saldo suficiente do código ${grupo.codigo} — faltou abater ${faltaAbater}. Confira o Cotesi.`);
+      toast(`${qtd} unidade${qtd === 1 ? "" : "s"} enviada${qtd === 1 ? "" : "s"} para ${enviarComarca}.`);
+      setEnvioLote(null);
+      carregar(offset);
+    } catch (e) {
+      alert("Erro no envio em lote: " + e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+  const renderFormEnvioLote = () => {
+    const l = envioLote;
+    const setL = (k, v) => setEnvioLote(x => ({ ...x, [k]: v }));
+    const nPatr = String(l.patrimonios || "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean).length;
+    return React.createElement("div", { style: { padding: 12, background: "#eef6ff", borderBottom: "1px solid var(--border)" }, onClick: e => e.stopPropagation() },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 4 } }, "📤 Enviar em lote — \"" + l.grupo.nome + "\""),
+      React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginBottom: 10 } },
+        l.disponiveis == null ? "Contando unidades disponíveis..." : l.disponiveis < 0 ? "Não consegui contar as disponíveis agora (o envio confere de novo ao confirmar)." : (l.disponiveis + " unidade" + (l.disponiveis === 1 ? "" : "s") + " disponíve" + (l.disponiveis === 1 ? "l" : "is") + " para envio")),
+      React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Quantidade a enviar"),
+          React.createElement("input", { type: "number", min: 1, max: l.disponiveis > 0 ? l.disponiveis : undefined, value: l.qtd, onChange: e => setL("qtd", e.target.value), placeholder: "Ex: 10" })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Comarca de destino"),
+          React.createElement(ComarcaInput, { value: enviarComarca, onChange: (k, d) => { setEnviarComarca(k); setEnviarDadosComarca(d); } })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Data do envio"),
+          React.createElement("input", { type: "date", value: enviarData, onChange: e => setEnviarData(e.target.value) }))
+      ),
+      React.createElement("div", { className: "fr", style: { marginBottom: 10 } },
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Sala de destinação (se houver)"),
+          React.createElement("input", { value: enviarSala, onChange: e => setEnviarSala(e.target.value), placeholder: "Ex: Salão do Júri, Sala de audiência, qual vara?" })),
+        React.createElement("div", { className: "fld" }, React.createElement("label", null, "Demanda chegou por"),
+          React.createElement("select", { value: enviarCanal, onChange: e => setEnviarCanal(e.target.value) },
+            React.createElement("option", { value: "" }, "— Selecione —"),
+            React.createElement("option", { value: "SEI" }, "SEI"),
+            React.createElement("option", { value: "E-mail" }, "E-mail")
+          ))
+      ),
+      React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Patrimônios específicos (opcional — separados por vírgula)"),
+        React.createElement("input", { value: l.patrimonios, onChange: e => setL("patrimonios", e.target.value), placeholder: "Se deixar vazio, o sistema escolhe as unidades disponíveis (sem patrimônio primeiro)" }),
+        nPatr > 0 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, nPatr + " patrimônio(s) informado(s)" + (Number(l.qtd) > nPatr ? " + " + (Number(l.qtd) - nPatr) + " unidade(s) escolhida(s) pelo sistema" : ""))),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: () => setEnvioLote(null), disabled: salvando }, "Cancelar"),
+        React.createElement("button", {
+          onClick: confirmarEnvioLote, disabled: salvando,
+          style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, salvando ? "Enviando..." : "✓ Confirmar envio do lote")
+      )
+    );
   };
 
   const desfazerEnvio = async (row) => {
@@ -10542,11 +10673,13 @@ function PageEstoque() {
                   ? (totalGrupo + " unidade" + (totalGrupo === 1 ? "" : "s") + " no total" + (grupo.itens.length < totalGrupo ? " · " + grupo.itens.length + " listada" + (grupo.itens.length === 1 ? "" : "s") + " nesta página (use Próxima → para ver as demais)" : ""))
                   : (totalGrupo + " registro" + (totalGrupo === 1 ? "" : "s"))),
               React.createElement("div", { style: { display: "flex", gap: 6 } },
-                React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); loteEditando && loteEditando.chave === chaveGrupo ? setLoteEditando(null) : abrirLote(grupo); } }, "✎ Editar lote"),
+                aba === "cobens" && disp > 0 && React.createElement("button", { disabled: salvando, onClick: e => { e.stopPropagation(); envioLote && envioLote.chave === chaveGrupo ? setEnvioLote(null) : abrirEnvioLote(grupo); }, style: { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "📤 Enviar lote"),
+                React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); setEnvioLote(null); loteEditando && loteEditando.chave === chaveGrupo ? setLoteEditando(null) : abrirLote(grupo); } }, "✎ Editar lote"),
                 ehIndividual && React.createElement("button", { className: "bsm", disabled: salvando, onClick: e => { e.stopPropagation(); ajustarQuantidadeGrupo(grupo); } }, "± Editar quantidade")
               )
             ),
             loteEditando && loteEditando.chave === chaveGrupo && renderFormLote(),
+            envioLote && envioLote.chave === chaveGrupo && renderFormEnvioLote(),
             grupo.itens.map(row => React.createElement("div", { key: row.id, style: { padding: "10px 16px", borderBottom: "1px solid var(--border)" } },
               editandoId === row.id ? renderFormEdicao() :
               enviandoId === row.id ? renderFormEnvio(row) :
