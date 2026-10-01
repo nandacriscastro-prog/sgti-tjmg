@@ -9258,6 +9258,9 @@ function PageEstoque() {
   const [enviarData, setEnviarData] = useState(new Date().toISOString().slice(0, 10));
   const [enviarSala, setEnviarSala] = useState("");
   const [enviarCanal, setEnviarCanal] = useState("");
+  const [enviarNumSei, setEnviarNumSei] = useState("");
+  // canal_demanda guarda "SEI" ou "SEI 0000000-00.0000.8.13.0000" quando o nº do processo é informado (sem mudar schema)
+  const canalComSei = () => enviarCanal === "SEI" && enviarNumSei.trim() ? "SEI " + enviarNumSei.trim() : (enviarCanal || null);
   const [filtroComarcaDestino, setFiltroComarcaDestino] = useState("");
   const [filtroDataUnica, setFiltroDataUnica] = useState("");
   const [filtroDataDe, setFiltroDataDe] = useState("");
@@ -9655,6 +9658,7 @@ function PageEstoque() {
     setEnviarData(new Date().toISOString().slice(0, 10));
     setEnviarSala("");
     setEnviarCanal("");
+    setEnviarNumSei("");
   };
   const confirmarEnvio = async (row) => {
     if (!enviarComarca) { alert("Selecione a comarca de destino."); return; }
@@ -9675,7 +9679,7 @@ function PageEstoque() {
           comarca_destino: enviarComarca,
           data_envio: enviarData || new Date().toISOString().slice(0, 10),
           sala_destinacao: enviarSala || null,
-          canal_demanda: enviarCanal || null,
+          canal_demanda: canalComSei(),
           atualizado_em: new Date().toISOString()
         })
       });
@@ -9723,6 +9727,7 @@ function PageEstoque() {
     setEnviarData(new Date().toISOString().slice(0, 10));
     setEnviarSala("");
     setEnviarCanal("");
+    setEnviarNumSei("");
     const chave = grupo.nomeCompleto + "||" + grupo.codigo;
     setEnvioLote({ chave, grupo, rowId: rowId || null, qtd: "", patrimonios: "", novosPatrimonios: "", disponiveis: null });
     try {
@@ -9779,7 +9784,7 @@ function PageEstoque() {
         comarca_destino: enviarComarca,
         data_envio: enviarData || agora.slice(0, 10),
         sala_destinacao: enviarSala || null,
-        canal_demanda: enviarCanal || null,
+        canal_demanda: canalComSei(),
         atualizado_em: agora
       };
       // agrupa por unidade de origem pra gravar unidade_responsavel_original certo (usado no Desfazer)
@@ -9838,10 +9843,12 @@ function PageEstoque() {
             React.createElement("option", { value: "" }, "— Selecione —"),
             React.createElement("option", { value: "SEI" }, "SEI"),
             React.createElement("option", { value: "E-mail" }, "E-mail")
-          ))
+          )),
+        enviarCanal === "SEI" && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº do processo SEI (opcional)"),
+          React.createElement("input", { value: enviarNumSei, onChange: e => setEnviarNumSei(e.target.value), placeholder: "Ex.: 0123456-78.2026.8.13.0000" }))
       ),
-      React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº de patrimônio para gravar nas unidades enviadas (opcional — ex.: lista do SEI)"),
-        React.createElement("textarea", { rows: 2, value: l.novosPatrimonios, onChange: e => setL("novosPatrimonios", e.target.value), placeholder: "Cole os números (um por linha, ou separados por vírgula/espaço). Pode deixar vazio e enviar sem patrimônio.", style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, resize: "vertical" } }),
+      React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº de patrimônio das unidades (opcional)"),
+        React.createElement("textarea", { rows: 2, value: l.novosPatrimonios, onChange: e => setL("novosPatrimonios", e.target.value), placeholder: "Deixe vazio para enviar sem patrimônio. Se tiver, cole os números (um por linha ou separados por vírgula).", style: { width: "100%", padding: "7px 9px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, resize: "vertical" } }),
         nNovos > 0 && React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, nNovos + " patrimônio(s) — vão ser gravados, em ordem, nas unidades enviadas que estão sem patrimônio")),
       React.createElement("details", { style: { marginBottom: 10 } },
         React.createElement("summary", { style: { fontSize: 11, color: "var(--text3)", cursor: "pointer" } }, "Escolher unidades que JÁ têm patrimônio cadastrado (opcional)"),
@@ -10286,10 +10293,12 @@ function PageEstoque() {
           React.createElement("option", { value: "" }, "— Selecione —"),
           React.createElement("option", { value: "SEI" }, "SEI"),
           React.createElement("option", { value: "E-mail" }, "E-mail")
-        ))
+        )),
+      enviarCanal === "SEI" && React.createElement("div", { className: "fld" }, React.createElement("label", null, "Nº do processo SEI (opcional)"),
+        React.createElement("input", { value: enviarNumSei, onChange: e => setEnviarNumSei(e.target.value), placeholder: "Ex.: 0123456-78.2026.8.13.0000" }))
     ),
     !String(row.numero_patrimonio || "").trim() && React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº de patrimônio desta unidade (opcional — pode enviar sem)"),
-      React.createElement("input", { value: enviarPatrimonioUnidade, onChange: e => setEnviarPatrimonioUnidade(e.target.value), placeholder: "Ex.: número que veio no SEI" })),
+      React.createElement("input", { value: enviarPatrimonioUnidade, onChange: e => setEnviarPatrimonioUnidade(e.target.value), placeholder: "Deixe vazio para enviar sem patrimônio" })),
     React.createElement("div", { className: "fld", style: { marginBottom: 10 } }, React.createElement("label", null, "Nº patrimônio no Cotesi (opcional)"),
       React.createElement("input", { value: enviarPatrimonioCotesi, onChange: e => setEnviarPatrimonioCotesi(e.target.value), placeholder: "Pra rastrear qual unidade saiu" })),
     React.createElement("div", { style: { display: "flex", gap: 8 } },
