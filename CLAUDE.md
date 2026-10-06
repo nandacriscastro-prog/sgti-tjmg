@@ -89,7 +89,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - **CONTRATO_VALOR_181 = R$2.222.831,00** | **CONTRATO_VALOR_ANEXO_V_181 = R$1.327.474,62**
 
 ### Itens novos do Anexo V (aditivo) — desde 25/09/2026
-- Adicionados `3.1.14` (Módulo Ethernet Intelbras XE 4000 Smart, R$160,00) e `3.8.9`–`3.8.14` (conversor de mídia, cordões/adaptadores/terminador ópticos, R$132,50–R$395,00) em `PRECO_ANEXO_V`/`ANEXO_V_DESC` (`index.html` **e** `alvo/index.html`) e em `FRAC_D` (`calc-medicao.js`, compartilhado).
+- Adicionados `3.1.14` (Módulo Ethernet Intelbras XE 4000 Smart, R$260,00 — corrigido de 160 em 06/10/2026) e `3.8.9`–`3.8.14` (conversor de mídia, cordões/adaptadores/terminador ópticos, R$132,50–R$395,00) em `PRECO_ANEXO_V`/`ANEXO_V_DESC` (`index.html` **e** `alvo/index.html`) e em `FRAC_D` (`calc-medicao.js`, compartilhado).
 - `FRAC_D` desses itens **confirmado pela Fernanda em 25/09/2026**: 0,125 para os itens do 3.8.9–3.8.14 (conversor/cordões/adaptador/terminador ópticos); **0,25** para o 3.1.14 (Módulo Ethernet Intelbras XE 4000 Smart).
 - Não têm `ANEXO_V_QTD_CONTRATADA`/`ANEXO_V_VALOR_TOTAL_CONTRATADO` (itens novos, sem quantidade contratada ainda) — Controle de Ativos cai no fallback `qtdContratada = 0` / `valorContratado = qtd × vu`, então "restante" fica negativo assim que usado uma vez. Aceitável por ora; se a Fernanda informar quantidade contratada do aditivo, adicionar essas chaves.
 
