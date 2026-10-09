@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791547760 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791549142 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -3173,6 +3173,17 @@ const sistemaCanonico = s => {
   if (t.includes("acesso")) return "acesso";
   return t;
 };
+// Edição do Histórico: lista de sistemas marcáveis e conversão servico <-> sistemas.
+// O servico das OS do contrato 181 é "Manutenção: CFTV, Alarme — descrição". A medição detecta os
+// sistemas por palavra-chave nesse texto (cada checagem é independente: Portal + CFTV pagam os dois).
+const SISTEMAS_EDICAO = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso"];
+const sistemasDoServico = (servico) => SISTEMAS_EDICAO.filter(s => servicoTemSistema(servico, sistemaCanonico(s)));
+const servicoComSistemas = (servicoAtual, sistemas) => {
+  const atual = servicoAtual || "";
+  const iDesc = atual.indexOf(" — ");
+  const desc = iDesc >= 0 ? atual.slice(iDesc) : "";
+  return "Manutenção: " + sistemas.join(", ") + desc;
+};
 const servicoTemSistema = (servico, chave) => (servico || "").toLowerCase().includes(chave === "raiox" ? "raio" : chave) ||
   (chave === "raiox" && (servico || "").toLowerCase().includes("scanner")) ||
   (chave === "cftv" && (servico || "").toLowerCase().includes("videomonitor"));
@@ -4613,6 +4624,7 @@ function PageHistorico({
       obs: ret.obs || "",
       pecas: Array.isArray(ret.pecas) ? ret.pecas.filter(p => p.desc).map(p => ({ ...p })) : [],
       _restante: ret,
+      sistemas: sistemasDoServico(o.servico),
       _codSel: "",
       _qtdSel: "1",
       _valorSel: ""
@@ -4625,11 +4637,18 @@ function PageHistorico({
     try {
       const novoRetorno = { ...execForm._restante, km: execForm.km, solucao: execForm.solucao, obs: execForm.obs, pecas: execForm.pecas };
       delete novoRetorno._restante;
+      // Sistemas atendidos: só reescreve o "servico" se a lista mudou (OS do 181, não remota) — a medição
+      // detecta cada sistema pelo texto do serviço e paga todos os atendimentos (Portal + CFTV etc.).
+      const sistemasAntes = sistemasDoServico(sel.servico);
+      const sistemasMudaram = (sel.contrato || "") === "181/2026" && sel.tipo !== "Atendimento Remoto" &&
+        (execForm.sistemas || []).length > 0 &&
+        JSON.stringify(sistemasAntes) !== JSON.stringify(SISTEMAS_EDICAO.filter(x => (execForm.sistemas || []).includes(x)));
+      const novoServico = sistemasMudaram ? servicoComSistemas(sel.servico, SISTEMAS_EDICAO.filter(x => execForm.sistemas.includes(x))) : null;
       await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
         method: "PATCH",
-        body: JSON.stringify({ retorno_campo: JSON.stringify(novoRetorno) })
+        body: JSON.stringify(novoServico ? { retorno_campo: JSON.stringify(novoRetorno), servico: novoServico } : { retorno_campo: JSON.stringify(novoRetorno) })
       });
-      setSel(s => ({ ...s, retorno_campo: JSON.stringify(novoRetorno) }));
+      setSel(s => ({ ...s, retorno_campo: JSON.stringify(novoRetorno), ...(novoServico ? { servico: novoServico } : {}) }));
       setEditandoExecucao(false);
       if (reload) reload();
     } catch (e) {
@@ -5233,6 +5252,17 @@ function PageHistorico({
           React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
             React.createElement("input", { type: "number", min: "0", value: execForm.km, onChange: e => setExecForm(f => ({ ...f, km: e.target.value })) }))
         ),
+        (sel.contrato || "") === "181/2026" && sel.tipo !== "Atendimento Remoto" && React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
+          React.createElement("label", null, "Sistemas atendidos (a medição paga cada atendimento: Portal, Raio-X e presencial somam separados)"),
+          React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, marginTop: 4 } },
+            SISTEMAS_EDICAO.map(s => React.createElement("label", { key: s, style: { display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, cursor: "pointer" } },
+              React.createElement("input", {
+                type: "checkbox",
+                checked: (execForm.sistemas || []).includes(s),
+                onChange: e => setExecForm(f => ({ ...f, sistemas: e.target.checked ? [...(f.sistemas || []), s] : (f.sistemas || []).filter(x => x !== s) }))
+              }), s))
+          )
+        ),
         React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
           React.createElement("label", null, "Solução aplicada"),
           React.createElement("textarea", { value: execForm.solucao, onChange: e => setExecForm(f => ({ ...f, solucao: e.target.value })), rows: 3 })
@@ -5314,6 +5344,21 @@ function PageHistorico({
               React.createElement("div", { className: "fg" },
                 React.createElement("label", null, "Serviço"),
                 React.createElement("input", { type: "text", value: formOSBasico.servico, onChange: e => setFormOSBasico(f => ({ ...f, servico: e.target.value })) })
+              )
+            ),
+            React.createElement("div", { className: "fg full", style: { marginBottom: 10 } },
+              React.createElement("label", null, "Sistemas atendidos (marque todos que se aplicam — a medição paga cada atendimento)"),
+              React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, marginTop: 4 } },
+                SISTEMAS_EDICAO.map(s => React.createElement("label", { key: s, style: { display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, cursor: "pointer" } },
+                  React.createElement("input", {
+                    type: "checkbox",
+                    checked: sistemasDoServico(formOSBasico.servico).includes(s),
+                    onChange: e => {
+                      const marcados = sistemasDoServico(formOSBasico.servico);
+                      const novos = e.target.checked ? [...marcados, s] : marcados.filter(x => x !== s);
+                      setFormOSBasico(f => ({ ...f, servico: servicoComSistemas(f.servico, SISTEMAS_EDICAO.filter(x => novos.includes(x))) }));
+                    }
+                  }), s))
               )
             ),
             React.createElement("div", { className: "fg full", style: { marginBottom: 10 } },
