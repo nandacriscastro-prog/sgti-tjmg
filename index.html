@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791549142 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791921831 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -607,6 +607,7 @@ const PRECO_ANEXO_V = {
   "3.9.1": 523.21, "3.9.2": 680.48, "3.9.3": 897.28, "3.9.4": 1254.13, "3.9.5": 1019.36,
   "3.9.6": 1047.00, "3.9.7": 3115.63, "3.9.8": 203.35,
   "3.10": 3498.98, "3.11": 36.60,
+  "3.12": 33.94, "3.13": 33.94, "3.14": 33.94, "3.15": 33.94,
   "RSD": 0
 };
 // Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
@@ -677,7 +678,7 @@ const ANEXO_V_DESC = {
   "3.8.13":"Cordão óptico LC/UPC-LC/UPC 1,5m multimodo","3.8.14":"Cordão óptico duplex LC-UPC/SC-UPC 2,5m",
   "3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
-  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês",
+  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês","3.12":"Instalação de câmera dome analógica/IP","3.13":"Instalação de câmera bullet analógica/IP","3.14":"Instalação de câmera speed dome analógica/IP","3.15":"Instalação de DVR",
   "RSD":"Recurso sob demanda (valor a preencher)"
 };
 // FRAC_D e FRACAO_KM_ANEXO_VI agora vêm de calc-medicao.js (compartilhado com o portal Alvo) — ver <script src="./calc-medicao.js"> no <head>
@@ -1859,13 +1860,13 @@ function PageDashboard({
       if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
       if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
-      const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
+      const fracaoPecasCalc = isColarOS ? 0 : pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       p.totalDiarias += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       p.totalKm = (p.totalKm || 0) + kmOS;
       p.valorDiariaOS = (p.valorDiariaOS || 0) + Number(((fracaoBase + fracaoPecasCalc + fracaoDeslocamento) * vuDiariaD).toFixed(2));
       p.valorKmOS = (p.valorKmOS || 0) + Number((kmOS * vuKmD).toFixed(2));
-      p.brutoMateriais += (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
+      p.brutoMateriais += pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
     });
     // Mesma conta da tela Medição (calcular()): km e diária somados por OS; período travado usa o valor aprovado
     return Object.entries(porPeriodo).reduce((total, [chave, p]) => {
@@ -6458,11 +6459,11 @@ function PageLancamentoManual({
         if (isCorrecaoOS || isColarOS) return 0;
         const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
         const baseCalc = isRaioServ ? 1.25 : (_isPortal && _isPres) ? 2.0 : 1.0;
-        const pecasCalc = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+        const pecasCalc = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
         return baseCalc + pecasCalc + kmOS * FRACAO_KM_ANEXO_VI;
       })();
       totalDiarias += fracaoTotalOS1;
-      const pecasOS = r.pecas || [];
+      const pecasOS = pecasCobraveis(r.pecas);
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       const tipoOS = isCorrecaoOS ? "correcao" : (_isPortal && _isPres ? "portal+pres" : _isPortal ? "portal" : _isRaio ? "raio" : s.includes("remot") ? "rem" : "pres");
@@ -7147,7 +7148,7 @@ function PageMedicao({
         (rows || []).forEach(o => {
           let r = {};
           try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-          (r.pecas || []).filter(p => p.desc).forEach(p => {
+          pecasCobraveis(r.pecas).filter(p => p.desc).forEach(p => {
             total += (p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1); // inclui Recurso sob Demanda (valor livre)
           });
         });
@@ -7201,12 +7202,12 @@ function PageMedicao({
         if (isColarOS || isCorrecaoOS2) return 0;
         const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
         const baseCalc = isRaioServ ? 1.25 : (_isPortal2 && _isPres2) ? 2.0 : 1.0;
-        const pecasCalc = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+        const pecasCalc = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
         const deslocCalc = kmOS * FRACAO_KM_ANEXO_VI;
         return baseCalc + pecasCalc + deslocCalc; // recalculado do zero, sem o arredondamento de 3 casas que ficava salvo em retorno_campo
       })();
       totalDiarias += fracaoTotalSalvo;
-      const pecasOS = r.pecas || [];
+      const pecasOS = pecasCobraveis(r.pecas);
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       const tipoOS2 = isCorrecaoOS2 ? "correcao" : (_isPortal2 && _isPres2 ? "portal+pres" : _isPortal2 ? "portal" : _isRaio2 ? "raio" : s.includes("remot") ? "rem" : "pres");
@@ -7534,7 +7535,7 @@ function PageMedicao({
             const isPortalServ = /portal|detector/i.test(o.servico || o.tipo || "");
             const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
             const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
-            const fracaoPecasCalc = (isColarOS || isCorrecaoOS) ? 0 : (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+            const fracaoPecasCalc = (isColarOS || isCorrecaoOS) ? 0 : pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
             const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM;
             const fracaoBaseEPecas = fracaoBase + fracaoPecasCalc;
             const fracaoTotalSalvo = fracaoBaseEPecas + fracaoDeslocamento; // recalculado do zero (não usa mais o valor arredondado salvo em retorno_campo)
@@ -7557,7 +7558,7 @@ function PageMedicao({
       osMes.forEach(o => {
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
-          (r.pecas || []).forEach(p => {
+          pecasCobraveis(r.pecas).forEach(p => {
             if (!p.desc) return;
             pecasMes.push({
               numero: o.numero,
@@ -7589,7 +7590,7 @@ function PageMedicao({
       const brutoMateriais = osMes.reduce((acc, o) => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        return acc + (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+        return acc + pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       }, 0);
       const brutoCalcR = brutoServicos + brutoMateriais;
       const _chaveTravaR = `${dtIni}_${dtFim}`;
@@ -7656,7 +7657,7 @@ function PageMedicao({
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
       const vuAtend = isCorrecaoOS ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
       const item = dd.find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKmAt).toFixed(2));
@@ -7967,7 +7968,7 @@ function PageMedicao({
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
       const vuAtend = isCorrecaoOS ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
-      const materiaisOS = (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
+      const materiaisOS = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km || 0) || 0);
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
       const valorDeslocOS = Number((kmOS * vuKm).toFixed(2));
@@ -8049,7 +8050,7 @@ function PageMedicao({
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const s = (o.servico || o.tipo || "").toLowerCase();
       const servicoLabel = "Manutenção: " + (o.servico || o.tipo || "");
-      (r.pecas || []).filter(p => p.desc).forEach(p => {
+      pecasCobraveis(r.pecas).filter(p => p.desc).forEach(p => {
         const vu = p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0);
         const qtd = parseFloat(p.qtd) || 1;
         const total = vu * qtd;
@@ -8103,10 +8104,10 @@ function PageMedicao({
         usoAprovadoIVAll.km += kmOS;
         usoAprovadoIVAll.kmValor += Number((kmOS * vuKmSEI4).toFixed(2));
         const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
-        const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const fracaoPecasCalc = isColarOS ? 0 : pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
         usoAprovadoIVAll.diaria += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
-        (r.pecas || []).filter(p => p.desc && p.cod).forEach(p => {
+        pecasCobraveis(r.pecas).filter(p => p.desc && p.cod).forEach(p => {
           if (p.cod === "RSD") {
             usoAprovadoVAll["_RSD_VALOR"] = (usoAprovadoVAll["_RSD_VALOR"] || 0) + ((parseFloat(p.vu) || 0) * (parseFloat(p.qtd) || 1));
           } else {
@@ -8309,13 +8310,13 @@ function PageMedicao({
       if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
       if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
-      const fracaoPecasCalc = isColarOS ? 0 : (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
+      const fracaoPecasCalc = isColarOS ? 0 : pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || isCorrecaoOS) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
       p.totalDiarias += fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       p.totalKm = (p.totalKm || 0) + kmOS;
       p.valorDiariaOS = (p.valorDiariaOS || 0) + Number(((fracaoBase + fracaoPecasCalc + fracaoDeslocamento) * vuDiariaD).toFixed(2));
       p.valorKmOS = (p.valorKmOS || 0) + Number((kmOS * vuKmD).toFixed(2));
-      p.brutoMateriais += (r.pecas || []).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
+      p.brutoMateriais += pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((x.cod === "RSD" ? getRsdVu(x) : (PRECO_ANEXO_V[x.cod] || 0)) * (parseFloat(x.qtd) || 1)), 0);
     });
     // Mesma conta da tela Medição (calcular()): km e diária somados por OS; período travado usa o valor aprovado
     return Object.entries(porPeriodo).reduce((total, [chave, p]) => {
@@ -8935,7 +8936,7 @@ function PageMedicao({
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
         const pecasAgrupadas = {};
-        (r.pecas || []).filter(p => p.desc).forEach(p => {
+        pecasCobraveis(r.pecas).filter(p => p.desc).forEach(p => {
           const chave = p.cod || p.desc;
           if (!pecasAgrupadas[chave]) pecasAgrupadas[chave] = { desc: p.desc, cod: p.cod, vu: p.vu, qtd: 0 };
           pecasAgrupadas[chave].qtd += parseFloat(p.qtd) || 1;
@@ -8986,7 +8987,7 @@ function PageMedicao({
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const valorPecas = Number(((r.pecas || []).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
+        const valorPecas = Number((pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
         const kmOS = parseFloat(r.km || 0) || 0;
         const valorKm = Number((kmOS * valorKmUnit).toFixed(2));
         const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
@@ -9047,7 +9048,7 @@ function PageMedicao({
         const isPortalServ = /portal|detector/i.test(o.servico || o.tipo || "");
         const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
         const fracaoBase = d.regiao === "Colar Metropolitano" ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
-        const pecasOS = (r.pecas || []).filter(p => p.desc);
+        const pecasOS = pecasCobraveis(r.pecas).filter(p => p.desc);
         const fracaoPecas = pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const pecasTxt = pecasOS.length ? pecasOS.map(p => `[${p.cod || "?"}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
         const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
@@ -12050,7 +12051,7 @@ function PageControleAtivos() {
       (rows || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const pecas = (r.pecas || []).filter(p => p.desc && p.cod);
+        const pecas = pecasCobraveis(r.pecas).filter(p => p.desc && p.cod);
         const s = (o.servico || o.tipo || "").toLowerCase();
         const isCorrecaoOS = isCorrecaoDentroGarantia(o, rows); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
         const mun = (o.comarca || "").split(" - ")[0];

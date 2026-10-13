@@ -120,7 +120,7 @@ const ANEXO_IV = [
   {id:"km",desc:"Deslocamento",unid:"KM",vu:2.95},
   {id:"diaria",desc:"Diária",unid:"UNID",vu:231.73}
 ];
-const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.1.14":260.00,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.89,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.8.9":395.00,"3.8.10":140.00,"3.8.11":132.50,"3.8.12":160.00,"3.8.13":155.00,"3.8.14":140.00,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60,"RSD":0};
+const PRECO_ANEXO_V = {"3.1.1":143.70,"3.1.2":211.93,"3.1.3":798.73,"3.1.4":453.23,"3.1.5":115.11,"3.1.6":738.21,"3.1.7":83.06,"3.1.8":87.99,"3.1.9":178.37,"3.1.10":79.19,"3.1.11":359.40,"3.1.12":119.21,"3.1.13":502.12,"3.1.14":260.00,"3.2.1":690.86,"3.2.2":1360.08,"3.2.3":116.89,"3.2.4":164.59,"3.2.5":180.97,"3.2.6":155.81,"3.3.1":2900.53,"3.3.2":4699.49,"3.4":50.90,"3.5.1":788.48,"3.5.2":538.97,"3.5.3":260.72,"3.5.4":1632.66,"3.5.5":4250.38,"3.5.6":4354.74,"3.5.7":8873.37,"3.5.8":6763.95,"3.6.1":2256.77,"3.6.2":1153.32,"3.6.3":1259.74,"3.6.4":4.67,"3.7.1":135.72,"3.7.2":1545.25,"3.7.3":141.28,"3.7.4":1566.02,"3.8.1":690.70,"3.8.2":401.62,"3.8.3":2909.10,"3.8.4":471.89,"3.8.5":1576.37,"3.8.6":1232.89,"3.8.7":7595.55,"3.8.9":395.00,"3.8.10":140.00,"3.8.11":132.50,"3.8.12":160.00,"3.8.13":155.00,"3.8.14":140.00,"3.9.1":523.21,"3.9.2":680.48,"3.9.3":897.28,"3.9.4":1254.13,"3.9.5":1019.36,"3.9.6":1047.00,"3.9.7":3115.63,"3.9.8":203.35,"3.10":3498.98,"3.11":36.60,"3.12":33.94,"3.13":33.94,"3.14":33.94,"3.15":33.94,"RSD":0};
 // Quantidade do Anexo IV para exibição: inteiros como estão, km em 2 casas, diária em 6 casas
 // (com 6 casas, qtd × VU feito à mão bate com o subtotal mostrado) — igual ao sistema principal
 const fmtQtdAnexoIV = (id, q) => Number.isInteger(q) ? String(q) : (id === "diaria" ? q.toFixed(6) : q.toFixed(2));
@@ -206,7 +206,7 @@ async function carregarHistorico(){
     dados.forEach(o=>{
       let r = {};
       try{ r = JSON.parse(o.retorno_campo||"{}"); }catch(e){}
-      const pecas = (r.pecas||[]).filter(p=>p.desc).map(p=>p.desc+" ×"+p.qtd).join(", ") || "—";
+      const pecas = pecasCobraveis(r.pecas).filter(p=>p.desc).map(p=>p.desc+" ×"+p.qtd).join(", ") || "—";
       rows += `<tr>
         <td><strong>${o.numero}</strong></td>
         <td>${o.comarca||"—"}</td>
@@ -290,7 +290,7 @@ async function carregarMedicao(){
       const isPortalServ = _p;
       const isPresServ = _a;
       const fracaoBase = (isColar || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
-      const fracaoPecasCalc = isColar ? 0 : (r.pecas||[]).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
+      const fracaoPecasCalc = isColar ? 0 : pecasCobraveis(r.pecas).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
       const fracaoDeslocamento = (isColar || isCorrecaoOS) ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
       const fracaoTotalSalvo = fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       totalDiarias += fracaoTotalSalvo;
@@ -302,14 +302,14 @@ async function carregarMedicao(){
       // Portal + presencial na mesma OS soma os dois atendimentos (igual ao sistema principal)
       const vuAtend = isCorrecaoOS ? 0 : (((isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0)) || ANEXO_IV.find(a=>a.id==="pres").vu);
       let matOS = 0;
-      (r.pecas||[]).filter(p=>p.desc).forEach(p=>{
+      pecasCobraveis(r.pecas).filter(p=>p.desc).forEach(p=>{
         const vUnit = p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod]||0);
         const qtd = parseFloat(p.qtd)||1;
         matOS += vUnit*qtd;
         brutoMateriais += vUnit*qtd;
         pecasDetalhe.push({numero:o.numero, comarca:o.comarca, desc:p.desc, qtd, vUnit, total:vUnit*qtd});
       });
-      const pecasOS = (r.pecas||[]).filter(p=>p.desc).map(p=>({cod:p.cod, desc:p.desc, vu:p.vu, qtd:parseFloat(p.qtd)||1}));
+      const pecasOS = pecasCobraveis(r.pecas).filter(p=>p.desc).map(p=>({cod:p.cod, desc:p.desc, vu:p.vu, qtd:parseFloat(p.qtd)||1}));
       osMesDetalhado.push({
         numero: o.numero, comarca: o.comarca, servico: o.servico||o.tipo||"", tipoSistema, regiaoOS,
         isCorrecaoOS, isColar, isPortalServ, isRaioServ, isPresServ, kmOS, fracaoBase, fracaoPecasCalc, fracaoDeslocamento, fracaoTotalSalvo,
@@ -409,7 +409,7 @@ const ANEXO_V_DESC = {
   "3.8.13":"Cordão óptico LC/UPC-LC/UPC 1,5m multimodo","3.8.14":"Cordão óptico duplex LC-UPC/SC-UPC 2,5m",
   "3.9.1":"Braço cancela 2,5m","3.9.2":"Braço cancela 3,5m",
   "3.9.3":"Braço cancela 4,5m","3.9.4":"Braço cancela 6,0m","3.9.5":"Placa PPA Triflex Fullrange","3.9.6":"Placa PPA Triflex Brushless",
-  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês"
+  "3.9.7":"Motor cancela PPA Brushless","3.9.8":"Sensor fotoelétrico cancela","3.10":"Controle de acesso biométrico","3.11":"Chip GSM/mês","3.12":"Instalação de câmera dome analógica/IP","3.13":"Instalação de câmera bullet analógica/IP","3.14":"Instalação de câmera speed dome analógica/IP","3.15":"Instalação de DVR"
 };
 
 let simOS = []; // lista de OS simuladas: {id, comarca, sistema, km, rota, pecas:[{cod,desc,qtd}]}
@@ -658,7 +658,7 @@ function simCalcularOS(o){
   const valorKm = dentroGarantia ? 0 : (o.km * ANEXO_IV.find(a=>a.id==="km").vu);
   const atendItem = o.sistema === "portal" ? ANEXO_IV.find(a=>a.id==="portal") : o.sistema === "raio" ? ANEXO_IV.find(a=>a.id==="raio") : ANEXO_IV.find(a=>a.id==="pres");
   const valorAtendimento = dentroGarantia ? 0 : atendItem.vu;
-  const valorMateriais = o.pecas.reduce((a,p)=>a+((p.cod==="RSD"?getRsdVu(p):(PRECO_ANEXO_V[p.cod]||0))*p.qtd),0);
+  const valorMateriais = pecasCobraveis(o.pecas).reduce((a,p)=>a+((p.cod==="RSD"?getRsdVu(p):(PRECO_ANEXO_V[p.cod]||0))*p.qtd),0);
   const total = valorDiaria + valorKm + valorAtendimento + valorMateriais;
   return {isColar, isCorrecao, dentroGarantia, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais, total};
 }
@@ -909,7 +909,7 @@ function simExportar(){
       Number(c.base.toFixed(3)), Number(c.fracaoPecas.toFixed(3)), o.km, Number(c.fracaoDeslocamento.toFixed(3)), Number(c.fracaoTotal.toFixed(3)),
       L.valorDiaria, L.valorKm, L.valorAtendimento, L.valorMateriais, L.total
     ]);
-    o.pecas.forEach(p=>{
+    pecasCobraveis(o.pecas).forEach(p=>{
       const vUnit = p.cod==="RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod]||0);
       pecasRows.push([o.rota||"—", o.comarca, `[${p.cod}] ${p.desc}`, p.qtd, Number(vUnit.toFixed(2)), Number((vUnit*p.qtd).toFixed(2))]);
     });

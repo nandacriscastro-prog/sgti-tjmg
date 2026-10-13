@@ -45,6 +45,27 @@ function isCorrecaoDentroGarantia(o, todasOS, dias) {
   return diffDias >= 0 && diffDias <= dias;
 }
 
+// ── Instalação de câmeras/DVR (itens 3.12–3.15 do Anexo V, R$ 33,94/un) — desde 13/10/2026 ──
+// Regra: até 5 câmeras instaladas POR OS (dome + bullet + speed dome somadas) já estão previstas no
+// valor do atendimento — não cobram. Da 6ª em diante cobra o valor unitário. DVR (3.15) cobra sempre.
+// pecasCobraveis(pecas) devolve a lista da OS já com as quantidades COBRÁVEIS (franquia descontada);
+// todo cálculo de materiais/uso deve usar esta lista em vez de r.pecas cru.
+const INSTALACAO_CAMERAS_COD = ["3.12", "3.13", "3.14"];
+const INSTALACAO_FRANQUIA_CAMERAS = 5;
+function pecasCobraveis(pecas) {
+  let franquia = INSTALACAO_FRANQUIA_CAMERAS;
+  const out = [];
+  (pecas || []).forEach(p => {
+    if (!p || !INSTALACAO_CAMERAS_COD.includes(p.cod)) { out.push(p); return; }
+    const q = parseFloat(p.qtd) || 1;
+    const gratis = Math.min(q, franquia);
+    franquia -= gratis;
+    const cobrar = q - gratis;
+    if (cobrar > 0) out.push({ ...p, qtd: cobrar });
+  });
+  return out;
+}
+
 if (typeof window !== "undefined") {
-  window.SGTI_CALC = { FRAC_D, FRACAO_KM_ANEXO_VI, calcularFracaoOS, GARANTIA_SERVICO_DIAS, isCorrecaoDentroGarantia };
+  window.SGTI_CALC = { FRAC_D, FRACAO_KM_ANEXO_VI, calcularFracaoOS, GARANTIA_SERVICO_DIAS, isCorrecaoDentroGarantia, pecasCobraveis, INSTALACAO_FRANQUIA_CAMERAS };
 }
