@@ -650,7 +650,7 @@ function simCalcularOS(o){
   const isPortalSim = o.sistema === "portal" || o.sistema === "detector";
   const isPresSim = o.sistema === "alarme" || o.sistema === "cftv" || (!isPortalSim && o.sistema !== "raio" && o.sistema !== "scanner");
   const base = (isColar || dentroGarantia) ? 0 : (o.sistema === "raio" ? 1.25 : (isPortalSim && isPresSim) ? 2.0 : 1.0);
-  const fracaoPecasRaw = o.pecas.reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
+  const fracaoPecasRaw = pecasCobraveis(o.pecas).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*p.qtd),0);
   const fracaoPecas = isColar ? 0 : fracaoPecasRaw;
   const fracaoDeslocamento = (isColar || dentroGarantia) ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
   const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;

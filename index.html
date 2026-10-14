@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791983277 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791995917 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6404,6 +6404,14 @@ function periodoAbertoAtual() {
   return mesSeg > 11 ? { mes: 0, ano: hoje.getFullYear() + 1 } : { mes: mesSeg, ano: hoje.getFullYear() };
 }
 // ── PAGE: CAMPO ───────────────────────────────────────────────
+// Aviso no painel de preenchimento: quantas câmeras instaladas cabem na franquia (sem cobrança) e quantas cobram.
+const resumoFranquiaCameras = pecas => {
+  const total = (pecas || []).filter(p => INSTALACAO_CAMERAS_COD.includes(p.cod)).reduce((a, p) => a + (parseFloat(p.qtd) || 1), 0);
+  if (!total) return "";
+  const gratis = Math.min(total, INSTALACAO_FRANQUIA_CAMERAS);
+  const cobradas = total - gratis;
+  return "📷 Câmeras instaladas: " + total + " — " + gratis + " dentro da franquia de " + INSTALACAO_FRANQUIA_CAMERAS + " por OS (sem cobrança e sem fração de diária)" + (cobradas > 0 ? ", " + cobradas + " cobrada(s) a R$ 33,94" : "") + ".";
+};
 // Rota a que a OS pertence (marcador "Rota: N - descrição" dentro de observacoes), ou "" se não tiver.
 const rotaDaOS = obs => { const m = /Rota:\s*([^|\n<]+)/i.exec(obs || ""); return m ? m[1].trim() : ""; };
 function PageLancamentoManual({
@@ -6554,7 +6562,7 @@ function PageLancamentoManual({
     const isCorrecao = l.tipoOS === "Correção";
     const isRaio = /raio|scanner/i.test(l.servico || "");
     const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
-    const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+    const fracaoPecas = pecasCobraveis(l.pecas).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
     const fracaoDeslocamento = isCorrecao ? 0 : (kmNum * FRACAO_KM_ANEXO_VI); // km também não é cobrado de novo na correção
     return base + fracaoPecas + fracaoDeslocamento;
@@ -6670,6 +6678,7 @@ function PageLancamentoManual({
         React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "Valor unit. R$", value: l._valorSel || "", onChange: e => atualizarLinha(i, "_valorSel", e.target.value) })),
       React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
     ),
+    resumoFranquiaCameras(l.pecas) && React.createElement("div", { style: { margin: "8px 0", padding: "6px 10px", background: "#eef6ff", border: "1px solid #bcd7f5", borderRadius: 6, fontSize: 12, color: "#1d4f8f" } }, resumoFranquiaCameras(l.pecas)),
     l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
       l.pecas.map((p, pi) => React.createElement("div", {
         key: pi,
@@ -7299,7 +7308,7 @@ function PageMedicao({
     const isCorrecao = l.tipoOS === "Correção";
     const isRaio = /raio|scanner/i.test(l.servico || "");
     const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
-    const fracaoPecas = l.pecas.reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
+    const fracaoPecas = pecasCobraveis(l.pecas).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
     const kmNum = parseFloat(l.km || 0) || 0;
     const fracaoDeslocamento = isCorrecao ? 0 : (kmNum * FRACAO_KM_ANEXO_VI); // km também não é cobrado de novo na correção
     return base + fracaoPecas + fracaoDeslocamento;
@@ -7440,6 +7449,7 @@ function PageMedicao({
         React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "Valor unit. R$", value: l._valorSel || "", onChange: e => atualizarLinha(i, "_valorSel", e.target.value) })),
       React.createElement("button", { className: "btn", onClick: () => addPecaNaLinha(i), style: { height: 42 } }, "+ Adicionar")
     ),
+    resumoFranquiaCameras(l.pecas) && React.createElement("div", { style: { margin: "8px 0", padding: "6px 10px", background: "#eef6ff", border: "1px solid #bcd7f5", borderRadius: 6, fontSize: 12, color: "#1d4f8f" } }, resumoFranquiaCameras(l.pecas)),
     l.pecas.length > 0 && React.createElement("div", { style: { margin: "8px 0" } },
       l.pecas.map((p, pi) => React.createElement("div", {
         key: pi,
