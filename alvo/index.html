@@ -617,10 +617,18 @@ function simRenderPecasTemp(){
   const el = document.getElementById("simPecasLista");
   if(!el) return;
   if(!simPecasTemp.length){ el.innerHTML = "Nenhuma peça adicionada ainda."; return; }
-  el.innerHTML = simPecasTemp.map((p,i)=>`<div style="display:flex;justify-content:space-between;padding:5px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px">
+  el.innerHTML = simAvisoFranquiaCameras(simPecasTemp) + simPecasTemp.map((p,i)=>`<div style="display:flex;justify-content:space-between;padding:5px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px">
     <span>[${p.cod}] ${p.desc} × ${p.qtd}</span>
     <span style="cursor:pointer;color:var(--red);font-weight:700" onclick="simRemoverPecaTemp(${i})">×</span>
   </div>`).join("");
+}
+// Aviso da franquia de câmeras (3.8.15–3.8.17): até 5 por OS já estão no valor do atendimento.
+function simAvisoFranquiaCameras(pecas){
+  const total = (pecas||[]).filter(p=>INSTALACAO_CAMERAS_COD.includes(p.cod)).reduce((a,p)=>a+(parseFloat(p.qtd)||1),0);
+  if(!total) return "";
+  const gratis = Math.min(total, INSTALACAO_FRANQUIA_CAMERAS);
+  const cobradas = total - gratis;
+  return `<div style="padding:6px 10px;background:#eef6ff;border:1px solid #bcd7f5;border-radius:6px;margin-bottom:6px;font-size:12px;color:#1d4f8f">📷 Câmeras instaladas: ${total} — ${gratis} dentro da franquia de ${INSTALACAO_FRANQUIA_CAMERAS} por OS (sem cobrança e sem fração de diária)${cobradas>0?`, ${cobradas} cobrada(s) a R$ 33,94`:""}.</div>`;
 }
 
 function normalizarCidade(s){
@@ -838,7 +846,7 @@ function simRenderTabela(){
       const L = T.porId[o.id];
       const c = { ...L.c, valorDiaria: L.valorDiaria, valorKm: L.valorKm, valorAtendimento: L.valorAtendimento, valorMateriais: L.valorMateriais, total: L.total };
       totalRota += c.total;
-      const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") : "—";
+      const pecasTxt = o.pecas.length ? o.pecas.map(p=>p.desc+" ×"+p.qtd).join(", ") + (INSTALACAO_CAMERAS_COD.some(c=>o.pecas.some(p=>p.cod===c)) ? " (câmeras: 5 primeiras sem cobrança)" : "") : "—";
       rows += `<tr>
         <td>${o.comarca}${c.isColar ? '<div class="muted">Colar Metropolitano — sem diária</div>' : ''}</td>
         <td style="text-align:center">${o.km}</td>
