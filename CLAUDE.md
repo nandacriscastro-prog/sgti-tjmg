@@ -35,6 +35,8 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 6. **A Fernanda também publica direto pelo GitHub web ("Add files via upload" / "Delete index.html").** Esses commits não têm mensagem descritiva. **Sempre dar `git pull` antes de começar** e, ao investigar "quando isso mudou", usar `git log -S'trecho'` em vez de confiar nas mensagens de commit.
 7. **Nunca coloque chave `service_role` / "secret key" do Supabase em código que vai pro navegador.** O HTML é público. Ver seção "Segurança" — isso já aconteceu e está pendente de correção.
 
+- **Cache do `calc-medicao.js` (14/10/2026):** o `<script src="./calc-medicao.js?v=TS">` (e `../calc-medicao.js?v=TS` no Alvo) tem um `?v=` que **deve mudar a cada publicação que mexa em `calc-medicao.js`**. Sem isso o navegador/GitHub Pages serve a versão antiga do arquivo (cache de ~10 min) junto com o `index.html` novo, e regras compartilhadas (ex.: franquia de câmeras) parecem "não funcionar". O `sed` de publicação passa a ser: `sed -i "s/build:[0-9]*/build:$TS/; s/calc-medicao.js?v=[0-9]*/calc-medicao.js?v=$TS/" index.html alvo/index.html`.
+
 ## Segurança, login e RLS (Supabase Auth — desde 15/09/2026)
 
 ### Login
