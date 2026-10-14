@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791922258 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791983277 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6404,6 +6404,8 @@ function periodoAbertoAtual() {
   return mesSeg > 11 ? { mes: 0, ano: hoje.getFullYear() + 1 } : { mes: mesSeg, ano: hoje.getFullYear() };
 }
 // ── PAGE: CAMPO ───────────────────────────────────────────────
+// Rota a que a OS pertence (marcador "Rota: N - descrição" dentro de observacoes), ou "" se não tiver.
+const rotaDaOS = obs => { const m = /Rota:\s*([^|\n<]+)/i.exec(obs || ""); return m ? m[1].trim() : ""; };
 function PageLancamentoManual({
   os,
   reload
@@ -6633,6 +6635,7 @@ function PageLancamentoManual({
     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 6 } },
       React.createElement("div", null,
         React.createElement("strong", null, "OS " + l.numero), " — ", l.comarca,
+        rotaDaOS(l.observacoesOS) && React.createElement("span", { style: { marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#f3ecfd", padding: "3px 8px", borderRadius: 99 } }, "🛣️ Rota " + rotaDaOS(l.observacoesOS)),
         React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, l.servico, l.prioridade ? " · " + l.prioridade : "")
       ),
       React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } },
@@ -7402,6 +7405,7 @@ function PageMedicao({
     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 6 } },
       React.createElement("div", null,
         React.createElement("strong", null, "OS " + l.numero), " — ", l.comarca,
+        rotaDaOS(l.observacoesOS) && React.createElement("span", { style: { marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#f3ecfd", padding: "3px 8px", borderRadius: 99 } }, "🛣️ Rota " + rotaDaOS(l.observacoesOS)),
         React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, l.servico, l.prioridade ? " · " + l.prioridade : "")
       ),
       React.createElement("div", { style: { fontSize: 12, color: "var(--accent)", fontWeight: 700 } },
