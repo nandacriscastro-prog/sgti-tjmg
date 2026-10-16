@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1791996216 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792154477 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -8437,7 +8437,7 @@ function PageMedicao({
           }[regiao3];
           return React.createElement("div", {
             key: o.numero,
-            style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }
+            style: { marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)", ...(rota ? {} : { borderLeft: "4px solid var(--red, #c0392b)", paddingLeft: 8, background: "rgba(220,38,38,.05)" }) }
           },
             React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 } },
               React.createElement("input", { type: "checkbox", checked: selecionadas.has(o.numero), onChange: () => toggleSel(o.numero) }),
@@ -8450,7 +8450,7 @@ function PageMedicao({
                   React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: badgeRegiao.cor, background: badgeRegiao.bg, padding: "3px 8px", borderRadius: 99 } }, badgeRegiao.txt),
                   rota
                     ? React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#f3ecfd", padding: "3px 8px", borderRadius: 99 } }, "🛣️ " + rota)
-                    : React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, "— sem rota —")
+                    : React.createElement("span", { title: "Esta OS não tem rota informada", style: { fontSize: 11, fontWeight: 700, color: "var(--red, #c0392b)", background: "rgba(220,38,38,.12)", border: "1px solid var(--red, #c0392b)", padding: "2px 8px", borderRadius: 99 } }, "⚠️ SEM ROTA")
                 ),
                 React.createElement("div", { style: { fontSize: 12, color: "var(--text3)" } }, (o.servico || o.tipo || "").substring(0, 70))
               )
@@ -8479,7 +8479,7 @@ function PageMedicao({
             r.itens.map(linhaOS)
           )),
           semRota.length > 0 && React.createElement("div", null,
-            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 4, color: "var(--text3)" } }, "Sem rota (" + semRota.length + " OS)"),
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 6, color: "var(--red, #c0392b)", background: "rgba(220,38,38,.12)", border: "1px solid var(--red, #c0392b)", borderRadius: 8, padding: "6px 10px" } }, "⚠️ Sem rota (" + semRota.length + " OS) — confira se faltou informar a rota"),
             semRota.map(linhaOS)
           )
         );
