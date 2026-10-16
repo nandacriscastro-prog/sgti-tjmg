@@ -107,6 +107,11 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - Na execução só reescreve `servico` se a lista mudou e a OS é do 181/2026 e não é Atendimento Remoto.
 - Medição **não mudou** (decisão da Fernanda, 09/10): as checagens continuam independentes por palavra-chave — Portal e Raio-X contam atendimento à parte, e CFTV/Alarme/Acesso juntos continuam 1 atendimento presencial; diária base inalterada (2,0 com Portal + presencial). Se ela pedir "1 atendimento por sistema presencial", é regra nova em todos os blocos + Alvo.
 
+### Simulação de Medição no sistema principal — desde 16/10/2026
+- Menu "Simulação de Medição" (`simulacao`, `PageSimulacao` + `simCalcularOS`/`simTotais`, antes de `PageNotasFiscais`). Calculadora **local** (localStorage `sgti_simulacoes_v1`, não toca no Supabase) — evita usar a Simulação do Alvo.
+- Mesmas regras da Medição: sistemas por checkbox (presencial/portal/raio-X, atendimentos independentes), base 1,0 / 1,25 / 2,0 (portal+presencial) / 0 (Colar-RM ou Correção em garantia), `pecasCobraveis` (franquia de câmeras), km e diária arredondados por OS, `fecharLinhasPorOS`/`subtotaisAnexoIV`, remoto fixo no total. Salva várias simulações nomeadas e exporta Excel (Resumo, Anexo IV, Total por OS).
+- Não tem glosa de SLA (a do Alvo tem). Se a regra de cálculo mudar, mudar aqui também.
+
 ### Garantia de serviço (90 dias) — aviso, desde 25/09/2026
 - `verificarGarantiaServico(comarca, sistemasSel, todasOS, contratoSel, dataRefStr)` (definida antes de `PageRota`, usada em `PageNovaOS` e `PageRota`): se o **mesmo sistema** (CFTV/Alarme/Portal/Scanner raio-X/Controle de acesso) já foi atendido por outra OS presencial do contrato 181/2026 na **mesma comarca completa** (cidade + edificação) há **menos de 90 dias** (contado de `data_os`, não da conclusão), mostra um **aviso amarelo** (não bloqueia o envio) citando o número da OS anterior e quantos dias faltam.
 - `sistemaCanonico`/`servicoTemSistema` normalizam os dois formatos de rótulo usados no sistema (`PageNovaOS` usa sigla curta "CFTV"/"Portal"/"Scanner"/"Acesso"; `PageRota` usa nome completo "Portal detector de metais"/"Scanner de raio-X"/"Controle de acesso") pra comparar OS criadas pelos dois fluxos entre si.

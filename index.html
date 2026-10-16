@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792154477 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792163359 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1198,6 +1198,11 @@ const NAV = [{
   icon: "box",
   sec: null
 }, {
+  id: "simulacao",
+  label: "Simulação de Medição",
+  icon: "money",
+  sec: null
+}, {
   id: "portais",
   label: "Portais (Garantia)",
   icon: "box",
@@ -1274,6 +1279,7 @@ const PAGE_LABELS = {
   medicao: "Medição",
   notas: "Notas Fiscais",
   controle_ativos: "Controle de Ativos",
+  simulacao: "Simulação de Medição",
   portais: "Portais (Garantia)",
   "chamados-garantia": "Chamados de Garantia",
   estoque: "Estoque",
@@ -11803,6 +11809,191 @@ function PageLimpezaAnexos() {
     )
   );
 }
+// ── SIMULAÇÃO DE MEDIÇÃO (calculadora local — não lê nem grava nada no banco) ──────────
+// Mesma conta da medição real: base de fração 1,0 / 1,25 raio-X / 2,0 portal+presencial / 0 Colar-RM-ou-correção em garantia;
+// km e diária arredondados POR OS; peças com franquia de câmeras (pecasCobraveis); linhas fechando no centavo.
+const SIM_LS_KEY = "sgti_simulacoes_v1";
+function simNormCidade(s) { return (s || "").split(" - ")[0].normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase(); }
+let _simColarNorm = null;
+function simEhColar(comarca) {
+  if (!_simColarNorm) _simColarNorm = new Set([...COLAR_181].map(simNormCidade));
+  return _simColarNorm.has(simNormCidade(comarca));
+}
+function simCalcularOS(o) {
+  const isColar = simEhColar(o.comarca);
+  const dentroGarantia = o.tipoOS === "correcao" && !!o.dentroGarantia;
+  const temPortal = !!o.portal, temRaio = !!o.raio, temPres = !!o.pres;
+  const pecas = pecasCobraveis(o.pecas || []);
+  let base = 1.0;
+  if (temRaio) base = 1.25;
+  if (temPortal && temPres) base = 2.0;
+  if (isColar || dentroGarantia) base = 0;
+  const fracaoPecas = (isColar || dentroGarantia) ? 0 : pecas.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * p.qtd), 0);
+  const fracaoDeslocamento = (isColar || dentroGarantia) ? 0 : (o.km * FRACAO_KM_ANEXO_VI);
+  const fracaoTotal = base + fracaoPecas + fracaoDeslocamento;
+  const vu = id => ANEXO_IV.find(a => a.id === id).vu;
+  const valorDiaria = dentroGarantia ? 0 : fracaoTotal * vu("diaria");
+  const valorKm = dentroGarantia ? 0 : o.km * vu("km");
+  const valorAtendimento = dentroGarantia ? 0 : ((temPres ? vu("pres") : 0) + (temPortal ? vu("portal") : 0) + (temRaio ? vu("raio") : 0));
+  const valorMateriais = pecas.reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * p.qtd), 0);
+  return { isColar, dentroGarantia, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais };
+}
+function simTotais(lista) {
+  const r2 = v => Number((Number(v) || 0).toFixed(2));
+  let qPres = 0, qPortal = 0, qRaio = 0, totalKm = 0, totalFr = 0;
+  const linhas = lista.map(o => {
+    const c = simCalcularOS(o);
+    if (!c.dentroGarantia) { if (o.pres) qPres++; if (o.portal) qPortal++; if (o.raio) qRaio++; }
+    totalKm += c.dentroGarantia ? 0 : o.km; totalFr += c.fracaoTotal;
+    return { o, c, valorDiaria: c.valorDiaria, valorKm: c.valorKm, valorAtendimento: c.valorAtendimento, valorMateriais: r2(c.valorMateriais) };
+  });
+  const qtds = { rem: 1, pres: qPres, portal: qPortal, raio: qRaio, km: totalKm, diaria: totalFr };
+  const kmPorOS = r2(linhas.reduce((a, l) => a + r2(l.valorKm), 0));
+  const diariaPorOS = r2(linhas.reduce((a, l) => a + r2(l.valorDiaria), 0));
+  const brutoServicos = r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + r2((qtds[it.id] || 0) * it.vu), 0) + kmPorOS + diariaPorOS);
+  const sub = subtotaisAnexoIV(qtds, brutoServicos, kmPorOS);
+  const brutoMateriais = r2(linhas.reduce((a, l) => a + l.valorMateriais, 0));
+  const brutoTotal = r2(brutoServicos + brutoMateriais);
+  const valorRemoto = ANEXO_IV.find(a => a.id === "rem").vu;
+  fecharLinhasPorOS(linhas, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorAtendimento", "valorMateriais"], kmOficial: null, totalOficial: brutoTotal, valorFixo: valorRemoto });
+  linhas.forEach(l => { l.total = r2(l.valorDiaria + l.valorKm + l.valorAtendimento + l.valorMateriais); });
+  return { linhas, qtds, sub, brutoServicos, brutoMateriais, brutoTotal, valorRemoto, totalKm, totalFr };
+}
+function PageSimulacao() {
+  const h = React.createElement;
+  const vazio = { rota: "", comarca: "", km: 0, pres: true, portal: false, raio: false, tipoOS: "programado", dentroGarantia: false, pecas: [] };
+  const carregar = () => { try { return JSON.parse(localStorage.getItem(SIM_LS_KEY)) || {}; } catch (e) { return {}; } };
+  const [lista, setLista] = React.useState(() => carregar().lista || []);
+  const [salvas, setSalvas] = React.useState(() => carregar().salvas || []);
+  const [seq, setSeq] = React.useState(() => carregar().seq || 1);
+  const [f, setF] = React.useState(vazio);
+  const [editId, setEditId] = React.useState(null);
+  const [codPeca, setCodPeca] = React.useState("");
+  const [qtdPeca, setQtdPeca] = React.useState(1);
+  React.useEffect(() => { try { localStorage.setItem(SIM_LS_KEY, JSON.stringify({ lista, salvas, seq })); } catch (e) {} }, [lista, salvas, seq]);
+  const T = React.useMemo(() => simTotais(lista), [lista]);
+  const upd = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const comarcas = React.useMemo(() => Object.keys(typeof CM !== "undefined" ? CM : {}), []);
+  const inp = { padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface, #fff)", color: "inherit", width: "100%", boxSizing: "border-box" };
+  const btn = (bg, extra) => ({ padding: "9px 16px", background: bg, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, ...extra });
+  const lbl = t => h("label", { style: { fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 3 } }, t);
+  const addPeca = () => {
+    if (!codPeca) return;
+    setF(p => ({ ...p, pecas: [...p.pecas, { cod: codPeca, desc: ANEXO_V_DESC[codPeca] || codPeca, qtd: parseFloat(qtdPeca) || 1 }] }));
+    setCodPeca(""); setQtdPeca(1);
+  };
+  const addOS = () => {
+    if (!f.comarca.trim()) { alert("Informe a comarca."); return; }
+    if (!f.pres && !f.portal && !f.raio) { alert("Marque ao menos um sistema atendido."); return; }
+    const item = { ...f, comarca: f.comarca.trim(), km: parseFloat(f.km) || 0 };
+    if (editId) setLista(l => l.map(o => o.id === editId ? { ...item, id: editId } : o));
+    else { setLista(l => [...l, { ...item, id: seq }]); setSeq(s => s + 1); }
+    setEditId(null);
+    setF({ ...vazio, rota: f.rota });
+  };
+  const editar = o => { setEditId(o.id); setF({ ...vazio, ...o, pecas: (o.pecas || []).slice() }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const salvarComo = () => {
+    if (!lista.length) { alert("Adicione ao menos uma OS."); return; }
+    const nome = prompt("Nome desta simulação:", "Simulação " + (salvas.length + 1));
+    if (!nome) return;
+    setSalvas(s => [...s, { id: Date.now(), nome: nome.trim(), lista: JSON.parse(JSON.stringify(lista)), seq }]);
+  };
+  const abrir = s => { if (lista.length && !confirm("Substituir a simulação atual pela salva \"" + s.nome + "\"?")) return; setLista(JSON.parse(JSON.stringify(s.lista))); setSeq(s.seq); setEditId(null); setF(vazio); };
+  const exportar = () => {
+    try {
+      const L = T.linhas;
+      const resumo = [["SIMULAÇÃO DE MEDIÇÃO — CONTRATO 181/2026"], [], ["OS simuladas", lista.length], ["Km total", T.totalKm], ["Soma das frações de diária", Number(fmtQtdAnexoIV("diaria", T.totalFr))], [],
+        ["Dotação", "Valor (R$)"], ["Serviços (atendimento/diária/km)", Number((T.brutoServicos - T.valorRemoto).toFixed(2))], ["Atendimento Remoto (fixo mensal)", T.valorRemoto],
+        ["Materiais/equipamentos (peças)", T.brutoMateriais], ["TOTAL BRUTO", T.brutoTotal]];
+      const anexo = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
+      ANEXO_IV.forEach(it => anexo.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, T.qtds[it.id] || 0)), it.vu, T.sub[it.id]]));
+      anexo.push(["", "", "", "", "Subtotal serviços", T.brutoServicos]);
+      const det = [["Rota", "Comarca", "Região", "Sistemas", "Tipo", "Peças", "Km", "Fração diária", "Vlr diária", "Vlr km", "Vlr atendimento", "Vlr materiais", "Total OS"]];
+      L.forEach(({ o, c, valorDiaria, valorKm, valorAtendimento, valorMateriais, total }) => det.push([o.rota || "—", o.comarca, c.isColar ? "Colar/RM" : "Interior",
+        [o.pres && "Alarme/CFTV/Acesso", o.portal && "Portal", o.raio && "Raio-X"].filter(Boolean).join(" + "), o.tipoOS === "correcao" ? (c.dentroGarantia ? "Correção em garantia (só peças)" : "Correção") : o.tipoOS === "emergencial" ? "Emergencial" : "Programado",
+        (o.pecas || []).map(p => "[" + p.cod + "] " + p.desc + " ×" + p.qtd).join(" | ") || "—", o.km, Number(c.fracaoTotal.toFixed(3)), valorDiaria, valorKm, valorAtendimento, valorMateriais, total]));
+      det.push(["—", "Belo Horizonte", "", "Atendimento Remoto (fixo mensal)", "", "", "", "", 0, 0, T.valorRemoto, 0, T.valorRemoto]);
+      const wb = XLSX.utils.book_new();
+      [["Resumo", resumo], ["Anexo IV", anexo], ["Total por OS", det]].forEach(([n, d]) => { const ws = XLSX.utils.aoa_to_sheet(d); ws["!cols"] = d[d.length - 1].map(() => ({ wch: 24 })); XLSX.utils.book_append_sheet(wb, ws, n); });
+      XLSX.writeFile(wb, "simulacao_medicao_181.xlsx");
+    } catch (e) { alert("Erro ao exportar: " + e.message); }
+  };
+  const grupos = {};
+  T.linhas.forEach(l => { const k = l.o.rota || "— Sem rota/grupo —"; (grupos[k] = grupos[k] || []).push(l); });
+  const cobrCam = (f.pecas || []).filter(p => INSTALACAO_CAMERAS_COD.includes(p.cod)).reduce((a, p) => a + p.qtd, 0);
+  const th = { padding: "6px 8px", textAlign: "left", fontSize: 11, color: "var(--text3)", borderBottom: "1px solid var(--border)" };
+  const td = { padding: "6px 8px", fontSize: 12.5, borderBottom: "1px solid var(--border)" };
+  const chk = (k, t) => h("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" } }, h("input", { type: "checkbox", checked: !!f[k], onChange: e => upd(k, e.target.checked) }), t);
+  return h("div", null,
+    h("div", { className: "card" },
+      h("h3", { style: { marginTop: 0 } }, "Simulação de Medição"),
+      h("p", { style: { fontSize: 13, color: "var(--text3)", margin: 0 } }, "Calculadora local: não lê nem grava nada no sistema. Usa as mesmas regras da Medição (Colar/RM sem diária, Portal + presencial = 2,0, franquia de 5 câmeras, correção em garantia só peças, arredondamento por OS). O Atendimento Remoto fixo (" + fmtR(T.valorRemoto) + ") entra no total. Fica salvo neste navegador.")),
+    h("div", { className: "card" },
+      h("h3", { style: { marginTop: 0 } }, editId ? "Editando OS simulada" : "Adicionar OS simulada"),
+      h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 12 } },
+        h("div", null, lbl("Rota/Grupo (opcional)"), h("input", { style: inp, value: f.rota, onChange: e => upd("rota", e.target.value), placeholder: "Ex: Rota Norte" })),
+        h("div", null, lbl("Comarca"), h("input", { style: inp, list: "simComarcas", value: f.comarca, onChange: e => upd("comarca", e.target.value), placeholder: "Ex: Viçosa" }),
+          h("datalist", { id: "simComarcas" }, comarcas.map(c => h("option", { key: c, value: c }))),
+          f.comarca.trim() ? h("div", { style: { fontSize: 11, marginTop: 3, fontWeight: 700, color: simEhColar(f.comarca) ? "var(--green)" : "var(--amber)" } }, simEhColar(f.comarca) ? "✅ Colar/RM — sem diária, só km" : "📍 Interior — paga diária") : null),
+        h("div", null, lbl("Km (ida e volta)"), h("input", { type: "number", min: 0, style: inp, value: f.km, onChange: e => upd("km", e.target.value) })),
+        h("div", null, lbl("Sistemas atendidos"), h("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, chk("pres", "Alarme / CFTV / Controle de acesso"), chk("portal", "Portal detector de metais"), chk("raio", "Scanner de raio-X"))),
+        h("div", null, lbl("Tipo de OS"), h("select", { style: inp, value: f.tipoOS, onChange: e => upd("tipoOS", e.target.value) },
+          h("option", { value: "programado" }, "Presencial Programado"), h("option", { value: "emergencial" }, "Presencial Emergencial"), h("option", { value: "correcao" }, "Correção / Reabertura")),
+          f.tipoOS === "correcao" ? h("label", { style: { display: "flex", gap: 6, marginTop: 6, fontSize: 12, cursor: "pointer" } }, h("input", { type: "checkbox", checked: !!f.dentroGarantia, onChange: e => upd("dentroGarantia", e.target.checked) }), "Dentro dos 90 dias de garantia (só peças)") : null)),
+      lbl("Equipamento substituído / itens do Anexo V"),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 } },
+        h("select", { style: { ...inp, flex: 3, minWidth: 220, width: "auto" }, value: codPeca, onChange: e => setCodPeca(e.target.value) },
+          h("option", { value: "" }, "Selecione o item..."),
+          anexoVCodigosOrdenados().filter(c => c !== "RSD").map(c => h("option", { key: c, value: c }, "[" + c + "] " + (ANEXO_V_DESC[c] || c) + (PRECO_ANEXO_V[c] ? " — " + fmtR(PRECO_ANEXO_V[c]) : "")))),
+        h("input", { type: "number", min: 1, style: { ...inp, width: 80 }, value: qtdPeca, onChange: e => setQtdPeca(e.target.value) }),
+        h("button", { onClick: addPeca, style: btn("var(--accent)") }, "+ Peça")),
+      cobrCam ? h("div", { style: { padding: "6px 10px", background: "#eef6ff", border: "1px solid #bcd7f5", borderRadius: 6, marginBottom: 6, fontSize: 12, color: "#1d4f8f" } }, "📷 Câmeras instaladas: " + cobrCam + " — " + Math.min(cobrCam, INSTALACAO_FRANQUIA_CAMERAS) + " dentro da franquia de " + INSTALACAO_FRANQUIA_CAMERAS + " por OS (sem cobrança e sem fração de diária)") : null,
+      (f.pecas || []).map((p, i) => h("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "5px 10px", background: "var(--bg)", borderRadius: 6, marginBottom: 4, fontSize: 13 } },
+        h("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+        h("span", { style: { cursor: "pointer", color: "var(--red)", fontWeight: 700 }, onClick: () => setF(x => ({ ...x, pecas: x.pecas.filter((_, j) => j !== i) })) }, "×"))),
+      h("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
+        h("button", { onClick: addOS, style: btn("var(--navy)") }, editId ? "💾 Salvar alterações" : "✓ Adicionar OS à simulação"),
+        editId ? h("button", { onClick: () => { setEditId(null); setF(vazio); }, style: btn("var(--bg)", { color: "inherit", border: "1px solid var(--border)" }) }, "Cancelar edição") : null)),
+    h("div", { className: "card" },
+      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 10 } },
+        h("h3", { style: { margin: 0 } }, "OS simuladas (" + lista.length + ")"),
+        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+          h("button", { onClick: salvarComo, style: btn("var(--navy)") }, "💾 Salvar simulação"),
+          lista.length ? h("button", { onClick: exportar, style: btn("var(--green)") }, "⬇ Exportar Excel") : null,
+          lista.length ? h("button", { onClick: () => { if (confirm("Excluir TODAS as OS simuladas?")) { setLista([]); setEditId(null); } }, style: btn("var(--red)") }, "🗑️ Limpar") : null)),
+      !lista.length ? h("div", { style: { color: "var(--text3)", fontSize: 13, padding: 12 } }, "Nenhuma OS simulada ainda. Preencha o formulário acima.") :
+        Object.keys(grupos).map(rota => h("div", { key: rota, style: { marginBottom: 16 } },
+          h("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+            h("strong", { style: { fontSize: 13 } }, rota + " (" + grupos[rota].length + " OS — " + fmtR(grupos[rota].reduce((a, l) => a + l.total, 0)) + ")"),
+            rota.startsWith("—") ? null : h("span", { style: { cursor: "pointer", color: "var(--red)", fontSize: 12, fontWeight: 700 }, onClick: () => { if (confirm("Excluir todas as OS da rota \"" + rota + "\"?")) setLista(l => l.filter(o => (o.rota || "") !== rota)); } }, "🗑️ Excluir rota")),
+          h("div", { style: { overflowX: "auto" } }, h("table", { style: { width: "100%", borderCollapse: "collapse" } },
+            h("thead", null, h("tr", null, ["Comarca", "Sistemas", "Km", "Peças", "Fração", "Diária", "Km R$", "Atend.", "Materiais", "Total", ""].map((t, i) => h("th", { key: i, style: th }, t)))),
+            h("tbody", null, grupos[rota].map(({ o, c, valorDiaria, valorKm, valorAtendimento, valorMateriais, total }) => h("tr", { key: o.id },
+              h("td", { style: td }, o.comarca, c.isColar ? h("div", { style: { fontSize: 10, color: "var(--text3)" } }, "Colar/RM — sem diária") : null, o.tipoOS === "correcao" ? h("div", { style: { fontSize: 10, color: c.dentroGarantia ? "var(--green)" : "var(--amber)" } }, c.dentroGarantia ? "Correção em garantia — só peças" : "Correção (cobra normal)") : null),
+              h("td", { style: td }, [o.pres && "Alarme/CFTV/Acesso", o.portal && "Portal", o.raio && "Raio-X"].filter(Boolean).join(" + ")),
+              h("td", { style: td }, o.km),
+              h("td", { style: td }, (o.pecas || []).map(p => p.desc + " ×" + p.qtd).join(", ") || "—"),
+              h("td", { style: td }, c.fracaoTotal.toFixed(3)),
+              h("td", { style: { ...td, textAlign: "right" } }, fmtR(valorDiaria)),
+              h("td", { style: { ...td, textAlign: "right" } }, fmtR(valorKm)),
+              h("td", { style: { ...td, textAlign: "right" } }, fmtR(valorAtendimento)),
+              h("td", { style: { ...td, textAlign: "right" } }, fmtR(valorMateriais)),
+              h("td", { style: { ...td, textAlign: "right", fontWeight: 700 } }, fmtR(total)),
+              h("td", { style: { ...td, whiteSpace: "nowrap" } },
+                h("span", { style: { cursor: "pointer", color: "var(--accent)", fontWeight: 700, marginRight: 8 }, onClick: () => editar(o) }, "✎"),
+                h("span", { style: { cursor: "pointer", color: "var(--red)", fontWeight: 700 }, onClick: () => { if (confirm("Excluir essa OS simulada?")) setLista(l => l.filter(x => x.id !== o.id)); } }, "×")))))))))),
+      h("div", { className: "kpi-grid", style: { marginTop: 12 } },
+        [["Atendimento Remoto (fixo)", T.valorRemoto], ["Serviços (atend./km/diária)", T.brutoServicos - T.valorRemoto], ["Materiais (peças)", T.brutoMateriais], ["TOTAL SIMULADO", T.brutoTotal]].map(([t, v]) =>
+          h("div", { key: t, className: "card", style: { marginBottom: 0 } }, h("div", { style: { fontSize: 20, fontWeight: 800 } }, fmtR(v)), h("div", { style: { fontSize: 12, color: "var(--text3)" } }, t)))),
+    h("div", { className: "card" },
+      h("h3", { style: { marginTop: 0 } }, "📁 Simulações salvas"),
+      !salvas.length ? h("p", { style: { fontSize: 13, color: "var(--text3)", margin: 0 } }, "Nenhuma ainda. Monte uma simulação e clique em \"Salvar simulação\".") :
+        salvas.map(s => h("div", { key: s.id, style: { display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg)", borderRadius: 8, marginBottom: 6 } },
+          h("span", null, h("strong", null, s.nome), " ", h("span", { style: { color: "var(--text3)", fontSize: 12 } }, "(" + s.lista.length + " OS)")),
+          h("span", { style: { display: "flex", gap: 12 } },
+            h("span", { style: { cursor: "pointer", color: "var(--accent)", fontWeight: 700 }, onClick: () => abrir(s) }, "📂 Abrir"),
+            h("span", { style: { cursor: "pointer", color: "var(--red)", fontWeight: 700 }, onClick: () => { if (confirm("Excluir \"" + s.nome + "\"?")) setSalvas(x => x.filter(y => y.id !== s.id)); } }, "🗑️"))))));
+}
 function PageNotasFiscais({ os, setPage }) {
   const [notas, setNotas] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -15178,6 +15369,8 @@ function AppInterno({
         });
       case "controle_ativos":
         return /*#__PURE__*/React.createElement(PageControleAtivos, null);
+      case "simulacao":
+        return /*#__PURE__*/React.createElement(PageSimulacao, null);
       case "portais":
         return /*#__PURE__*/React.createElement(PagePortais, { setPage: setPage });
       case "chamados-garantia":
