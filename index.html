@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792165362 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792166617 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -11838,7 +11838,7 @@ function simCalcularOS(o) {
   const valorMateriais = pecas.reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * p.qtd), 0);
   return { isColar, dentroGarantia, base, fracaoPecas, fracaoDeslocamento, fracaoTotal, valorDiaria, valorKm, valorAtendimento, valorMateriais };
 }
-function simTotais(lista) {
+function simTotais(lista, incluirRemoto = true) {
   const r2 = v => Number((Number(v) || 0).toFixed(2));
   let qPres = 0, qPortal = 0, qRaio = 0, totalKm = 0, totalFr = 0;
   const linhas = lista.map(o => {
@@ -11847,14 +11847,14 @@ function simTotais(lista) {
     totalKm += c.dentroGarantia ? 0 : o.km; totalFr += c.fracaoTotal;
     return { o, c, valorDiaria: c.valorDiaria, valorKm: c.valorKm, valorAtendimento: c.valorAtendimento, valorMateriais: r2(c.valorMateriais) };
   });
-  const qtds = { rem: 1, pres: qPres, portal: qPortal, raio: qRaio, km: totalKm, diaria: totalFr };
+  const qtds = { rem: incluirRemoto ? 1 : 0, pres: qPres, portal: qPortal, raio: qRaio, km: totalKm, diaria: totalFr };
   const kmPorOS = r2(linhas.reduce((a, l) => a + r2(l.valorKm), 0));
   const diariaPorOS = r2(linhas.reduce((a, l) => a + r2(l.valorDiaria), 0));
   const brutoServicos = r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + r2((qtds[it.id] || 0) * it.vu), 0) + kmPorOS + diariaPorOS);
   const sub = subtotaisAnexoIV(qtds, brutoServicos, kmPorOS);
   const brutoMateriais = r2(linhas.reduce((a, l) => a + l.valorMateriais, 0));
   const brutoTotal = r2(brutoServicos + brutoMateriais);
-  const valorRemoto = ANEXO_IV.find(a => a.id === "rem").vu;
+  const valorRemoto = incluirRemoto ? ANEXO_IV.find(a => a.id === "rem").vu : 0;
   fecharLinhasPorOS(linhas, { campoKm: "valorKm", campoDiaria: "valorDiaria", camposOutros: ["valorAtendimento", "valorMateriais"], kmOficial: null, totalOficial: brutoTotal, valorFixo: valorRemoto });
   linhas.forEach(l => { l.total = r2(l.valorDiaria + l.valorKm + l.valorAtendimento + l.valorMateriais); });
   return { linhas, qtds, sub, brutoServicos, brutoMateriais, brutoTotal, valorRemoto, totalKm, totalFr };
@@ -11866,12 +11866,13 @@ function PageSimulacao() {
   const [lista, setLista] = React.useState(() => carregar().lista || []);
   const [salvas, setSalvas] = React.useState(() => carregar().salvas || []);
   const [seq, setSeq] = React.useState(() => carregar().seq || 1);
+  const [incluirRemoto, setIncluirRemoto] = React.useState(() => carregar().incluirRemoto !== false);
   const [f, setF] = React.useState(vazio);
   const [editId, setEditId] = React.useState(null);
   const [codPeca, setCodPeca] = React.useState("");
   const [qtdPeca, setQtdPeca] = React.useState(1);
-  React.useEffect(() => { try { localStorage.setItem(SIM_LS_KEY, JSON.stringify({ lista, salvas, seq })); } catch (e) {} }, [lista, salvas, seq]);
-  const T = React.useMemo(() => simTotais(lista), [lista]);
+  React.useEffect(() => { try { localStorage.setItem(SIM_LS_KEY, JSON.stringify({ lista, salvas, seq, incluirRemoto })); } catch (e) {} }, [lista, salvas, seq, incluirRemoto]);
+  const T = React.useMemo(() => simTotais(lista, incluirRemoto), [lista, incluirRemoto]);
   const upd = (k, v) => setF(p => ({ ...p, [k]: v }));
   const comarcas = React.useMemo(() => Object.keys(typeof CM !== "undefined" ? CM : {}), []);
   const inp = { padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface, #fff)", color: "inherit", width: "100%", boxSizing: "border-box" };
@@ -11903,7 +11904,7 @@ function PageSimulacao() {
     try {
       const L = T.linhas;
       const resumo = [["SIMULAÇÃO DE MEDIÇÃO — CONTRATO 181/2026"], [], ["OS simuladas", lista.length], ["Km total", T.totalKm], ["Soma das frações de diária", Number(fmtQtdAnexoIV("diaria", T.totalFr))], [],
-        ["Dotação", "Valor (R$)"], ["Serviços (atendimento/diária/km)", Number((T.brutoServicos - T.valorRemoto).toFixed(2))], ["Atendimento Remoto (fixo mensal)", T.valorRemoto],
+        ["Dotação", "Valor (R$)"], ["Serviços (atendimento/diária/km)", Number((T.brutoServicos - T.valorRemoto).toFixed(2))], ["Atendimento Remoto (fixo mensal)", incluirRemoto ? T.valorRemoto : "não considerado"],
         ["Materiais/equipamentos (peças)", T.brutoMateriais], ["TOTAL BRUTO", T.brutoTotal]];
       const anexo = [["Item", "Descrição", "Unidade", "Quantidade", "Valor unitário (R$)", "Subtotal (R$)"]];
       ANEXO_IV.forEach(it => anexo.push([it.id, it.desc, it.unid, Number(fmtQtdAnexoIV(it.id, T.qtds[it.id] || 0)), it.vu, T.sub[it.id]]));
@@ -11912,7 +11913,7 @@ function PageSimulacao() {
       L.forEach(({ o, c, valorDiaria, valorKm, valorAtendimento, valorMateriais, total }) => det.push([o.rota || "—", o.comarca, c.isColar ? "Colar/RM" : "Interior",
         [o.pres && "Alarme/CFTV/Acesso", o.portal && "Portal", o.raio && "Raio-X"].filter(Boolean).join(" + "), o.tipoOS === "correcao" ? (c.dentroGarantia ? "Correção em garantia (só peças)" : "Correção") : o.tipoOS === "emergencial" ? "Emergencial" : "Programado",
         (o.pecas || []).map(p => "[" + p.cod + "] " + p.desc + " ×" + p.qtd).join(" | ") || "—", o.km, Number(c.fracaoTotal.toFixed(3)), valorDiaria, valorKm, valorAtendimento, valorMateriais, total]));
-      det.push(["—", "Belo Horizonte", "", "Atendimento Remoto (fixo mensal)", "", "", "", "", 0, 0, T.valorRemoto, 0, T.valorRemoto]);
+      if (incluirRemoto) det.push(["—", "Belo Horizonte", "", "Atendimento Remoto (fixo mensal)", "", "", "", "", 0, 0, T.valorRemoto, 0, T.valorRemoto]);
       const wb = XLSX.utils.book_new();
       [["Resumo", resumo], ["Anexo IV", anexo], ["Total por OS", det]].forEach(([n, d]) => { const ws = XLSX.utils.aoa_to_sheet(d); ws["!cols"] = d[d.length - 1].map(() => ({ wch: 24 })); XLSX.utils.book_append_sheet(wb, ws, n); });
       XLSX.writeFile(wb, "simulacao_medicao_181.xlsx");
@@ -11927,7 +11928,8 @@ function PageSimulacao() {
   return h("div", null,
     h("div", { className: "card" },
       h("h3", { style: { marginTop: 0 } }, "Simulação de Medição"),
-      h("p", { style: { fontSize: 13, color: "var(--text3)", margin: 0 } }, "Calculadora local: não lê nem grava nada no sistema. Usa as mesmas regras da Medição (Colar/RM sem diária, Portal + presencial = 2,0, franquia de 5 câmeras, correção em garantia só peças, arredondamento por OS). O Atendimento Remoto fixo (" + fmtR(T.valorRemoto) + ") entra no total. Fica salvo neste navegador.")),
+      h("p", { style: { fontSize: 13, color: "var(--text3)", margin: 0 } }, "Calculadora local: não lê nem grava nada no sistema. Usa as mesmas regras da Medição (Colar/RM sem diária, Portal + presencial = 2,0, franquia de 5 câmeras, correção em garantia só peças, arredondamento por OS). Fica salvo neste navegador."),
+      h("label", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" } }, h("input", { type: "checkbox", checked: incluirRemoto, onChange: e => setIncluirRemoto(e.target.checked) }), "Considerar o Atendimento Remoto fixo mensal (" + fmtR(ANEXO_IV.find(a => a.id === "rem").vu) + ") no total")),
     h("div", { className: "card" },
       h("h3", { style: { marginTop: 0 } }, editId ? "Editando OS simulada" : "Adicionar OS simulada"),
       h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 12 } },
@@ -11983,7 +11985,7 @@ function PageSimulacao() {
                 h("span", { style: { cursor: "pointer", color: "var(--accent)", fontWeight: 700, marginRight: 8 }, onClick: () => editar(o) }, "✎"),
                 h("span", { style: { cursor: "pointer", color: "var(--red)", fontWeight: 700 }, onClick: () => { if (confirm("Excluir essa OS simulada?")) setLista(l => l.filter(x => x.id !== o.id)); } }, "×")))))))))),
       h("div", { className: "kpi-grid", style: { marginTop: 12 } },
-        [["Atendimento Remoto (fixo)", T.valorRemoto], ["Serviços (atend./km/diária)", T.brutoServicos - T.valorRemoto], ["Materiais (peças)", T.brutoMateriais], ["TOTAL SIMULADO", T.brutoTotal]].map(([t, v]) =>
+        [...(incluirRemoto ? [["Atendimento Remoto (fixo)", T.valorRemoto]] : []), ["Serviços (atend./km/diária)", T.brutoServicos - T.valorRemoto], ["Materiais (peças)", T.brutoMateriais], ["TOTAL SIMULADO", T.brutoTotal]].map(([t, v]) =>
           h("div", { key: t, className: "card", style: { marginBottom: 0 } }, h("div", { style: { fontSize: 20, fontWeight: 800 } }, fmtR(v)), h("div", { style: { fontSize: 12, color: "var(--text3)" } }, t)))),
     h("div", { className: "card" },
       h("h3", { style: { marginTop: 0 } }, "📁 Simulações salvas"),
