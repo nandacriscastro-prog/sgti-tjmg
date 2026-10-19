@@ -36,6 +36,7 @@ const GARANTIA_SERVICO_DIAS = 90;
 function isCorrecaoDentroGarantia(o, todasOS, dias) {
   dias = dias || GARANTIA_SERVICO_DIAS;
   if (!o || o.tipo !== "Correção" || !o.os_origem) return false;
+  if ((o.observacoes || "").indexOf("[COBRAR_VISITA]") >= 0) return false; // fiscalização autorizou cobrar a visita (marcador no Histórico)
   const original = (todasOS || []).find(x => x.numero === o.os_origem);
   if (!original) return false; // original não encontrada: cobra normal (comportamento anterior, conservador)
   const dtOriginal = new Date((original.data_os || "") + "T12:00");

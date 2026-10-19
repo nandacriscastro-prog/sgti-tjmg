@@ -67,7 +67,7 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../calc-medicao.js?v=1791996216"></script>
+<script src="../calc-medicao.js?v=1792418531"></script>
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
@@ -259,7 +259,7 @@ async function carregarMedicao(){
     const medAnoAnt = medMes === 0 ? medAno - 1 : medAno;
     const dtIni = `${medAnoAnt}-${String(medMesAnt+1).padStart(2,"0")}-20`;
     const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-19`;
-    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo,data_os,data_conclusao,os_origem`);
+    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo,data_os,data_conclusao,os_origem,observacoes`);
     // Lookup leve de todas as OS do contrato (qualquer status/avaliação) só com numero+data_os, pra achar a OS
     // original de uma Correção mesmo quando ela foi insatisfatória (por isso não entra no filtro acima)
     const osLookupGarantia = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&select=numero,data_os&limit=5000`);

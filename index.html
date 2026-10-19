@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418336 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418531 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="./calc-medicao.js?v=1791996216"></script>
+<script src="./calc-medicao.js?v=1792418531"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.XLSX_PLAIN = window.XLSX;</script>
 <script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -4681,6 +4681,26 @@ function PageHistorico({
       setSalvandoHist(false);
     }
   };
+  const toggleCobrarVisita = async () => {
+    if (!sel) return;
+    setSalvandoHist(true);
+    try {
+      const tem = (sel.observacoes || "").includes("[COBRAR_VISITA]");
+      const novasObs = tem
+        ? (sel.observacoes || "").replace(/\[COBRAR_VISITA\]/g, "").trim()
+        : ((sel.observacoes || "").trim() + " [COBRAR_VISITA]").trim();
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ observacoes: novasObs })
+      });
+      setSel(s => ({ ...s, observacoes: novasObs }));
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
+  };
   const toggleSlaExcecao = async () => {
     if (!sel) return;
     setSalvandoHist(true);
@@ -5495,6 +5515,18 @@ function PageHistorico({
         w.document.close();
       }
     }, "\uD83D\uDCC4 Ver relat\xF3rio completo do t\xE9cnico"),
+    sel.tipo === "Correção" && sel.os_origem && (() => {
+      const tem = (sel.observacoes || "").includes("[COBRAR_VISITA]");
+      return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: tem ? "#eef6ff" : "var(--surface)", border: tem ? "1px solid #bcd7f5" : "1px solid var(--border)" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: 12, fontWeight: 700 } }, tem ? "💲 Cobrando a visita desta Correção" : "Cobrar visita mesmo dentro da garantia"),
+            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, tem ? "Atendimento + km + diária são cobrados normalmente (a visita da OS original não foi paga). Informe o km na execução." : "Por padrão, Correção dentro dos 90 dias só cobra peças. Ative quando a 1ª visita não foi paga e a fiscalização autorizou cobrar.")
+          ),
+          React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: toggleCobrarVisita, disabled: salvandoHist }, tem ? "✕ Voltar a só peças" : "💲 Cobrar visita")
+        )
+      );
+    })(),
     sel.status === "Conclu\xEDda" && (() => {
       const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temExcecao ? "#fef9ec" : "var(--surface)", border: temExcecao ? "1px solid #f5d78e" : "1px solid var(--border)" } },
@@ -8108,7 +8140,7 @@ function PageMedicao({
     let mesesRemotoAll = 0;
     const vuKmSEI4 = ANEXO_IV.find(a => a.id === "km").vu;
     try {
-      const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem&limit=5000`);
+      const rowsAll = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&select=servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem,observacoes&limit=5000`);
       const periodosMedidos = new Set();
       (rowsAll || []).forEach(o => {
         let r = {};
@@ -12250,7 +12282,7 @@ function PageControleAtivos() {
     setCarregando(true);
     setErro("");
     try {
-      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=numero,avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem&limit=5000`);
+      const rows = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&select=numero,avaliacao,status,servico,tipo,comarca,retorno_campo,data_conclusao,data_os,os_origem,observacoes&limit=5000`);
       const aprovado = {};
       const reservado = {};
       const aprovadoIV = { pres: 0, portal: 0, raio: 0, km: 0, diaria: 0, kmValor: 0 };
