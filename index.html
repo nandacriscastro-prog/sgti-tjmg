@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418717 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419003 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -1787,7 +1787,7 @@ function PageDashboard({
     return { abertas: abertasNoPeriodo, noPrazo, foraPrazo };
   };
   const vencidasDe = lista => lista.filter(o => {
-    if (!["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")) return false;
+    if (!osEmAberto(o)) return false;
     if (!o.data_os) return false;
     return hoje > prazoData(o);
   });
@@ -1816,7 +1816,7 @@ function PageDashboard({
   const periodosPresencial = periodosDe(os181);
   const periodosRemoto = periodosDe(osRemoto);
   const kpisPara = lista => {
-    const abertas = lista.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
+    const abertas = lista.filter(o => osEmAberto(o)).length;
     const conc = lista.filter(o => o.status === "Concluída").length;
     const pendentes = lista.filter(o => o.status === "Concluída" && !o.avaliacao).length;
     const sat = lista.filter(o => o.avaliacao === "satisfatorio").length;
@@ -1833,7 +1833,7 @@ function PageDashboard({
   };
   const k181 = kpisPara([...os181, ...os.filter(o => (o.contrato || "") === "181/2026" && o.tipo === "Correção")]);
   const remotoPendente = osRemoto.filter(o => o.status !== "Concluída").length;
-  const correcaoAbertas = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo === "Correção" && ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
+  const correcaoAbertas = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo === "Correção" && osEmAberto(o)).length;
   const hist = JSON.parse(localStorage.getItem(STORAGE_MED) || "[]");
   // Calcula o total medido AO VIVO direto dos dados do banco (não depende de já ter clicado "Aprovar Medição")
   const medido = (() => {
@@ -1889,7 +1889,7 @@ function PageDashboard({
   const saldo = valorRef - medido;
   // ── Snapshot geral do contrato 181 (todos os tipos: presencial+remoto+correção) ──
   const osTodas181 = os.filter(o => (o.contrato || "") === "181/2026");
-  const abertasSnap = osTodas181.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""));
+  const abertasSnap = osTodas181.filter(o => osEmAberto(o));
   const emExecucao = osTodas181.filter(o => o.status === "Em andamento").length;
   const concluidasPeriodo = osTodas181.filter(o => o.status === "Concluída" && (o.data_conclusao || "") >= dtIniAtual && (o.data_conclusao || "") <= dtFimAtual).length;
   const pendentesAvaliacaoTotal = osTodas181.filter(o => o.status === "Concluída" && !o.avaliacao).length;
@@ -1983,7 +1983,7 @@ function PageDashboard({
     remotoPendente > 0 && { label: "Atendimento remoto aguardando resposta", val: remotoPendente, page: "remoto", cls: "blue" },
     (vencidasPresencial.length + vencidasRemoto.length) > 0 && { label: "OS vencidas precisam de atenção", val: vencidasPresencial.length + vencidasRemoto.length, page: "avaliacao", filtroAval: "vencidas", cls: "red" }
   ].filter(Boolean);
-  const totalAbertasGeral = os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")).length;
+  const totalAbertasGeral = os.filter(o => osEmAberto(o)).length;
   const totalAbertasPresencial = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto").length;
   const totalAbertasRemoto = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo === "Atendimento Remoto").length;
   const primeiroNome = (getSession()?.nome || getSession()?.fiscal?.nome || "").split(" ")[0] || "";
@@ -2120,7 +2120,7 @@ function PageDashboard({
           ultimasOS.length === 0
             ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", { colSpan: 6, style: { textAlign: "center", color: "var(--text3)", padding: 20 } }, "Nenhuma OS cadastrada ainda."))
             : ultimasOS.map(o => {
-                const abertaComoStatus = ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "");
+                const abertaComoStatus = osEmAberto(o);
                 const prazoTxt = !abertaComoStatus ? (o.status || "—") : (!o.data_os ? "—" : (hoje > prazoData(o) ? "Vencida" : diasRestantes(o) + "d restantes"));
                 return /*#__PURE__*/React.createElement("tr", { key: o.numero, onClick: () => { window._buscaGlobal = o.numero; setPage("historico"); }, style: { cursor: "pointer" } },
                   /*#__PURE__*/React.createElement("td", { style: { fontFamily: "var(--mono)", fontWeight: 600 } }, o.numero),
@@ -5555,7 +5555,7 @@ function PageAvaliacao({
   const [filtroDt2Aval, setFiltroDt2Aval] = useState("");
   const [ordemPorAval, setOrdemPorAval] = useState("data"); // "data" | "numero"
   const [ordemDirAval, setOrdemDirAval] = useState("desc"); // "desc" | "asc"
-  const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
+  const abertas = [...os.filter(o => osEmAberto(o))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const hoje = new Date().toISOString().slice(0,10);
   const vencidasLista = abertas.filter(o => {
     if(!o.data_os) return false;
@@ -5636,7 +5636,7 @@ function PageAvaliacao({
   const rotasPendentesAval = (() => {
     const grupos = {};
     os.forEach(o => {
-      const isAberta = ["Aberta", "Em andamento", "Reaberta"].includes(o.status || "");
+      const isAberta = osEmAberto(o);
       const isPendenteAval = o.status === "Concluída" && !o.avaliacao;
       if (!isAberta && !isPendenteAval) return;
       const m = /Rota:\s*(\d+)(?:\s*-\s*([^<\n]+))?/i.exec(o.observacoes || "");
@@ -6403,6 +6403,13 @@ function PageAvaliacao({
 // Mês/ano do período de medição (20 do mês anterior a 19 do mês) que está ABERTO hoje —
 // usado como valor inicial do filtro em Medição e Lançamento Manual, pra não abrir sempre
 // no período que já fechou (e possivelmente já foi aprovado/travado) no dia 19 passado.
+// OS "em aberto" = Aberta / Em andamento / Reaberta. Exceção: OS avaliada como insatisfatória (status "Reaberta") já foi encerrada
+// pela fiscal e o retorno segue na OS de Correção (-R) — não conta como aberta, pendente de fechamento nem entra nas listas de "pra fechar".
+function osEmAberto(o) {
+  if (!o || !["Aberta", "Em andamento", "Reaberta"].includes(o.status || "")) return false;
+  if (o.status === "Reaberta" && o.avaliacao === "insatisfatorio") return false;
+  return true;
+}
 function periodoAbertoAtual() {
   const hoje = new Date();
   if (hoje.getDate() < 20) return { mes: hoje.getMonth(), ano: hoje.getFullYear() };
@@ -6454,7 +6461,7 @@ function PageLancamentoManual({
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
-  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
+  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && (osEmAberto(o) || (o.status === "Concluída" && !o.avaliacao)));
   const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
   const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
 
@@ -6955,7 +6962,7 @@ function PageLancamentoManual({
 function PageCampo({
   os
 }) {
-  const abertas = [...os.filter(o => ["Aberta", "Em andamento", "Reaberta"].includes(o.status || ""))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
+  const abertas = [...os.filter(o => osEmAberto(o))].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || ""));
   const recentes = [...os.filter(o => o.status === "Concluída" && o.retorno_campo)].sort((a, b) => (b.data_os || "").localeCompare(a.data_os || "")).slice(0, 15);
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "ph-row"
@@ -7201,7 +7208,7 @@ function PageMedicao({
 
   const retornoDe = o => { try { return JSON.parse(o.retorno_campo || "{}"); } catch (e) { return {}; } };
 
-  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto" && (["Aberta", "Em andamento", "Reaberta"].includes(o.status || "") || (o.status === "Concluída" && !o.avaliacao)));
+  const pendentes = os.filter(o => (o.contrato || "") === "181/2026" && o.tipo !== "Atendimento Remoto" && (osEmAberto(o) || (o.status === "Concluída" && !o.avaliacao)));
   const todasConcluidas = os.filter(o => o.status === "Concluída" && (o.contrato || "") === "181/2026");
   const lancadas = todasConcluidas.filter(o => !o.data_conclusao || ((o.data_conclusao || "") >= dtIni && (o.data_conclusao || "") <= dtFim));
 
