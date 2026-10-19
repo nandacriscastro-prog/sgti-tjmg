@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419220 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419232 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6678,7 +6678,7 @@ function PageLancamentoManual({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (() => { const isRetorno = !!l.dentroGarantia; return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 Correção dentro dos 90 dias de garantia do serviço original — só peças são cobradas (sem atendimento, km e diária). Campo km bloqueado."); })(),
+    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — informe aqui só o que for trocado neste retorno: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
@@ -7452,7 +7452,7 @@ function PageMedicao({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (() => { const isRetorno = !!l.dentroGarantia; return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 Correção dentro dos 90 dias de garantia do serviço original — só peças são cobradas (sem atendimento, km e diária). Campo km bloqueado."); })(),
+    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — informe aqui só o que for trocado neste retorno: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
