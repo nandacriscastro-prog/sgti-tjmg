@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792166617 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418336 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6532,6 +6532,7 @@ function PageLancamentoManual({
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
+    dentroGarantia: isCorrecaoDentroGarantia(o, os), // Correção dentro dos 90 dias: só peças (km/diária bloqueados)
     _codSel: "",
     _qtdSel: "1",
     _valorSel: ""
@@ -6565,7 +6566,7 @@ function PageLancamentoManual({
   const calcFracao = l => {
     const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
     if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
-    const isCorrecao = l.tipoOS === "Correção";
+    const isCorrecao = !!l.dentroGarantia; // só Correção dentro dos 90 dias de garantia não cobra base/km; fora da garantia cobra como presencial
     const isRaio = /raio|scanner/i.test(l.servico || "");
     const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
     const fracaoPecas = pecasCobraveis(l.pecas).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
@@ -6658,13 +6659,13 @@ function PageLancamentoManual({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (() => { const isRetorno = /R\d*$/.test((l.numero || "").toUpperCase()); return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 OS de retorno/garantia — km e diária não são cobrados (acionamento de garantia do serviço original). Campo km bloqueado."); })(),
+    (() => { const isRetorno = !!l.dentroGarantia; return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 Correção dentro dos 90 dias de garantia do serviço original — só peças são cobradas (sem atendimento, km e diária). Campo km bloqueado."); })(),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
         React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, "⚠️ Essa data é usada pra calcular se a OS foi atendida no prazo ou não")),
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
-        (() => { const isRetorno = /R\d*$/.test((l.numero || "").toUpperCase()); return React.createElement("input", { type: "number", min: "0", value: isRetorno ? "0" : l.km, onChange: e => !isRetorno && atualizarLinha(i, "km", e.target.value), placeholder: isRetorno ? "0 (retorno — não cobrado)" : "Ex: 85", disabled: isRetorno, style: isRetorno ? { background: "var(--surface)", color: "var(--text3)", cursor: "not-allowed" } : {} }); })())
+        (() => { const isRetorno = !!l.dentroGarantia; return React.createElement("input", { type: "number", min: "0", value: isRetorno ? "0" : l.km, onChange: e => !isRetorno && atualizarLinha(i, "km", e.target.value), placeholder: isRetorno ? "0 (retorno — não cobrado)" : "Ex: 85", disabled: isRetorno, style: isRetorno ? { background: "var(--surface)", color: "var(--text3)", cursor: "not-allowed" } : {} }); })())
     ),
     React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
       React.createElement("label", null, "Solução aplicada"),
@@ -7278,6 +7279,7 @@ function PageMedicao({
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
+    dentroGarantia: isCorrecaoDentroGarantia(o, os), // Correção dentro dos 90 dias: só peças (km/diária bloqueados)
     _codSel: "",
     _qtdSel: "1",
     _valorSel: ""
@@ -7311,7 +7313,7 @@ function PageMedicao({
   const calcFracao = l => {
     const isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has((l.comarca || "").split(" - ")[0]) : COLAR_CIDADES.has((l.comarca || "").split(" - ")[0]);
     if (isColar) return 0; // Colar Metropolitano/Região Metropolitana: sem fração de diária, só km x R$2,98 (contabilizado à parte)
-    const isCorrecao = l.tipoOS === "Correção";
+    const isCorrecao = !!l.dentroGarantia; // só Correção dentro dos 90 dias de garantia não cobra base/km; fora da garantia cobra como presencial
     const isRaio = /raio|scanner/i.test(l.servico || "");
     const base = isCorrecao ? 0 : (isRaio ? 1.25 : 1.0); // OS de correção/reabertura não cobra a visita/diária base de novo, só peças + deslocamento
     const fracaoPecas = pecasCobraveis(l.pecas).reduce((a, p) => a + (FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1), 0);
@@ -7429,13 +7431,13 @@ function PageMedicao({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (() => { const isRetorno = /R\d*$/.test((l.numero || "").toUpperCase()); return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 OS de retorno/garantia — km e diária não são cobrados (acionamento de garantia do serviço original). Campo km bloqueado."); })(),
+    (() => { const isRetorno = !!l.dentroGarantia; return isRetorno && React.createElement("div", { style: { background: "#fff3cd", border: "1.5px solid #f5a623", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#7a4f00" } }, "🔒 Correção dentro dos 90 dias de garantia do serviço original — só peças são cobradas (sem atendimento, km e diária). Campo km bloqueado."); })(),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
         React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 3 } }, "⚠️ Essa data é usada pra calcular se a OS foi atendida no prazo ou não")),
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "Km percorrido"),
-        (() => { const isRetorno = /R\d*$/.test((l.numero || "").toUpperCase()); return React.createElement("input", { type: "number", min: "0", value: isRetorno ? "0" : l.km, onChange: e => !isRetorno && atualizarLinha(i, "km", e.target.value), placeholder: isRetorno ? "0 (retorno — não cobrado)" : "Ex: 85", disabled: isRetorno, style: isRetorno ? { background: "var(--surface)", color: "var(--text3)", cursor: "not-allowed" } : {} }); })())
+        (() => { const isRetorno = !!l.dentroGarantia; return React.createElement("input", { type: "number", min: "0", value: isRetorno ? "0" : l.km, onChange: e => !isRetorno && atualizarLinha(i, "km", e.target.value), placeholder: isRetorno ? "0 (retorno — não cobrado)" : "Ex: 85", disabled: isRetorno, style: isRetorno ? { background: "var(--surface)", color: "var(--text3)", cursor: "not-allowed" } : {} }); })())
     ),
     React.createElement("div", { className: "fg", style: { marginBottom: 10 } },
       React.createElement("label", null, "Solução aplicada"),
