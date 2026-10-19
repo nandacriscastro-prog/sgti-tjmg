@@ -33,7 +33,11 @@ function calcularFracaoOS({ isColarOS, isCorrecaoOS, isRaioServ, kmOS, pecas }) 
 // uma OS presencial normal.
 // AVISO: não mexer nesse prazo/regra sem confirmar antes com a fiscal.
 const GARANTIA_SERVICO_DIAS = 90;
+// Regra de 19/10/2026: a visita (atendimento+km+diária) é paga UMA vez, na Correção (que replica km/peças da 1ª OS);
+// a 1ª OS insatisfatória fica fora da medição. Por isso Correção NÃO é mais "só peças". Para voltar à regra de 28/09, trocar para true.
+const CORRECAO_GARANTIA_SO_PECAS = false;
 function isCorrecaoDentroGarantia(o, todasOS, dias) {
+  if (!CORRECAO_GARANTIA_SO_PECAS) return false;
   dias = dias || GARANTIA_SERVICO_DIAS;
   if (!o || o.tipo !== "Correção" || !o.os_origem) return false;
   if ((o.observacoes || "").indexOf("[COBRAR_VISITA]") >= 0) return false; // fiscalização autorizou cobrar a visita (marcador no Histórico)

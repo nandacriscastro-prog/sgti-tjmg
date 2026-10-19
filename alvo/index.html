@@ -67,7 +67,7 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../calc-medicao.js?v=1792418531"></script>
+<script src="../calc-medicao.js?v=1792418717"></script>
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
@@ -654,7 +654,7 @@ function simCalcularOS(o){
   const isCorrecao = o.tipoOS === "correcao";
   // Correção dentro dos 90 dias de garantia de serviço: só peças, sem atendimento/km/diária (confirmado pela fiscal em 28/09/2026).
   // Fora da garantia (ou tipo não informado na simulação), cobra igual a presencial.
-  const dentroGarantia = isCorrecao && !!o.dentroGarantia;
+  const dentroGarantia = CORRECAO_GARANTIA_SO_PECAS && isCorrecao && !!o.dentroGarantia;
   const isPortalSim = o.sistema === "portal" || o.sistema === "detector";
   const isPresSim = o.sistema === "alarme" || o.sistema === "cftv" || (!isPortalSim && o.sistema !== "raio" && o.sistema !== "scanner");
   const base = (isColar || dentroGarantia) ? 0 : (o.sistema === "raio" ? 1.25 : (isPortalSim && isPresSim) ? 2.0 : 1.0);
@@ -674,7 +674,7 @@ function simCalcularOS(o){
 function simMostrarPrioridade(){
   const t = document.getElementById("simTipoOS").value;
   document.getElementById("simPrioridadeWrap").style.display = t === "emergencial" ? "block" : "none";
-  document.getElementById("simGarantiaWrap").style.display = t === "correcao" ? "block" : "none";
+  document.getElementById("simGarantiaWrap").style.display = (t === "correcao" && CORRECAO_GARANTIA_SO_PECAS) ? "block" : "none";
 }
 function simDiasUteisEntre(d1, d2){
   let u = 0; const cur = new Date(d1);

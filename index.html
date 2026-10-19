@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418531 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792418717 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="./calc-medicao.js?v=1792418531"></script>
+<script src="./calc-medicao.js?v=1792418717"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.XLSX_PLAIN = window.XLSX;</script>
 <script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -4681,26 +4681,6 @@ function PageHistorico({
       setSalvandoHist(false);
     }
   };
-  const toggleCobrarVisita = async () => {
-    if (!sel) return;
-    setSalvandoHist(true);
-    try {
-      const tem = (sel.observacoes || "").includes("[COBRAR_VISITA]");
-      const novasObs = tem
-        ? (sel.observacoes || "").replace(/\[COBRAR_VISITA\]/g, "").trim()
-        : ((sel.observacoes || "").trim() + " [COBRAR_VISITA]").trim();
-      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ observacoes: novasObs })
-      });
-      setSel(s => ({ ...s, observacoes: novasObs }));
-      if (reload) reload();
-    } catch (e) {
-      alert("Erro ao salvar: " + e.message);
-    } finally {
-      setSalvandoHist(false);
-    }
-  };
   const toggleSlaExcecao = async () => {
     if (!sel) return;
     setSalvandoHist(true);
@@ -5515,18 +5495,6 @@ function PageHistorico({
         w.document.close();
       }
     }, "\uD83D\uDCC4 Ver relat\xF3rio completo do t\xE9cnico"),
-    sel.tipo === "Correção" && sel.os_origem && (() => {
-      const tem = (sel.observacoes || "").includes("[COBRAR_VISITA]");
-      return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: tem ? "#eef6ff" : "var(--surface)", border: tem ? "1px solid #bcd7f5" : "1px solid var(--border)" } },
-        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
-          React.createElement("div", null,
-            React.createElement("div", { style: { fontSize: 12, fontWeight: 700 } }, tem ? "💲 Cobrando a visita desta Correção" : "Cobrar visita mesmo dentro da garantia"),
-            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, tem ? "Atendimento + km + diária são cobrados normalmente (a visita da OS original não foi paga). Informe o km na execução." : "Por padrão, Correção dentro dos 90 dias só cobra peças. Ative quando a 1ª visita não foi paga e a fiscalização autorizou cobrar.")
-          ),
-          React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: toggleCobrarVisita, disabled: salvandoHist }, tem ? "✕ Voltar a só peças" : "💲 Cobrar visita")
-        )
-      );
-    })(),
     sel.status === "Conclu\xEDda" && (() => {
       const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temExcecao ? "#fef9ec" : "var(--surface)", border: temExcecao ? "1px solid #f5d78e" : "1px solid var(--border)" } },
@@ -6452,6 +6420,16 @@ const resumoFranquiaCameras = pecas => {
 };
 // Rota a que a OS pertence (marcador "Rota: N - descrição" dentro de observacoes), ou "" se não tiver.
 const rotaDaOS = obs => { const m = /Rota:\s*([^|\n<]+)/i.exec(obs || ""); return m ? m[1].trim() : ""; };
+// Correção (-R): replica os valores preenchidos na 1ª OS (km e peças) para a OS de retorno. A visita (atendimento+km+diária)
+// é paga UMA vez, na Correção; a 1ª OS (insatisfatória) fica fora da medição. Regra de 19/10/2026.
+function dadosPrimeiraOS(o, todasOS) {
+  if (!o || o.tipo !== "Correção" || !o.os_origem) return null;
+  const orig = (todasOS || []).find(x => x.numero === o.os_origem);
+  if (!orig) return null;
+  let r = {};
+  try { r = JSON.parse(orig.retorno_campo || "{}"); } catch (e) {}
+  return { km: r.km || "", pecas: Array.isArray(r.pecas) ? r.pecas : [] };
+}
 function PageLancamentoManual({
   os,
   reload
@@ -6559,8 +6537,8 @@ function PageLancamentoManual({
     observacoesOS: o.observacoes || "",
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
-    km: existente?.km || "",
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).map(p => ({ ...p })),
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
@@ -7306,8 +7284,8 @@ function PageMedicao({
     observacoesOS: o.observacoes || "",
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
-    km: existente?.km || "",
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).map(p => ({ ...p })),
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
@@ -11855,7 +11833,7 @@ function simEhColar(comarca) {
 }
 function simCalcularOS(o) {
   const isColar = simEhColar(o.comarca);
-  const dentroGarantia = o.tipoOS === "correcao" && !!o.dentroGarantia;
+  const dentroGarantia = CORRECAO_GARANTIA_SO_PECAS && o.tipoOS === "correcao" && !!o.dentroGarantia;
   const temPortal = !!o.portal, temRaio = !!o.raio, temPres = !!o.pres;
   const pecas = pecasCobraveis(o.pecas || []);
   let base = 1.0;
@@ -11975,7 +11953,7 @@ function PageSimulacao() {
         h("div", null, lbl("Sistemas atendidos"), h("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, chk("pres", "Alarme / CFTV / Controle de acesso"), chk("portal", "Portal detector de metais"), chk("raio", "Scanner de raio-X"))),
         h("div", null, lbl("Tipo de OS"), h("select", { style: inp, value: f.tipoOS, onChange: e => upd("tipoOS", e.target.value) },
           h("option", { value: "programado" }, "Presencial Programado"), h("option", { value: "emergencial" }, "Presencial Emergencial"), h("option", { value: "correcao" }, "Correção / Reabertura")),
-          f.tipoOS === "correcao" ? h("label", { style: { display: "flex", gap: 6, marginTop: 6, fontSize: 12, cursor: "pointer" } }, h("input", { type: "checkbox", checked: !!f.dentroGarantia, onChange: e => upd("dentroGarantia", e.target.checked) }), "Dentro dos 90 dias de garantia (só peças)") : null)),
+          (f.tipoOS === "correcao" && CORRECAO_GARANTIA_SO_PECAS) ? h("label", { style: { display: "flex", gap: 6, marginTop: 6, fontSize: 12, cursor: "pointer" } }, h("input", { type: "checkbox", checked: !!f.dentroGarantia, onChange: e => upd("dentroGarantia", e.target.checked) }), "Dentro dos 90 dias de garantia (só peças)") : null)),
       lbl("Equipamento substituído / itens do Anexo V"),
       h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 } },
         h("select", { style: { ...inp, flex: 3, minWidth: 220, width: "auto" }, value: codPeca, onChange: e => setCodPeca(e.target.value) },
