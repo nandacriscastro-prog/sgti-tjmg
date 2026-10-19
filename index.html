@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419232 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419401 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6545,7 +6545,7 @@ function PageLancamentoManual({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })), // replica as peças da 1ª OS (editáveis; pode adicionar outras)
     pecasPrimeiraOS: (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
@@ -6678,7 +6678,7 @@ function PageLancamentoManual({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — informe aqui só o que for trocado neste retorno: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
+    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — replicados abaixo com a etiqueta \"1ª visita\" (não são deste retorno; remova se não quiser cobrar). Outras peças podem ser adicionadas normalmente: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
@@ -6710,7 +6710,7 @@ function PageLancamentoManual({
         key: pi,
         style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
       },
-        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd, p.primeiraVisita ? React.createElement("span", { style: { marginLeft: 8, fontSize: 10, fontWeight: 700, background: "#eef6ff", color: "#1d4f8f", border: "1px solid #bcd7f5", borderRadius: 10, padding: "1px 7px" } }, "1ª visita") : null),
         React.createElement("button", { onClick: () => removerPecaDaLinha(i, pi), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
       ))
     ),
@@ -7294,7 +7294,7 @@ function PageMedicao({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : [],
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })), // replica as peças da 1ª OS (editáveis; pode adicionar outras)
     pecasPrimeiraOS: (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
@@ -7452,7 +7452,7 @@ function PageMedicao({
           ? " (Colar Metropolitano — sem diária, só km × R$2,98)" : ""
       )
     ),
-    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — informe aqui só o que for trocado neste retorno: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
+    (l.pecasPrimeiraOS && l.pecasPrimeiraOS.length > 0) && React.createElement("div", { style: { background: "#eef6ff", border: "1.5px solid #bcd7f5", borderRadius: 7, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#1d4f8f" } }, "ℹ️ Equipamentos já substituídos na 1ª visita (OS " + l.os_origem + ") — replicados abaixo com a etiqueta \"1ª visita\" (não são deste retorno; remova se não quiser cobrar). Outras peças podem ser adicionadas normalmente: " + l.pecasPrimeiraOS.map(p => p.desc + " ×" + p.qtd).join(", ")),
     React.createElement("div", { className: "fr" },
       React.createElement("div", { className: "fld" }, React.createElement("label", null, "OS concluída em: (data que o serviço foi executado de fato)"),
         React.createElement("input", { type: "date", value: l.dtconc, onChange: e => atualizarLinha(i, "dtconc", e.target.value) }),
@@ -7484,7 +7484,7 @@ function PageMedicao({
         key: pi,
         style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "var(--surface)", borderRadius: 6, marginBottom: 4, fontSize: 13 }
       },
-        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd),
+        React.createElement("span", null, "[" + p.cod + "] " + p.desc + " × " + p.qtd, p.primeiraVisita ? React.createElement("span", { style: { marginLeft: 8, fontSize: 10, fontWeight: 700, background: "#eef6ff", color: "#1d4f8f", border: "1px solid #bcd7f5", borderRadius: 10, padding: "1px 7px" } }, "1ª visita") : null),
         React.createElement("button", { onClick: () => removerPecaDaLinha(i, pi), style: { background: "none", border: "none", color: "var(--red, #c0392b)", cursor: "pointer", fontWeight: 700 } }, "×")
       ))
     ),
