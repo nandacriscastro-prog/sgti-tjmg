@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792419401 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792518677 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5673,42 +5673,7 @@ function PageAvaliacao({
       })
     });
     if (tipo === "insat") {
-      const _mSel = /^181-(\d+)$/.exec(o.numero || "");
-      const novoNum = o.numero + "-R";
-      const _mun = (o.comarca || "").split(" - ")[0];
-      const _isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-      const diasCorrecao = _isColar ? 1 : 3;
-      const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-      const partesObs = [];
-      if (o.observacoes) partesObs.push(o.observacoes);
-      if (obsFalha) partesObs.push(`<b>Falhas identificadas no atendimento:</b> ${obsFalha}`);
-      const novaObs = partesObs.join("<br>");
-      const _cmDadosLote = CM[o.comarca] || {};
-      const criadas = await sbFetch("/ordens_servico", {
-        method: "POST",
-        body: JSON.stringify({
-          numero: novoNum,
-          empresa: o.empresa,
-          contrato: o.contrato,
-          comarca: o.comarca,
-          forum: o.forum || _cmDadosLote.f || "",
-          endereco: o.endereco || _cmDadosLote.e || "",
-          telefone: o.telefone || "",
-          contato: o.contato || "",
-          polo: o.polo || "",
-          servico: o.servico,
-          tipo: "Correção",
-          prioridade: o.prioridade,
-          status: "Aberta",
-          os_origem: o.numero,
-          data_os: new Date().toISOString().slice(0, 10),
-          criado_por: (getSession()?.fiscal?.email || "avaliacao-lote"),
-          criado_em: new Date().toISOString(),
-          observacoes: novaObs
-        })
-      });
-      const novaRow = criadas?.[0] || {};
-      return { ...o, ...novaRow, numero: novoNum, tipo: "Correção", observacoes: novaObs, prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR") };
+      return await reabrirOSComoR(o.numero, { obsFalha });
     }
     return null;
   };
@@ -5793,9 +5758,7 @@ function PageAvaliacao({
         })
       });
       if (aval === "insat" || aval === "parcial") {
-        // Gerar nova OS automaticamente com prazo de correção (contado da notificação)
-        const _mSel = /^181-(\d+)$/.exec(sel.numero || "");
-        // Sistemas com falha (se avaliação por sistema, usa só os insatisfatórios)
+        // Reabre a própria OS como "-R" (sem criar 2ª OS). Sistemas com falha (se avaliação por sistema) ficam registrados na observação.
         const TODOS_SIST_C = ["CFTV", "Alarme", "Portal detector de metais", "Scanner de raio-X", "Controle de acesso", "Portal", "Scanner"];
         const _servicoC = sel.servico || "";
         const sistemasOSC = TODOS_SIST_C.filter(s => {
@@ -5805,47 +5768,10 @@ function PageAvaliacao({
           return true;
         });
         const multi_c = sistemasOSC.length > 1 && Object.keys(avalPorSistema).length > 0;
-        // Parcial: gera correção só para os que foram marcados como insat (ignora pendentes)
-        const sistemasInsat = multi_c
-          ? sistemasOSC.filter(s => avalPorSistema[s] === "insat")
-          : sistemasOSC;
-        const servicoCorrecao = (sel.servico || "").replace(/Manutenção:\s*/, "Manutenção: ").replace(
-          sistemasOSC.join(", "), sistemasInsat.join(", ")
-        );
-        const novoNum = sel.numero + "-R";
-        const _mun = (sel.comarca || "").split(" - ")[0];
-        const _isColar = (sel.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-        const diasCorrecao = _isColar ? 1 : 3;
-        const agora = new Date();
-        const prazoCorrecaoDate = addDiasUteis(agora, diasCorrecao);
-        const partesObs = [];
-        if (sel.observacoes) partesObs.push(sel.observacoes);
-        if (obs) partesObs.push(`<b>Falhas identificadas no atendimento:</b> ${obs}`);
-        const novaObs = partesObs.join("<br>");
-        const _cmDadosSel = CM[sel.comarca] || {};
-        const criadas = await sbFetch("/ordens_servico", {
-          method: "POST",
-          body: JSON.stringify({
-            ...sel,
-            id: undefined,
-            numero: novoNum,
-            servico: servicoCorrecao || sel.servico,
-            status: "Aberta",
-            avaliacao: null,
-            avaliacao_obs: null,
-            os_origem: sel.numero,
-            criado_em: new Date().toISOString(),
-            tipo: "Correção",
-            forum: sel.forum || _cmDadosSel.f || "",
-            endereco: sel.endereco || _cmDadosSel.e || "",
-            prazo_date: prazoCorrecaoDate.toISOString().slice(0, 10),
-            observacoes: novaObs
-          })
-        });
-        toast("OS reaberta — nova OS gerada com prazo de correção (" + diasCorrecao + " dia(s) útil(eis))", "ok");
-        // Abre um painel pra revisar/editar a observação antes de gerar o e-mail
-        const novaOS = criadas?.[0] || { ...sel, numero: novoNum };
-        setRevisitaRevisao({ ...novaOS, tipo: "Correção", prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR"), obsEditavel: obs || "" });
+        const sistemasInsat = multi_c ? sistemasOSC.filter(s => avalPorSistema[s] === "insat") : sistemasOSC;
+        const novaOS = await reabrirOSComoR(sel.numero, { obsFalha: obs, sistemasFalha: multi_c ? sistemasInsat : [] });
+        toast("OS reaberta como " + novaOS.numero + " — prazo de correção de " + novaOS.diasCorrecao + " dia(s) útil(eis)", "ok");
+        setRevisitaRevisao({ ...novaOS, tipo: "Correção", obsEditavel: obs || "" });
       } else {
         toast("✓ Avaliado como satisfatório — OS encerrada", "ok");
       }
@@ -6403,6 +6329,32 @@ function PageAvaliacao({
 // Mês/ano do período de medição (20 do mês anterior a 19 do mês) que está ABERTO hoje —
 // usado como valor inicial do filtro em Medição e Lançamento Manual, pra não abrir sempre
 // no período que já fechou (e possivelmente já foi aprovado/travado) no dia 19 passado.
+// Reabertura por avaliação insatisfatória: NÃO cria uma 2ª OS. A própria OS vira "{numero}-R" (Correção) — a 1ª visita fica guardada em
+// retorno_campo.historico_visitas, o km e as peças já lançados continuam na OS (visita paga uma vez, peças acumulam). Regra de 20/10/2026.
+async function reabrirOSComoR(numeroAtual, { obsFalha, sistemasFalha } = {}) {
+  const rows = await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(numeroAtual)}&select=*`);
+  const o = rows && rows[0];
+  if (!o) throw new Error("OS " + numeroAtual + " não encontrada para reabrir.");
+  const m = /^(.*)-R(\d*)$/.exec(numeroAtual);
+  const novoNum = m ? m[1] + "-R" + ((parseInt(m[2] || "1", 10) || 1) + 1) : numeroAtual + "-R";
+  const jaExiste = await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(novoNum)}&select=id`);
+  if (jaExiste && jaExiste.length) throw new Error("Já existe a OS " + novoNum + ".");
+  let ret = {};
+  try { ret = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+  const hoje = new Date();
+  const hojeISO = hoje.toISOString().slice(0, 10);
+  const visita = { numero: o.numero, data_os: o.data_os || "", data_conclusao: o.data_conclusao || ret.dtconc || "", km: ret.km || "", solucao: ret.solucao || "", pecas: Array.isArray(ret.pecas) ? ret.pecas : [], falha: obsFalha || "", reaberta_em: hojeISO };
+  const novoRet = { ...ret, dtconc: "", solucao: "", historico_visitas: [...(Array.isArray(ret.historico_visitas) ? ret.historico_visitas : []), visita] };
+  const _mun = (o.comarca || "").split(" - ")[0];
+  const _isColar = (o.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
+  const diasCorrecao = _isColar ? 1 : 3;
+  const prazoDate = addDiasUteis(hoje, diasCorrecao);
+  const linhaReab = "[REABERTURA] OS " + o.numero + " reaberta como " + novoNum + " em " + hoje.toLocaleDateString("pt-BR") + (visita.data_conclusao ? " (1ª visita concluída em " + visita.data_conclusao + ")" : "") + (sistemasFalha && sistemasFalha.length ? " — sistemas com falha: " + sistemasFalha.join(", ") : "") + (obsFalha ? " — Falhas identificadas: " + obsFalha : "");
+  const novaObs = ((o.observacoes || "").trim() ? (o.observacoes || "").trim() + "\n" : "") + linhaReab;
+  const patch = { numero: novoNum, tipo: "Correção", status: "Aberta", avaliacao: null, avaliacao_obs: null, data_conclusao: null, data_os: hojeISO, os_origem: o.numero, prazo_date: prazoDate.toISOString().slice(0, 10), observacoes: novaObs, retorno_campo: JSON.stringify(novoRet) };
+  await sbFetch(`/ordens_servico?id=eq.${o.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  return { ...o, ...patch, prazo: prazoDate.toLocaleDateString("pt-BR"), diasCorrecao };
+}
 // OS "em aberto" = Aberta / Em andamento / Reaberta. Exceção: OS avaliada como insatisfatória (status "Reaberta") já foi encerrada
 // pela fiscal e o retorno segue na OS de Correção (-R) — não conta como aberta, pendente de fechamento nem entra nas listas de "pra fechar".
 function osEmAberto(o) {
@@ -6545,8 +6497,9 @@ function PageLancamentoManual({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })), // replica as peças da 1ª OS (editáveis; pode adicionar outras)
-    pecasPrimeiraOS: (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
+    historicoVisitas: existente?.historico_visitas || [], // replica as peças da 1ª OS (editáveis; pode adicionar outras)
+    pecasPrimeiraOS: ((existente?.historico_visitas || []).length ? (existente.historico_visitas[existente.historico_visitas.length - 1].pecas || []) : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
@@ -6615,7 +6568,8 @@ function PageLancamentoManual({
           total_fotos: 0,
           pecas: l.pecas.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
           obs: l.obs,
-          lancamento_manual: true
+          lancamento_manual: true,
+          historico_visitas: l.historicoVisitas || []
         };
         await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
           method: "PATCH",
@@ -6628,30 +6582,7 @@ function PageLancamentoManual({
           })
         });
         if (l.avaliacao === "insatisfatorio") {
-          const _mSel = /^181-(\d+)$/.exec(l.numero || "");
-          const novoNum = l.numero + "-R";
-          const _mun = (l.comarca || "").split(" - ")[0];
-          const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-          const diasCorrecao = _isColar ? 1 : 3;
-          const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-          await sbFetch("/ordens_servico", {
-            method: "POST",
-            body: JSON.stringify({
-              numero: novoNum,
-              empresa: "Alvo Segurança Ltda",
-              contrato: l.contrato,
-              comarca: l.comarca,
-              servico: l.servico,
-              tipo: "Correção",
-              prioridade: l.prioridade,
-              status: "Aberta",
-              os_origem: l.numero,
-              data_os: new Date().toISOString().slice(0, 10),
-              criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
-              criado_em: new Date().toISOString(),
-              observacoes: [l.observacoesOS, l.avaliacaoObs ? `<b>Falhas identificadas no atendimento:</b> ${l.avaliacaoObs}` : null].filter(Boolean).join("<br>")
-            })
-          });
+          await reabrirOSComoR(l.numero, { obsFalha: l.avaliacaoObs });
         }
         ok++;
       }
@@ -7294,8 +7225,9 @@ function PageMedicao({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })), // replica as peças da 1ª OS (editáveis; pode adicionar outras)
-    pecasPrimeiraOS: (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
+    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
+    historicoVisitas: existente?.historico_visitas || [], // replica as peças da 1ª OS (editáveis; pode adicionar outras)
+    pecasPrimeiraOS: ((existente?.historico_visitas || []).length ? (existente.historico_visitas[existente.historico_visitas.length - 1].pecas || []) : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
     avaliacao: o.avaliacao || "",
     avaliacaoObs: o.avaliacao_obs || "",
@@ -7374,7 +7306,8 @@ function PageMedicao({
           total_fotos: 0,
           pecas: l.pecas.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
           obs: l.obs,
-          lancamento_manual: true
+          lancamento_manual: true,
+          historico_visitas: l.historicoVisitas || []
         };
         await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
           method: "PATCH",
@@ -7387,40 +7320,8 @@ function PageMedicao({
           })
         });
         if (l.avaliacao === "insatisfatorio") {
-          const _mSel = /^181-(\d+)$/.exec(l.numero || "");
-          const novoNum = l.numero + "-R";
-          const _mun = (l.comarca || "").split(" - ")[0];
-          const _isColar = (l.contrato || "") === "181/2026" ? COLAR_181.has(_mun) : COLAR_CIDADES.has(_mun);
-          const diasCorrecao = _isColar ? 1 : 3;
-          const prazoCorrecaoDate = addDiasUteis(new Date(), diasCorrecao);
-          const novaObsCorrecao = [l.observacoesOS, l.avaliacaoObs ? `<b>Falhas identificadas no atendimento:</b> ${l.avaliacaoObs}` : null].filter(Boolean).join("<br>");
-          const _cmDadosMed = CM[l.comarca] || {};
-          const criadas = await sbFetch("/ordens_servico", {
-            method: "POST",
-            body: JSON.stringify({
-              numero: novoNum,
-              empresa: "Alvo Segurança Ltda",
-              contrato: l.contrato,
-              comarca: l.comarca,
-              forum: _cmDadosMed.f || "",
-              endereco: _cmDadosMed.e || "",
-              servico: l.servico,
-              tipo: "Correção",
-              prioridade: l.prioridade,
-              status: "Aberta",
-              os_origem: l.numero,
-              data_os: new Date().toISOString().slice(0, 10),
-              criado_por: (getSession()?.fiscal?.email || "medicao-manual"),
-              criado_em: new Date().toISOString(),
-              observacoes: novaObsCorrecao
-            })
-          });
-          novasOSCorrecao.push({
-            ...(criadas?.[0] || {}),
-            numero: novoNum, empresa: "Alvo Segurança Ltda", contrato: l.contrato, comarca: l.comarca,
-            servico: l.servico, tipo: "Correção", prioridade: l.prioridade, observacoes: novaObsCorrecao,
-            prazo: prazoCorrecaoDate.toLocaleDateString("pt-BR")
-          });
+          const reaberta = await reabrirOSComoR(l.numero, { obsFalha: l.avaliacaoObs });
+          novasOSCorrecao.push(reaberta);
         }
         ok++;
       }
