@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792518677 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792518768 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -4681,6 +4681,35 @@ function PageHistorico({
       setSalvandoHist(false);
     }
   };
+  const unificarComOrigem = async () => {
+    if (!sel || !sel.os_origem) return;
+    if (!confirm("Unificar " + sel.numero + " com a OS " + sel.os_origem + "?\n\nA OS " + sel.os_origem + " será removida e a 1ª visita (km, peças, datas) passa a fazer parte da " + sel.numero + ". A visita é cobrada uma vez só.")) return;
+    setSalvandoHist(true);
+    try {
+      const rows = await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.os_origem)}&select=*`);
+      const orig = rows && rows[0];
+      if (!orig) { alert("OS de origem " + sel.os_origem + " não encontrada (talvez já unificada)."); return; }
+      let rO = {}, rR = {};
+      try { rO = JSON.parse(orig.retorno_campo || "{}"); } catch (e) {}
+      try { rR = JSON.parse(sel.retorno_campo || "{}"); } catch (e) {}
+      const visita = { numero: orig.numero, data_os: orig.data_os || "", data_conclusao: orig.data_conclusao || rO.dtconc || "", km: rO.km || "", solucao: rO.solucao || "", pecas: Array.isArray(rO.pecas) ? rO.pecas : [], falha: orig.avaliacao_obs || "", reaberta_em: (sel.data_os || "") };
+      const novoRet = { ...rR, km: (parseFloat(rR.km || 0) ? rR.km : (rO.km || "")), historico_visitas: [...(rO.historico_visitas || []), visita, ...(rR.historico_visitas || [])] };
+      const novaObs = ((sel.observacoes || "").trim() ? (sel.observacoes || "").trim() + "\n" : "") + "[REABERTURA] Unificada com a OS " + orig.numero + " (1ª visita" + (visita.data_conclusao ? " concluída em " + visita.data_conclusao : "") + (orig.avaliacao_obs ? " — Falhas identificadas: " + orig.avaliacao_obs : "") + ")";
+      await sbFetch(`/ordens_servico?id=eq.${sel.id}`, { method: "PATCH", body: JSON.stringify({ retorno_campo: JSON.stringify(novoRet), observacoes: novaObs }) });
+      try {
+        await sbFetch(`/ordens_servico?id=eq.${orig.id}`, { method: "DELETE" });
+      } catch (e) {
+        await sbFetch(`/ordens_servico?id=eq.${orig.id}`, { method: "PATCH", body: JSON.stringify({ status: "Cancelada", observacoes: ((orig.observacoes || "") + "\n[CANCELAMENTO] Unificada com " + sel.numero).trim() }) });
+      }
+      setSel(x => ({ ...x, retorno_campo: JSON.stringify(novoRet), observacoes: novaObs }));
+      if (reload) reload();
+      alert("✓ OS unificadas. A " + orig.numero + " foi removida; confira o km e as peças da " + sel.numero + " em \"Editando dados de execução\".");
+    } catch (e) {
+      alert("Erro ao unificar: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
+  };
   const toggleSlaExcecao = async () => {
     if (!sel) return;
     setSalvandoHist(true);
@@ -5495,6 +5524,15 @@ function PageHistorico({
         w.document.close();
       }
     }, "\uD83D\uDCC4 Ver relat\xF3rio completo do t\xE9cnico"),
+    sel.tipo === "Correção" && sel.os_origem && React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 700 } }, "Unificar com a OS " + sel.os_origem),
+          React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, "Se a OS de origem ainda existe separada, junta as duas nesta (-R): a 1ª visita vira histórico e a OS " + sel.os_origem + " é removida.")
+        ),
+        React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: unificarComOrigem, disabled: salvandoHist }, "🔗 Unificar")
+      )
+    ),
     sel.status === "Conclu\xEDda" && (() => {
       const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temExcecao ? "#fef9ec" : "var(--surface)", border: temExcecao ? "1px solid #f5d78e" : "1px solid var(--border)" } },
