@@ -249,6 +249,65 @@ function renderMedicaoShell(){
   document.getElementById("selAno").onchange = e=>{ medAno = parseInt(e.target.value); carregarMedicao(); };
 }
 
+// ===== Glosa de SLA (mesma regra do sistema principal) =====
+function diasUteisEntre(d1, d2) {
+  let u = 0;
+  const cur = new Date(d1);
+  while (cur < d2) {
+    cur.setDate(cur.getDate() + 1);
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) u++;
+  }
+  return u;
+}
+function diasCorridosEntre(d1, d2) {
+  return Math.round((d2 - d1) / 86400000);
+}
+function blocoGlosaSLA(tipo, prioridade, isColar) {
+  if ((tipo || "").includes("Programado")) {
+    return isColar ? { dias: 5, pts: 2, uteis: false } : { dias: 10, pts: 2, uteis: false };
+  }
+  const mapaColar = {
+    "P0 - Urgente": { dias: 1, pts: 5, uteis: true },
+    "P1 - Crítica": { dias: 2, pts: 3, uteis: true },
+    "P2 - Alta": { dias: 2, pts: 2, uteis: true },
+    "P3 - Média": { dias: 2, pts: 1, uteis: true }
+  };
+  const mapaDemais = {
+    "P1 - Crítica": { dias: 5, pts: 3, uteis: true },
+    "P2 - Alta": { dias: 5, pts: 2, uteis: true },
+    "P3 - Média": { dias: 5, pts: 1, uteis: true }
+  };
+  if (isColar) return mapaColar[prioridade] || { dias: 5, pts: 1, uteis: true };
+  return mapaDemais[prioridade] || { dias: 10, pts: 1, uteis: true };
+}
+function calcPtsAutoOS(o) {
+  if (o.tipo === "Atendimento Remoto") return { pts: 0, diasAtraso: 0 };
+  if ((o.observacoes || "").includes("[SLA_EXCECAO]")) return { pts: 0, diasAtraso: 0, excecao: true };
+  let dtConcRaw = o.data_conclusao || null;
+  if (!dtConcRaw) {
+    try {
+      dtConcRaw = JSON.parse(o.retorno_campo || "{}").dtconc || null;
+    } catch (e) {}
+  }
+  if (!dtConcRaw) return { pts: 0, diasAtraso: 0 };
+  if (!o.tipo || !o.data_os) return { pts: 0, diasAtraso: 0 };
+  const _mun = (o.comarca || "").split(" - ")[0];
+  const isColar = COLAR_181.has(_mun);
+  const t = o.tipo || "";
+  let diasPrazo, uteisPrazo = false;
+  if (t.includes("Emergencial")) { diasPrazo = isColar ? 2 : 5; uteisPrazo = true; }
+  else if (t.includes("Correção") || t.includes("Correcao")) { diasPrazo = isColar ? 1 : 3; uteisPrazo = true; }
+  else { diasPrazo = isColar ? 10 : 30; }
+  const prazo = new Date(o.data_os + "T12:00");
+  if (uteisPrazo) { let u = 0; while (u < diasPrazo) { prazo.setDate(prazo.getDate() + 1); if (prazo.getDay() !== 0 && prazo.getDay() !== 6) u++; } }
+  else { prazo.setDate(prazo.getDate() + diasPrazo); }
+  const conc = new Date(String(dtConcRaw).slice(0, 10) + "T12:00");
+  if (isNaN(conc.getTime()) || conc <= prazo) return { pts: 0, diasAtraso: 0 };
+  const bloco = blocoGlosaSLA(o.tipo, o.prioridade, isColar);
+  const diasAtraso = bloco.uteis ? diasUteisEntre(prazo, conc) : diasCorridosEntre(prazo, conc);
+  const blocos = Math.floor(diasAtraso / bloco.dias);
+  return { pts: blocos * bloco.pts, diasAtraso };
+}
 async function carregarMedicao(){
   renderMedicaoShell();
   const resEl = document.getElementById("resultadoMed");
@@ -259,7 +318,7 @@ async function carregarMedicao(){
     const medAnoAnt = medMes === 0 ? medAno - 1 : medAno;
     const dtIni = `${medAnoAnt}-${String(medMesAnt+1).padStart(2,"0")}-20`;
     const dtFim = `${medAno}-${String(medMes+1).padStart(2,"0")}-19`;
-    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,retorno_campo,data_os,data_conclusao,os_origem,observacoes`);
+    const osMes = await sbFetch(`/ordens_servico?status=eq.Conclu%C3%ADda&avaliacao=eq.satisfatorio&contrato=eq.181%2F2026&tipo=neq.Atendimento%20Remoto&data_conclusao=gte.${dtIni}&data_conclusao=lte.${dtFim}&select=numero,comarca,servico,tipo,prioridade,contrato,retorno_campo,data_os,data_conclusao,os_origem,observacoes`);
     // Lookup leve de todas as OS do contrato (qualquer status/avaliação) só com numero+data_os, pra achar a OS
     // original de uma Correção mesmo quando ela foi insatisfatória (por isso não entra no filtro acima)
     const osLookupGarantia = await sbFetch(`/ordens_servico?contrato=eq.181%2F2026&select=numero,data_os&limit=5000`);
@@ -324,6 +383,17 @@ async function carregarMedicao(){
     const brutoCalc = brutoServicos + brutoMateriais;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava] ?? brutoCalc;
     const travado = _chaveTrava in MEDICOES_TRAVADAS_181;
+    // Glosa por atraso de SLA (pontos por OS → % de desconto sobre o bruto) — igual à Medição do sistema principal
+    let autoPts = 0; const ocorrenciasAtraso = []; const excecoesSla = [];
+    osMes.forEach(o=>{
+      const g = calcPtsAutoOS(o);
+      if(g.excecao){ excecoesSla.push(o); }
+      else if(g.pts>0){ autoPts += g.pts; ocorrenciasAtraso.push({numero:o.numero, tipo:o.tipo, prioridade:o.prioridade, comarca:o.comarca, diasAtraso:g.diasAtraso, pts:g.pts}); }
+    });
+    const pctGlosa = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
+    const valorGlosa = Number((bruto * pctGlosa / 100).toFixed(2));
+    const liquido = Number((bruto - valorGlosa).toFixed(2));
+    window._medGlosa = {autoPts, pctGlosa, valorGlosa, liquido, ocorrenciasAtraso};
     // Medição travada: serviços = valor aprovado − materiais (diferença entra na linha de diária) → Serviços + Materiais = Total
     const brutoServicosExib = travado ? Number((bruto - brutoMateriais).toFixed(2)) : brutoServicos;
     const subAnexo = subtotaisAnexoIV(qtds, brutoServicosExib, valorKmSomaPorOS);
@@ -358,6 +428,9 @@ async function carregarMedicao(){
         <div class="kpi"><div class="val">${fmtR(brutoServicosExib)}</div><div class="lbl">Serviços</div></div>
         <div class="kpi"><div class="val">${fmtR(brutoMateriais)}</div><div class="lbl">Materiais</div></div>
         <div class="kpi"><div class="val" style="color:var(--navy);font-weight:900">${fmtR(bruto)}</div><div class="lbl">${travado ? "🔒 Total Bruto (aprovado)" : "Total Bruto"}</div></div>
+        <div class="kpi"><div class="val" style="color:${autoPts>10?'var(--red)':'var(--green)'}">${autoPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
+        <div class="kpi"><div class="val" style="color:${pctGlosa>0?'var(--red)':'var(--green)'}">${pctGlosa}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
+        <div class="kpi"><div class="val" style="font-weight:900">${fmtR(liquido)}</div><div class="lbl">Total líquido (após glosa)</div></div>
       </div>
       <div style="margin-top:12px">
         <button onclick="exportarDetalhamento()" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">⬇ Exportar detalhamento por OS (Excel)</button>
@@ -379,8 +452,15 @@ async function carregarMedicao(){
         <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicosExib)}</td></tr>
         <tr><td>+ Materiais/equipamentos (peças substituídas)</td><td style="text-align:right;font-weight:700">${fmtR(brutoMateriais)}</td></tr>
         <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Bruto</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(bruto)}</td></tr>
+        <tr><td>− Glosa por SLA (${autoPts} pts → ${pctGlosa}%)</td><td style="text-align:right;font-weight:700;color:${valorGlosa>0?'var(--red)':'inherit'}">${valorGlosa>0?"− ":""}${fmtR(valorGlosa)}</td></tr>
+        <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Líquido</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(liquido)}</td></tr>
       </table>
-      <p class="muted" style="margin-top:10px">Valores finais (com eventual glosa por SLA) são conferidos junto à fiscalização. Esta tela mostra o cálculo base de serviços + materiais do período.</p>
+      <p class="muted" style="margin-top:10px">A glosa é calculada automaticamente pelo atraso de cada OS em relação ao prazo de SLA (abertura → conclusão). Pontos adicionais lançados manualmente pela fiscalização (outros critérios do SLA) não aparecem aqui e podem alterar o valor final.</p>
+    </div>
+    <div class="card">
+      <h3>Controle de SLA — ocorrências de atraso (${ocorrenciasAtraso.length})</h3>
+      ${ocorrenciasAtraso.length ? `<div style="overflow-x:auto"><table><thead><tr><th>OS</th><th>Comarca</th><th>Tipo</th><th>Prioridade</th><th style="text-align:center">Dias de atraso</th><th style="text-align:center">Pontos</th></tr></thead><tbody>${ocorrenciasAtraso.map(x=>`<tr><td>${x.numero}</td><td>${x.comarca}</td><td>${x.tipo||"—"}</td><td>${x.prioridade||"—"}</td><td style="text-align:center">${x.diasAtraso}</td><td style="text-align:center;font-weight:700">${x.pts}</td></tr>`).join("")}<tr style="border-top:2px solid var(--navy)"><td colspan="5"><strong>Total de pontos</strong></td><td style="text-align:center;font-weight:700">${autoPts}</td></tr></tbody></table></div>` : `<p class="muted">✅ Nenhuma OS do período teve atraso de SLA — sem glosa.</p>`}
+      ${excecoesSla.length ? `<p class="muted" style="margin-top:8px">Exceções de SLA autorizadas pelo coordenador (sem pontuação): ${excecoesSla.map(x=>x.numero).join(", ")}</p>` : ""}
     </div>`;
   }catch(e){
     resEl.innerHTML = '<div class="card"><div class="empty">Erro ao calcular: '+e.message+'</div></div>';

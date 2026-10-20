@@ -131,6 +131,9 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 - Quando o período está travado, `bruto = MEDICOES_TRAVADAS_181[chave] ?? brutoCalculado` — o valor aprovado prevalece sobre o recálculo em: Resumo da Medição, Lançamento Manual, Planilha SEI (`totalGeral`/`brutoSEI`), aba "Total por OS" do Excel e portal Alvo. A tela mostra "🔒 Total bruto (aprovado)".
 - Motivo: mudanças de regra/fórmula posteriores não podem alterar retroativamente o valor de uma medição já aprovada. **Ao fechar um novo período, a Fernanda decide se trava** — só então adicionar a chave.
 
+### Glosa de SLA no Alvo — desde 20/10/2026
+- A Medição do Alvo (`carregarMedicao`) agora mostra pontos de glosa, % de desconto, valor da glosa, total líquido e a tabela "Controle de SLA — ocorrências de atraso", com cópia de `calcPtsAutoOS`/`blocoGlosaSLA`/`diasUteisEntre`/`diasCorridosEntre` do sistema principal (mudou a regra de SLA? mudar nos dois). O select do Alvo precisa trazer `prioridade,contrato,observacoes` (`[SLA_EXCECAO]`). Só a glosa automática por atraso aparece; pontos manuais da fiscalização (outros critérios) não.
+
 ### Exceção de SLA (`[SLA_EXCECAO]`) — desde 22/09/2026
 - Em Histórico, OS **Concluída** tem botão "🛡️ Marcar como exceção" / "✕ Remover exceção" (autorização do coordenador).
 - Grava o marcador `[SLA_EXCECAO]` dentro de `observacoes` (sem mudança de schema). `calcPtsAutoOS` retorna `pts: 0, excecao: true` para essas OS; a Medição lista as exceções no bloco de SLA ("Exceções SLA autorizadas pelo coordenador").
