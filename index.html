@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792518768 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792519276 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5805,7 +5805,7 @@ function PageAvaliacao({
           if (s === "Scanner" && _servicoC.includes("Scanner de raio-X")) return false;
           return true;
         });
-        const multi_c = sistemasOSC.length > 1 && Object.keys(avalPorSistema).length > 0;
+        const multi_c = sistemasOSC.length > 1 && sistemasOSC.some(s => avalPorSistema[s] === "insat");
         const sistemasInsat = multi_c ? sistemasOSC.filter(s => avalPorSistema[s] === "insat") : sistemasOSC;
         const novaOS = await reabrirOSComoR(sel.numero, { obsFalha: obs, sistemasFalha: multi_c ? sistemasInsat : [] });
         toast("OS reaberta como " + novaOS.numero + " — prazo de correção de " + novaOS.diasCorrecao + " dia(s) útil(eis)", "ok");
@@ -6232,37 +6232,20 @@ function PageAvaliacao({
       });
       const multi = sistemasOS.length > 1;
       if (multi) {
-        // Avaliação por sistema — deriva aval global automaticamente
-        const todosAvaliados = sistemasOS.every(s => avalPorSistema[s]);
-        const algumAvaliado = sistemasOS.some(s => avalPorSistema[s]);
-        const algumInsat = sistemasOS.some(s => avalPorSistema[s] === "insat");
-        const sistPendentes = sistemasOS.filter(s => !avalPorSistema[s]);
-        // Se todos avaliados: sat ou insat. Se ao menos um avaliado: "parcial" (permite confirmar). Senão vazio (bloqueia).
-        const avalGlobal = todosAvaliados ? (algumInsat ? "insat" : "sat") : algumAvaliado ? "parcial" : "";
-        // Sincroniza aval global sempre que avalPorSistema muda
-        if (avalGlobal !== aval) { setTimeout(() => setAval(avalGlobal), 0); }
+        // Avaliação simples: OS inteira satisfatória ou insatisfatória; se insatisfatória, marca (opcional) quais sistemas falharam
+        const btn = (v, label, sub, cor, bg) => React.createElement("button", {
+          onClick: () => { setAval(v); if (v === "sat") setAvalPorSistema({}); },
+          style: { padding: "14px", border: `2px solid ${aval === v ? cor : "var(--border)"}`, borderRadius: 8, background: aval === v ? bg : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 13 }
+        }, label, React.createElement("br", null), React.createElement("small", { style: { fontWeight: 400, color: "var(--text3)" } }, sub));
         return React.createElement("div", { style: { marginBottom: 14 } },
-          React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 8 } }, "Avalie cada sistema individualmente (pode deixar em branco os que ainda não tem retorno):"),
-          sistemasOS.map(s => {
-            const v = avalPorSistema[s] || "";
-            return React.createElement("div", { key: s, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
-              React.createElement("span", { style: { minWidth: 160, fontSize: 13, fontWeight: 600, color: !v ? "var(--text3)" : "var(--text)" } }, s, !v ? " ⏳" : ""),
-              React.createElement("button", {
-                onClick: () => setAvalPorSistema(p => ({ ...p, [s]: "sat" })),
-                style: { padding: "6px 14px", border: `2px solid ${v === "sat" ? "var(--green)" : "var(--border)"}`, borderRadius: 7, background: v === "sat" ? "#f0fdf4" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 12 }
-              }, "✅ Satisfatório"),
-              React.createElement("button", {
-                onClick: () => setAvalPorSistema(p => ({ ...p, [s]: "insat" })),
-                style: { padding: "6px 14px", border: `2px solid ${v === "insat" ? "var(--accent)" : "var(--border)"}`, borderRadius: 7, background: v === "insat" ? "#fef2f2" : "var(--white)", cursor: "pointer", fontWeight: 600, fontSize: 12 }
-              }, "🔄 Insatisfatório")
-            );
-          }),
-          algumAvaliado && React.createElement("div", { style: { marginTop: 6, fontSize: 12, fontWeight: 600, color: sistPendentes.length ? "var(--text3)" : algumInsat ? "var(--accent)" : "var(--green)" } },
-            sistPendentes.length
-              ? "⏳ Pendente: " + sistPendentes.join(", ") + " — pode confirmar agora e avaliar depois"
-              : algumInsat
-                ? "⚠️ OS será reaberta — nova OS de correção gerada para: " + sistemasOS.filter(s => avalPorSistema[s] === "insat").join(", ")
-                : "✅ Todos os sistemas satisfatórios — OS será encerrada"
+          React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } },
+            btn("sat", "\u2705 Tudo satisfat\xF3rio", "OS encerrada", "var(--green)", "#f0fdf4"),
+            btn("insat", "\uD83D\uDD04 Algum sistema falhou", "OS reaberta como -R", "var(--accent)", "#fef2f2")),
+          aval === "insat" && React.createElement("div", { style: { padding: 10, border: "1px solid var(--border)", borderRadius: 8 } },
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 6 } }, "Quais sistemas falharam? (fica anotado na reabertura)"),
+            sistemasOS.map(s => React.createElement("label", { key: s, style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 4, cursor: "pointer" } },
+              React.createElement("input", { type: "checkbox", checked: avalPorSistema[s] === "insat", onChange: e => setAvalPorSistema(p => ({ ...p, [s]: e.target.checked ? "insat" : "" })) }), s)),
+            React.createElement("div", { style: { marginTop: 6, fontSize: 12, color: "var(--accent)", fontWeight: 600 } }, "A visita (atendimento, km e di\xE1ria) continua paga uma vez; na volta s\xF3 entram as pe\xE7as novas.")
           )
         );
       }
