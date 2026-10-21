@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792583726 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792584103 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -5548,7 +5548,7 @@ function PageHistorico({
         React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: unificarComOrigem, disabled: salvandoHist }, "🔗 Unificar")
       )
     ),
-    sel.tipo === "Correção" && (() => {
+    sel.tipo !== "Atendimento Remoto" && (() => {
       const temSP = (sel.observacoes || "").includes("[SO_PECAS]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temSP ? "#eff6ff" : "var(--surface)", border: temSP ? "1px solid #93c5fd" : "1px solid var(--border)" } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
