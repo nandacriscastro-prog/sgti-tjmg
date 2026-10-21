@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792605072 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792608067 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7226,6 +7226,16 @@ function PageMedicao({
   const [hist, setHist] = useState(() => JSON.parse(localStorage.getItem(STORAGE_MED) || "[]"));
   const getSLAPts = () => SLA_CRITERIOS.reduce((a, r) => a + (parseInt(slaVals[r.id]) || 0) * r.pts, 0);
   const getSLAPct = pts => pts <= 10 ? 0 : pts <= 20 ? 2 : pts <= 30 ? 4 : pts <= 40 ? 6 : pts <= 50 ? 8 : 10;
+  // Reaplica o ajuste manual de SLA (salvo no banco) ao resultado já calculado: sem isso, ao atualizar a página o cálculo
+  // automático terminava antes do ajuste carregar e a glosa "voltava".
+  useEffect(() => {
+    if (!resultado) return;
+    const ptsAtual = slaVals._manual ? getSLAPts() : (resultado.autoPts || 0);
+    const pctAtual = getSLAPct(ptsAtual);
+    if (pctAtual === resultado.pct) return;
+    const glosaAtual = resultado.bruto * pctAtual / 100;
+    setResultado(r => r ? { ...r, pct: pctAtual, glosa: glosaAtual, liq: r.bruto - glosaAtual } : r);
+  }, [slaVals, resultado]);
 
   // ===== Fechar OS (fusão da antiga Medição manual) =====
   const [aba, setAba] = useState("pendentes");
