@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792599444 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792599579 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7206,7 +7206,9 @@ function PageMedicao({
       if (slaVals._manual) {
         const pts = getSLAPts();
         const obs = "Ajuste manual da fiscalização" + (sess.nome ? " — " + sess.nome : "");
-        await sbFetch(`/sla_manual?on_conflict=periodo`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ periodo: _periodoSla(), pts, valores: slaVals, obs, atualizado_em: new Date().toISOString() }) });
+        const corpo = { pts, valores: slaVals, obs, atualizado_em: new Date().toISOString() };
+        const atualizadas = await sbFetch(`/sla_manual?periodo=eq.${_periodoSla()}`, { method: "PATCH", body: JSON.stringify(corpo) });
+        if (!atualizadas || !atualizadas.length) await sbFetch(`/sla_manual`, { method: "POST", body: JSON.stringify({ periodo: _periodoSla(), ...corpo }) });
         setSlaSalvoRemoto(true);
         setMsg("✓ Ajuste manual de SLA salvo para todos (inclusive o portal Alvo) e aplicado na medição.");
       } else {
