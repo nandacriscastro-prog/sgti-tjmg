@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792584103 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792585267 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -4693,7 +4693,12 @@ function PageHistorico({
       try { rO = JSON.parse(orig.retorno_campo || "{}"); } catch (e) {}
       try { rR = JSON.parse(sel.retorno_campo || "{}"); } catch (e) {}
       const visita = { numero: orig.numero, data_os: orig.data_os || "", data_conclusao: orig.data_conclusao || rO.dtconc || "", km: rO.km || "", solucao: rO.solucao || "", pecas: Array.isArray(rO.pecas) ? rO.pecas : [], falha: orig.avaliacao_obs || "", reaberta_em: (sel.data_os || "") };
-      const novoRet = { ...rR, km: (parseFloat(rR.km || 0) ? rR.km : (rO.km || "")), historico_visitas: [...(rO.historico_visitas || []), visita, ...(rR.historico_visitas || [])] };
+      const _somaPecas = [];
+      [...(Array.isArray(rO.pecas) ? rO.pecas : []), ...(Array.isArray(rR.pecas) ? rR.pecas : [])].forEach(p => {
+        const ex = _somaPecas.find(x => x.cod === p.cod && (x.desc || "") === (p.desc || ""));
+        if (ex) ex.qtd = String((parseFloat(ex.qtd) || 0) + (parseFloat(p.qtd) || 0)); else _somaPecas.push({ ...p });
+      });
+      const novoRet = { ...rR, pecas: _somaPecas, km: (parseFloat(rR.km || 0) ? rR.km : (rO.km || "")), historico_visitas: [...(rO.historico_visitas || []), visita, ...(rR.historico_visitas || [])] };
       const novaObs = ((sel.observacoes || "").trim() ? (sel.observacoes || "").trim() + "\n" : "") + "[REABERTURA] Unificada com a OS " + orig.numero + " (1ª visita" + (visita.data_conclusao ? " concluída em " + visita.data_conclusao : "") + (orig.avaliacao_obs ? " — Falhas identificadas: " + orig.avaliacao_obs : "") + ")";
       await sbFetch(`/ordens_servico?id=eq.${sel.id}`, { method: "PATCH", body: JSON.stringify({ retorno_campo: JSON.stringify(novoRet), observacoes: novaObs }) });
       try {
