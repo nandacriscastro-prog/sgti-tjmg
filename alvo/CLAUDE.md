@@ -139,6 +139,8 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 ### Glosa de SLA no Alvo — desde 20/10/2026
 - A Medição do Alvo (`carregarMedicao`) agora mostra pontos de glosa, % de desconto, valor da glosa, total líquido e a tabela "Controle de SLA — ocorrências de atraso", com cópia de `calcPtsAutoOS`/`blocoGlosaSLA`/`diasUteisEntre`/`diasCorridosEntre` do sistema principal (mudou a regra de SLA? mudar nos dois). O select do Alvo precisa trazer `prioridade,contrato,observacoes` (`[SLA_EXCECAO]`). Só a glosa automática por atraso aparece; pontos manuais da fiscalização (outros critérios) não.
 
+> **21/10/2026 — glosa REMOVIDA da tela Medição do Alvo** (pedido da Fernanda): sem pontos/%/líquido/tabela de SLA nem leitura de `sla_manual` na exibição. O cálculo (`calcPtsAutoOS` etc.) segue no código sem uso na tela; a Simulação do Alvo ainda tem a glosa dela.
+
 ### Exceção de SLA (`[SLA_EXCECAO]`) — desde 22/09/2026
 - Em Histórico, OS **Concluída** tem botão "🛡️ Marcar como exceção" / "✕ Remover exceção" (autorização do coordenador).
 - Grava o marcador `[SLA_EXCECAO]` dentro de `observacoes` (sem mudança de schema). `calcPtsAutoOS` retorna `pts: 0, excecao: true` para essas OS; a Medição lista as exceções no bloco de SLA ("Exceções SLA autorizadas pelo coordenador").

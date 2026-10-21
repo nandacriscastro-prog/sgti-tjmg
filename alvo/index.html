@@ -434,9 +434,6 @@ async function carregarMedicao(){
         <div class="kpi"><div class="val">${fmtR(brutoServicosExib)}</div><div class="lbl">Serviços</div></div>
         <div class="kpi"><div class="val">${fmtR(brutoMateriais)}</div><div class="lbl">Materiais</div></div>
         <div class="kpi"><div class="val" style="color:var(--navy);font-weight:900">${fmtR(bruto)}</div><div class="lbl">${travado ? "🔒 Total Bruto (aprovado)" : "Total Bruto"}</div></div>
-        <div class="kpi"><div class="val" style="color:${autoPts>10?'var(--red)':'var(--green)'}">${autoPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
-        <div class="kpi"><div class="val" style="color:${pctGlosa>0?'var(--red)':'var(--green)'}">${pctGlosa}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
-        <div class="kpi"><div class="val" style="font-weight:900">${fmtR(liquido)}</div><div class="lbl">Total líquido (após glosa)</div></div>
       </div>
       <div style="margin-top:12px">
         <button onclick="exportarDetalhamento()" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">⬇ Exportar detalhamento por OS (Excel)</button>
@@ -458,16 +455,9 @@ async function carregarMedicao(){
         <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicosExib)}</td></tr>
         <tr><td>+ Materiais/equipamentos (peças substituídas)</td><td style="text-align:right;font-weight:700">${fmtR(brutoMateriais)}</td></tr>
         <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Bruto</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(bruto)}</td></tr>
-        <tr><td>− Glosa por SLA (${autoPts} pts → ${pctGlosa}%${slaManualObs?' — ajuste manual da fiscalização':''})</td><td style="text-align:right;font-weight:700;color:${valorGlosa>0?'var(--red)':'inherit'}">${valorGlosa>0?"− ":""}${fmtR(valorGlosa)}</td></tr>
-        <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Líquido</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(liquido)}</td></tr>
       </table>
-      <p class="muted" style="margin-top:10px">A glosa é calculada automaticamente pelo atraso de cada OS em relação ao prazo de SLA (abertura → conclusão). Pontos adicionais lançados manualmente pela fiscalização (outros critérios do SLA) não aparecem aqui e podem alterar o valor final.</p>
     </div>
-    <div class="card">
-      <h3>Controle de SLA — ocorrências de atraso (${ocorrenciasAtraso.length})</h3>
-      ${ocorrenciasAtraso.length ? `<div style="overflow-x:auto"><table><thead><tr><th>OS</th><th>Comarca</th><th>Tipo</th><th>Prioridade</th><th style="text-align:center">Dias de atraso</th><th style="text-align:center">Pontos</th></tr></thead><tbody>${ocorrenciasAtraso.map(x=>`<tr><td>${x.numero}</td><td>${x.comarca}</td><td>${x.tipo||"—"}</td><td>${x.prioridade||"—"}</td><td style="text-align:center">${x.diasAtraso}</td><td style="text-align:center;font-weight:700">${x.pts}</td></tr>`).join("")}<tr style="border-top:2px solid var(--navy)"><td colspan="5"><strong>Total de pontos</strong></td><td style="text-align:center;font-weight:700">${autoPts}</td></tr></tbody></table></div>` : `<p class="muted">✅ Nenhuma OS do período teve atraso de SLA — sem glosa.</p>`}
-      ${excecoesSla.length ? `<p class="muted" style="margin-top:8px">Exceções de SLA autorizadas pelo coordenador (sem pontuação): ${excecoesSla.map(x=>x.numero).join(", ")}</p>` : ""}
-    </div>`;
+    `;
   }catch(e){
     resEl.innerHTML = '<div class="card"><div class="empty">Erro ao calcular: '+e.message+'</div></div>';
   }
@@ -971,7 +961,6 @@ function simRenderTabela(){
     <div class="kpi"><div class="val">${fmtR(valorRemoto)}</div><div class="lbl">Atendimento Remoto (fixo mensal)</div></div>
     <div class="kpi"><div class="val">${fmtR(totalComRemoto)}</div><div class="lbl">Total simulado (${simOS.length} OS + remoto)</div></div>
     <div class="kpi"><div class="val" style="color:${totalPts>10?'var(--red)':'var(--green)'}">${totalPts} pts</div><div class="lbl">Pontos de glosa (SLA)</div></div>
-    <div class="kpi"><div class="val" style="color:${pct>0?'var(--red)':'var(--green)'}">${pct}%</div><div class="lbl">Desconto por glosa — ${fmtR(valorGlosa)}</div></div>
     <div class="kpi"><div class="val" style="font-weight:700">${fmtR(totalComRemoto - valorGlosa)}</div><div class="lbl">Total líquido (após glosa)</div></div>
   </div>`;
 }
