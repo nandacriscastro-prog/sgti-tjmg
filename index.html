@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792599359 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792599444 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7180,18 +7180,44 @@ function PageMedicao({
   };
   const [qtds, setQtds] = useState({});
   const [slaVals, setSlaVals] = useState({});
-  const _chaveSla = () => "sgti_sla_manual_" + ano + "_" + mes;
+  const _periodoSla = () => {
+    const mAnt = mes === 0 ? 11 : mes - 1, aAnt = mes === 0 ? ano - 1 : ano;
+    return `${aAnt}-${String(mAnt + 1).padStart(2, "0")}-20_${ano}-${String(mes + 1).padStart(2, "0")}-19`;
+  };
+  const [slaSalvoRemoto, setSlaSalvoRemoto] = useState(false);
   useEffect(() => {
-    try {
-      const salvo = localStorage.getItem("sgti_sla_manual_" + ano + "_" + mes);
-      setSlaVals(salvo ? JSON.parse(salvo) : {});
-    } catch (e) { setSlaVals({}); }
+    let vivo = true;
+    (async () => {
+      try {
+        const rows = await sbFetch(`/sla_manual?periodo=eq.${_periodoSla()}&select=valores`);
+        if (!vivo) return;
+        if (rows && rows[0] && rows[0].valores) { setSlaVals(typeof rows[0].valores === "string" ? JSON.parse(rows[0].valores) : rows[0].valores); setSlaSalvoRemoto(true); return; }
+        setSlaSalvoRemoto(false); setSlaVals({});
+      } catch (e) {
+        // tabela sla_manual ainda não existe: usa o salvo neste navegador
+        try { const salvo = localStorage.getItem("sgti_sla_manual_" + ano + "_" + mes); if (vivo) setSlaVals(salvo ? JSON.parse(salvo) : {}); } catch (e2) {}
+      }
+    })();
+    return () => { vivo = false; };
   }, [mes, ano]);
-  const salvarSlaManual = () => {
+  const salvarSlaManual = async () => {
+    const sess = (typeof getSession === "function" ? getSession() : null) || {};
     try {
-      localStorage.setItem(_chaveSla(), JSON.stringify(slaVals));
-      setMsg("✓ Ajuste manual de SLA salvo para este período e aplicado na medição.");
-    } catch (e) { alert("Não foi possível salvar: " + e.message); }
+      if (slaVals._manual) {
+        const pts = getSLAPts();
+        const obs = "Ajuste manual da fiscalização" + (sess.nome ? " — " + sess.nome : "");
+        await sbFetch(`/sla_manual?on_conflict=periodo`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ periodo: _periodoSla(), pts, valores: slaVals, obs, atualizado_em: new Date().toISOString() }) });
+        setSlaSalvoRemoto(true);
+        setMsg("✓ Ajuste manual de SLA salvo para todos (inclusive o portal Alvo) e aplicado na medição.");
+      } else {
+        await sbFetch(`/sla_manual?periodo=eq.${_periodoSla()}`, { method: "DELETE" });
+        setSlaSalvoRemoto(false);
+        setMsg("✓ Ajuste manual removido — volta a valer a pontuação automática.");
+      }
+    } catch (e) {
+      try { localStorage.setItem("sgti_sla_manual_" + ano + "_" + mes, JSON.stringify(slaVals)); } catch (e2) {}
+      alert("Não foi possível salvar para todos (a tabela sla_manual precisa ser criada no Supabase — veja o SQL enviado). Salvei apenas neste navegador.\n\n" + e.message);
+    }
     calcular();
   };
   const [resultado, setResultado] = useState(null);
@@ -9291,9 +9317,9 @@ function PageMedicao({
       width: 70,
       textAlign: "center"
     }
-  })))))), slaVals._manual && React.createElement("div", { style: { marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
-    React.createElement("button", { className: "btn btn-primary btn-sm", onClick: salvarSlaManual }, "💾 Salvar ajuste e recalcular"),
-    React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, "Fica salvo neste navegador para este período e volta ao abrir a Medição.")
+  })))))), (slaVals._manual || slaSalvoRemoto) && React.createElement("div", { style: { marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
+    React.createElement("button", { className: "btn btn-primary btn-sm", onClick: salvarSlaManual }, slaVals._manual ? "💾 Salvar ajuste e recalcular" : "🗑️ Remover ajuste salvo"),
+    React.createElement("span", { style: { fontSize: 11, color: "var(--text3)" } }, "Salvo no sistema para todos os usuários e no portal Alvo.")
   ), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 12,

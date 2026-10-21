@@ -390,6 +390,12 @@ async function carregarMedicao(){
       if(g.excecao){ excecoesSla.push(o); }
       else if(g.pts>0){ autoPts += g.pts; ocorrenciasAtraso.push({numero:o.numero, tipo:o.tipo, prioridade:o.prioridade, comarca:o.comarca, diasAtraso:g.diasAtraso, pts:g.pts}); }
     });
+    // Ajuste manual da fiscalização (tabela sla_manual, gravada pelo sistema principal): substitui os pontos automáticos do período
+    let slaManualObs = "";
+    try {
+      const sm = await sbFetch(`/sla_manual?periodo=eq.${dtIni}_${dtFim}&select=pts,obs`);
+      if(sm && sm[0] && sm[0].pts !== null && sm[0].pts !== undefined){ autoPts = Number(sm[0].pts) || 0; slaManualObs = sm[0].obs || "ajuste da fiscalização"; }
+    } catch(e) { /* tabela ainda não criada: segue com os pontos automáticos */ }
     const pctGlosa = autoPts <= 10 ? 0 : autoPts <= 20 ? 2 : autoPts <= 30 ? 4 : autoPts <= 40 ? 6 : autoPts <= 50 ? 8 : 10;
     const valorGlosa = Number((bruto * pctGlosa / 100).toFixed(2));
     const liquido = Number((bruto - valorGlosa).toFixed(2));
@@ -452,7 +458,7 @@ async function carregarMedicao(){
         <tr><td>Subtotal serviços/atendimento</td><td style="text-align:right;font-weight:700">${fmtR(brutoServicosExib)}</td></tr>
         <tr><td>+ Materiais/equipamentos (peças substituídas)</td><td style="text-align:right;font-weight:700">${fmtR(brutoMateriais)}</td></tr>
         <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Bruto</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(bruto)}</td></tr>
-        <tr><td>− Glosa por SLA (${autoPts} pts → ${pctGlosa}%)</td><td style="text-align:right;font-weight:700;color:${valorGlosa>0?'var(--red)':'inherit'}">${valorGlosa>0?"− ":""}${fmtR(valorGlosa)}</td></tr>
+        <tr><td>− Glosa por SLA (${autoPts} pts → ${pctGlosa}%${slaManualObs?' — ajuste manual da fiscalização':''})</td><td style="text-align:right;font-weight:700;color:${valorGlosa>0?'var(--red)':'inherit'}">${valorGlosa>0?"− ":""}${fmtR(valorGlosa)}</td></tr>
         <tr style="border-top:2px solid var(--navy)"><td><strong>= Total Líquido</strong></td><td style="text-align:right;font-weight:700;font-size:16px">${fmtR(liquido)}</td></tr>
       </table>
       <p class="muted" style="margin-top:10px">A glosa é calculada automaticamente pelo atraso de cada OS em relação ao prazo de SLA (abertura → conclusão). Pontos adicionais lançados manualmente pela fiscalização (outros critérios do SLA) não aparecem aqui e podem alterar o valor final.</p>
