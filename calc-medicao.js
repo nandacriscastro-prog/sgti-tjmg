@@ -36,6 +36,10 @@ const GARANTIA_SERVICO_DIAS = 90;
 // Regra de 19/10/2026: a visita (atendimento+km+diária) é paga UMA vez, na Correção (que replica km/peças da 1ª OS);
 // a 1ª OS insatisfatória fica fora da medição. Por isso Correção NÃO é mais "só peças". Para voltar à regra de 28/09, trocar para true.
 const CORRECAO_GARANTIA_SO_PECAS = false;
+// Marcador [MESMA_VISITA] (Histórico): OS atendida na mesma visita de outra OS — cobra atendimento e peças, mas NÃO km nem diária.
+function semVisitaOS(o) {
+  return !!o && (o.observacoes || "").indexOf("[MESMA_VISITA]") >= 0;
+}
 function isCorrecaoDentroGarantia(o, todasOS, dias) {
   // Marcador por OS [SO_PECAS] (Histórico): fiscalização decidiu que esta OS só cobra peças (sem atendimento/km/diária)
   if (o && (o.observacoes || "").indexOf("[SO_PECAS]") >= 0) return true;

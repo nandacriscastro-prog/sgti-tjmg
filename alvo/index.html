@@ -67,7 +67,7 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../calc-medicao.js?v=1792583726"></script>
+<script src="../calc-medicao.js?v=1792589781"></script>
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
@@ -337,7 +337,7 @@ async function carregarMedicao(){
       if(!isCorrecaoOS && _r) qtdRaio++;
       if(!isCorrecaoOS && _a) qtdAlarme++;
       let r={}; try{ r=JSON.parse(o.retorno_campo||"{}"); }catch(e){}
-      const kmOS = isCorrecaoOS ? 0 : (parseFloat(r.km||0)||0);
+      const kmOS = (isCorrecaoOS || semVisitaOS(o)) ? 0 : (parseFloat(r.km||0)||0);
       totalKm += kmOS;
       const vuKm = ANEXO_IV.find(a=>a.id==="km").vu;
       const valorKmOS = Number((kmOS*vuKm).toFixed(2));
@@ -348,9 +348,9 @@ async function carregarMedicao(){
       const isRaioServ = _r;
       const isPortalServ = _p;
       const isPresServ = _a;
-      const fracaoBase = (isColar || isCorrecaoOS) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
-      const fracaoPecasCalc = isColar ? 0 : pecasCobraveis(r.pecas).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
-      const fracaoDeslocamento = (isColar || isCorrecaoOS) ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
+      const fracaoBase = (isColar || (isCorrecaoOS || semVisitaOS(o))) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
+      const fracaoPecasCalc = (isColar || isCorrecaoOS) ? 0 : pecasCobraveis(r.pecas).filter(p=>p.desc).reduce((a,p)=>a+((FRAC_D[p.cod]||0)*(parseFloat(p.qtd)||1)),0);
+      const fracaoDeslocamento = (isColar || (isCorrecaoOS || semVisitaOS(o))) ? 0 : kmOS*FRACAO_KM_ANEXO_VI;
       const fracaoTotalSalvo = fracaoBase + fracaoPecasCalc + fracaoDeslocamento;
       totalDiarias += fracaoTotalSalvo;
       const vuDiaria = ANEXO_IV.find(a=>a.id==="diaria").vu;
