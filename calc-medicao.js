@@ -37,6 +37,8 @@ const GARANTIA_SERVICO_DIAS = 90;
 // a 1ª OS insatisfatória fica fora da medição. Por isso Correção NÃO é mais "só peças". Para voltar à regra de 28/09, trocar para true.
 const CORRECAO_GARANTIA_SO_PECAS = false;
 function isCorrecaoDentroGarantia(o, todasOS, dias) {
+  // Marcador por OS [SO_PECAS] (Histórico): fiscalização decidiu que esta OS só cobra peças (sem atendimento/km/diária)
+  if (o && (o.observacoes || "").indexOf("[SO_PECAS]") >= 0) return true;
   if (!CORRECAO_GARANTIA_SO_PECAS) return false;
   dias = dias || GARANTIA_SERVICO_DIAS;
   if (!o || o.tipo !== "Correção" || !o.os_origem) return false;

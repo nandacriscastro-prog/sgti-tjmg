@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792519516 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792583726 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="./calc-medicao.js?v=1792418717"></script>
+<script src="./calc-medicao.js?v=1792583726"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.XLSX_PLAIN = window.XLSX;</script>
 <script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -4710,6 +4710,21 @@ function PageHistorico({
       setSalvandoHist(false);
     }
   };
+  const toggleSoPecas = async () => {
+    if (!sel) return;
+    setSalvandoHist(true);
+    try {
+      const tem = (sel.observacoes || "").includes("[SO_PECAS]");
+      const novasObs = tem ? (sel.observacoes || "").replace(/\s*\[SO_PECAS\]/g, "").trim() : ((sel.observacoes || "").trim() + " [SO_PECAS]").trim();
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(sel.numero)}`, { method: "PATCH", body: JSON.stringify({ observacoes: novasObs }) });
+      setSel(s => ({ ...s, observacoes: novasObs }));
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar: " + e.message);
+    } finally {
+      setSalvandoHist(false);
+    }
+  };
   const toggleSlaExcecao = async () => {
     if (!sel) return;
     setSalvandoHist(true);
@@ -5533,6 +5548,18 @@ function PageHistorico({
         React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: unificarComOrigem, disabled: salvandoHist }, "🔗 Unificar")
       )
     ),
+    sel.tipo === "Correção" && (() => {
+      const temSP = (sel.observacoes || "").includes("[SO_PECAS]");
+      return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temSP ? "#eff6ff" : "var(--surface)", border: temSP ? "1px solid #93c5fd" : "1px solid var(--border)" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: 12, fontWeight: 700 } }, temSP ? "🔧 Cobrar só peças (ativo)" : "Cobrança da Correção"),
+            React.createElement("div", { style: { fontSize: 11, color: "var(--text3)", marginTop: 2 } }, temSP ? "Esta OS não cobra atendimento, km nem diária — só as peças." : "Cobra a visita (atendimento + km + diária) e as peças. Marque para cobrar apenas as peças.")
+          ),
+          React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: toggleSoPecas, disabled: salvandoHist }, temSP ? "✕ Voltar a cobrar a visita" : "🔧 Cobrar só peças")
+        )
+      );
+    })(),
     sel.status === "Conclu\xEDda" && (() => {
       const temExcecao = (sel.observacoes || "").includes("[SLA_EXCECAO]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temExcecao ? "#fef9ec" : "var(--surface)", border: temExcecao ? "1px solid #f5d78e" : "1px solid var(--border)" } },
