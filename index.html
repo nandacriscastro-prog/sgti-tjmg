@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792585267 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792589422 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -7126,6 +7126,30 @@ function PageMedicao({
   const _periodoInicial = periodoAbertoAtual();
   const [mes, setMes] = useState(_periodoInicial.mes);
   const [ano, setAno] = useState(_periodoInicial.ano);
+  const [ajusteOS, setAjusteOS] = useState(null);
+  const [ajusteForm, setAjusteForm] = useState({ servico: "", km: "", diaria: "", obs: "", calc: null });
+  const [salvandoAjuste, setSalvandoAjuste] = useState(false);
+  const salvarAjuste = async (limpar) => {
+    if (!ajusteOS) return;
+    if (!limpar && !(ajusteForm.obs || "").trim()) { alert("Informe a observação (motivo do ajuste)."); return; }
+    setSalvandoAjuste(true);
+    try {
+      let r = {}; try { r = JSON.parse(ajusteOS.retorno_campo || "{}"); } catch (e) {}
+      if (limpar) delete r.ajuste_valores;
+      else {
+        const aj = { obs: ajusteForm.obs.trim(), em: new Date().toISOString().slice(0, 10) };
+        ["servico", "km", "diaria"].forEach(k => { const v = String(ajusteForm[k]).replace(",", "."); if (v !== "" && !isNaN(Number(v))) aj[k] = Number(v); });
+        r.ajuste_valores = aj;
+      }
+      await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(ajusteOS.numero)}`, { method: "PATCH", body: JSON.stringify({ retorno_campo: JSON.stringify(r) }) });
+      setAjusteOS(null);
+      if (reload) reload();
+    } catch (e) {
+      alert("Erro ao salvar ajuste: " + e.message);
+    } finally {
+      setSalvandoAjuste(false);
+    }
+  };
   const [revisitaRevisao, setRevisitaRevisao] = useState(null);
   const [salvandoRevisita, setSalvandoRevisita] = useState(false);
   const enviarRevisitaComObsEditada = async () => {
@@ -7239,10 +7263,24 @@ function PageMedicao({
       const totalOS2 = vuOS2 + valorKmOS2 + valorDiariaOS2 + valorMateriaisOS;
       detalhe.push({ numero: o.numero, comarca: o.comarca, km: kmOS, pecas: pecasOS.filter(p => p.desc), valorMateriais: valorMateriaisOS, fracaoDiaria: fracaoTotalSalvo, tipoServico: tipoOS2, valorServico: vuOS2, valorKm: valorKmOS2, valorDiaria: valorDiariaOS2, totalOS: totalOS2, isCorrecao: isCorrecaoOS2 });
     });
+    // Ajuste manual de valores por OS (fiscalização): retorno_campo.ajuste_valores = { servico, km, diaria, obs }
+    let ajusteServicoTotal = 0;
+    osMedidas.forEach(o => {
+      let r2 = {}; try { r2 = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
+      const aj = r2.ajuste_valores;
+      const d = aj && detalhe.find(x => x.numero === o.numero);
+      if (!d) return;
+      const num = v => (v === undefined || v === null || v === "" || isNaN(Number(v))) ? null : Number(Number(v).toFixed(2));
+      const nS = num(aj.servico), nK = num(aj.km), nD = num(aj.diaria);
+      if (nS !== null) { ajusteServicoTotal += nS - (d.valorServico || 0); d.valorServico = nS; }
+      if (nK !== null) d.valorKm = nK;
+      if (nD !== null) d.valorDiaria = nD;
+      d.ajuste = aj.obs || "ajustado manualmente";
+    });
     const novos = { rem: 1, pres: qtdAlarme, portal: qtdPortal, raio: qtdRaio, km: totalKm, diaria: totalDiarias };
     // REGRA OFICIAL: km e diária somados POR OS (cada OS arredondada em 2 casas)
     const _r2 = v => Number((Number(v) || 0).toFixed(2));
-    const brutoServicos = _r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + _r2((novos[it.id] || 0) * it.vu), 0) + detalhe.reduce((a, d) => a + _r2(d.valorKm) + _r2(d.valorDiaria), 0));
+    const brutoServicos = _r2(ANEXO_IV.filter(it => it.id !== "km" && it.id !== "diaria").reduce((a, it) => a + _r2((novos[it.id] || 0) * it.vu), 0) + detalhe.reduce((a, d) => a + _r2(d.valorKm) + _r2(d.valorDiaria), 0) + _r2(ajusteServicoTotal));
     const brutoCalc2 = brutoServicos + brutoMateriais;
     const _chaveTrava2 = `${dtIni}_${dtFim}`;
     const bruto = MEDICOES_TRAVADAS_181[_chaveTrava2] ?? brutoCalc2;
@@ -7360,7 +7398,8 @@ function PageMedicao({
           pecas: l.pecas.map(p => ({ cod: p.cod, desc: p.desc, marca: "", modelo: "", serie: "", qtd: p.qtd })),
           obs: l.obs,
           lancamento_manual: true,
-          historico_visitas: l.historicoVisitas || []
+          historico_visitas: l.historicoVisitas || [],
+          ...((() => { try { const ant = JSON.parse((os.find(x => x.numero === l.numero) || {}).retorno_campo || "{}"); return ant.ajuste_valores ? { ajuste_valores: ant.ajuste_valores } : {}; } catch (e) { return {}; } })())
         };
         await sbFetch(`/ordens_servico?numero=eq.${encodeURIComponent(l.numero)}`, {
           method: "PATCH",
@@ -8469,6 +8508,20 @@ function PageMedicao({
       })()
       )
     ),
+    ajusteOS && React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setAjusteOS(null) },
+      React.createElement("div", { className: "card", style: { maxWidth: 460, width: "100%", maxHeight: "90vh", overflowY: "auto" }, onClick: e => e.stopPropagation() },
+        React.createElement("div", { className: "card-title" }, "💲 Ajustar valores — OS " + ajusteOS.numero),
+        React.createElement("div", { style: { fontSize: 12, color: "var(--text3)", marginBottom: 10 } }, "Valor em R$ que será usado nesta OS na medição. Deixe em branco o que não quiser alterar. A observação é obrigatória."),
+        [["servico", "Serviço (atendimento)"], ["km", "Km (deslocamento)"], ["diaria", "Diárias"]].map(([k, rot]) => React.createElement("div", { key: k, className: "fg", style: { marginBottom: 8 } },
+          React.createElement("label", null, rot + (ajusteForm.calc ? " — calculado: " + fmtR(k === "servico" ? ajusteForm.calc.valorServico : k === "km" ? ajusteForm.calc.valorKm : ajusteForm.calc.valorDiaria) : "")),
+          React.createElement("input", { type: "number", step: "0.01", min: "0", value: ajusteForm[k], placeholder: "Ex: 0,00", onChange: e => setAjusteForm(f => ({ ...f, [k]: e.target.value })) }))),
+        React.createElement("div", { className: "fg", style: { marginBottom: 12 } },
+          React.createElement("label", null, "Observação (motivo) *"),
+          React.createElement("textarea", { rows: 3, value: ajusteForm.obs, onChange: e => setAjusteForm(f => ({ ...f, obs: e.target.value })), placeholder: "Ex: OS não será paga conforme decisão da fiscalização" })),
+        React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+          React.createElement("button", { className: "btn btn-primary", onClick: () => salvarAjuste(false), disabled: salvandoAjuste }, salvandoAjuste ? "Salvando..." : "Salvar ajuste"),
+          React.createElement("button", { className: "btn", onClick: () => setAjusteOS(null), disabled: salvandoAjuste }, "Cancelar"),
+          ((() => { try { return !!JSON.parse(ajusteOS.retorno_campo || "{}").ajuste_valores; } catch (e) { return false; } })()) && React.createElement("button", { className: "btn", onClick: () => salvarAjuste(true), disabled: salvandoAjuste }, "Remover ajuste")))),
     medicaoResumo.detalhe.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16 } },
       React.createElement("div", { className: "card-title" }, "📋 Total por OS — " + medicaoResumo.detalhe.length + " OS na medição"),
       React.createElement("div", { style: { overflowX: "auto" } },
@@ -8487,7 +8540,7 @@ function PageMedicao({
           React.createElement("tbody", null,
             medicaoResumo.detalhe.map((d, i) => React.createElement(React.Fragment, { key: d.numero },
               React.createElement("tr", { style: { background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)", borderBottom: d.pecas.length > 0 ? "none" : "1px solid var(--border)" } },
-                React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--accent)", whiteSpace: "nowrap" } }, d.numero, (() => { const oEd = os.find(x => x.numero === d.numero); return oEd && !medicaoResumo.travado ? React.createElement("button", { title: "Editar km, peças e dados desta OS", onClick: () => abrirPainelIndividual(oEd), style: { marginLeft: 8, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 7px", fontSize: 11, cursor: "pointer", color: "var(--text2)" } }, "✎ Editar") : null; })()),
+                React.createElement("td", { style: { padding: "6px 10px", fontWeight: 700, fontFamily: "var(--mono)", color: "var(--accent)", whiteSpace: "nowrap" } }, d.numero, d.ajuste && React.createElement("span", { title: "Valores ajustados: " + d.ajuste, style: { marginLeft: 6, cursor: "help" } }, "📝"), (() => { const oEd = os.find(x => x.numero === d.numero); return oEd && !medicaoResumo.travado ? React.createElement("button", { title: "Editar km, peças e dados desta OS", onClick: () => abrirPainelIndividual(oEd), style: { marginLeft: 8, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 7px", fontSize: 11, cursor: "pointer", color: "var(--text2)" } }, "✎ Editar") : null; })(), !medicaoResumo.travado && React.createElement("button", { title: "Ajustar valores de serviço, km e diária desta OS", onClick: () => { const oEd = os.find(x => x.numero === d.numero); let r3 = {}; try { r3 = JSON.parse((oEd && oEd.retorno_campo) || "{}"); } catch (e) {} const aj = r3.ajuste_valores || {}; setAjusteOS(oEd); setAjusteForm({ servico: aj.servico ?? "", km: aj.km ?? "", diaria: aj.diaria ?? "", obs: aj.obs || "", calc: d }); }, style: { marginLeft: 6, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 7px", fontSize: 11, cursor: "pointer", color: "var(--text2)" } }, "💲 Ajustar")),
                 React.createElement("td", { style: { padding: "6px 10px" } }, d.comarca),
                 React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, fmtR(d.valorServico || 0)),
                 React.createElement("td", { style: { padding: "6px 10px", textAlign: "right", color: "var(--text2)" } }, !d.valorKm ? React.createElement("span", { style: { color: "var(--text3)" } }, "—") : fmtR(d.valorKm)),
