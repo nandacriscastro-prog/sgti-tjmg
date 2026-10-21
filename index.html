@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792589781 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792592616 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -6555,7 +6555,7 @@ function PageLancamentoManual({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
+    pecas: (existente?.pecas && (existente.pecas.length || !(existente.historico_visitas || []).length)) ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : ((existente?.historico_visitas || []).length ? existente.historico_visitas[existente.historico_visitas.length - 1].pecas : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
     historicoVisitas: existente?.historico_visitas || [], // replica as peças da 1ª OS (editáveis; pode adicionar outras)
     pecasPrimeiraOS: ((existente?.historico_visitas || []).length ? (existente.historico_visitas[existente.historico_visitas.length - 1].pecas || []) : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
@@ -7321,7 +7321,7 @@ function PageMedicao({
     dtconc: existente?.dtconc || new Date().toISOString().slice(0, 10),
     solucao: existente?.solucao || "",
     km: existente?.km || (dadosPrimeiraOS(o, os)?.km || ""),
-    pecas: existente?.pecas ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : (dadosPrimeiraOS(o, os)?.pecas || []).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
+    pecas: (existente?.pecas && (existente.pecas.length || !(existente.historico_visitas || []).length)) ? existente.pecas.map(p => ({ ...p, primeiraVisita: !!(existente.historico_visitas || []).length })) : ((existente?.historico_visitas || []).length ? existente.historico_visitas[existente.historico_visitas.length - 1].pecas : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ ...p, primeiraVisita: true })),
     historicoVisitas: existente?.historico_visitas || [], // replica as peças da 1ª OS (editáveis; pode adicionar outras)
     pecasPrimeiraOS: ((existente?.historico_visitas || []).length ? (existente.historico_visitas[existente.historico_visitas.length - 1].pecas || []) : (dadosPrimeiraOS(o, os)?.pecas || [])).filter(p => p && p.desc).map(p => ({ cod: p.cod, desc: p.desc, qtd: p.qtd })), // só aviso — não replica
     obs: existente?.obs || "",
