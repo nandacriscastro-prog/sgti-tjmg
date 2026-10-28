@@ -67,7 +67,7 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../calc-medicao.js?v=1792589781"></script>
+<script src="../calc-medicao.js?v=1793215590"></script>
 <script>
 const SB_URL = "https://ylgyrltbrxmnjnihpxpi.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZ3lybHRicnhtbmpuaWhweHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDkwNTEsImV4cCI6MjA5NDA4NTA1MX0.j7rtt7ZKjv4MuuvGMPHJ-zZ3ubv3SaA3RorjovxdcF4";
@@ -333,9 +333,9 @@ async function carregarMedicao(){
       const _p = s.includes("portal") || s.includes("detector");
       const _r = s.includes("raio") || s.includes("scanner");
       const _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r));
-      if(!isCorrecaoOS && _p) qtdPortal++;
-      if(!isCorrecaoOS && _r) qtdRaio++;
-      if(!isCorrecaoOS && _a) qtdAlarme++;
+      if(!(isCorrecaoOS || retornoPagoOS(o)) && _p) qtdPortal++;
+      if(!(isCorrecaoOS || retornoPagoOS(o)) && _r) qtdRaio++;
+      if(!(isCorrecaoOS || retornoPagoOS(o)) && _a) qtdAlarme++;
       let r={}; try{ r=JSON.parse(o.retorno_campo||"{}"); }catch(e){}
       const kmOS = (isCorrecaoOS || semVisitaOS(o)) ? 0 : (parseFloat(r.km||0)||0);
       totalKm += kmOS;
@@ -359,7 +359,7 @@ async function carregarMedicao(){
       const tipoSistema = isPortalServ ? "Portal detector de metais" : isRaioServ ? "Scanner de raio-X" : "Alarme/CFTV/Acesso";
       const regiaoOS = isColar ? "Colar Metropolitano" : "Interior";
       // Portal + presencial na mesma OS soma os dois atendimentos (igual ao sistema principal)
-      const vuAtend = isCorrecaoOS ? 0 : (((isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0)) || ANEXO_IV.find(a=>a.id==="pres").vu);
+      const vuAtend = (isCorrecaoOS || retornoPagoOS(o)) ? 0 : (((isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0)) || ANEXO_IV.find(a=>a.id==="pres").vu);
       let matOS = 0;
       pecasCobraveis(r.pecas).filter(p=>p.desc).forEach(p=>{
         const vUnit = p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod]||0);

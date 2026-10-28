@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1792608067 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1793215590 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="./calc-medicao.js?v=1792589781"></script>
+<script src="./calc-medicao.js?v=1793215590"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.XLSX_PLAIN = window.XLSX;</script>
 <script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -1862,9 +1862,9 @@ function PageDashboard({
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
       const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
-      if (!isCorrecaoOS && isPortalServ) p.qtdPortal++;
-      if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
-      if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isPortalServ) p.qtdPortal++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isRaioServ) p.qtdRaio++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || (isCorrecaoOS || semVisitaOS(o))) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
       const fracaoPecasCalc = (isColarOS || isCorrecaoOS) ? 0 : pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || (isCorrecaoOS || semVisitaOS(o))) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -3741,6 +3741,7 @@ function PageNovaOS({
   const [loading, setLoading] = useState(false);
   const [fiscalId, setFiscalId] = useState(String(getSession()?.fiscal?.id || "3"));
   const [osVinculada, setOsVinculada] = useState("");
+  const [retornoPagoSel, setRetornoPagoSel] = useState(null); // null = automático; true/false = escolha do fiscal
   const [contato, setContato] = useState("");
   const [empresa, setEmpresa] = useState("Alvo Segurança Ltda");
   const [contratoSel, setContratoSel] = useState(window._contratoNovaOS || "181/2026");
@@ -3892,6 +3893,12 @@ function PageNovaOS({
       setNumOS(proximoNumeroDe(rows?.[0]));
     }).catch(() => {});
   };
+  // Retorno de OS já paga (caso B): original concluída e satisfatória, dentro de 90 dias → cobra só peças + fração das peças
+  const origemRetorno = (tipo === "Correção" && osVinculada) ? (todasOS || []).find(o => o.numero === osVinculada) : null;
+  const origemPaga = !!origemRetorno && origemRetorno.status === "Concluída" && origemRetorno.avaliacao === "satisfatorio";
+  const diasDaOrigem = origemRetorno ? Math.round((new Date(dt + "T12:00") - new Date((origemRetorno.data_os || "") + "T12:00")) / 86400000) : null;
+  const origemDentro90 = diasDaOrigem !== null && !isNaN(diasDaOrigem) && diasDaOrigem >= 0 && diasDaOrigem <= 90;
+  const retornoPagoAtivo = origemPaga && (retornoPagoSel !== null ? retornoPagoSel : origemDentro90);
   const abrirPreview = () => {
     const servicoValido = contratoSel === "181/2026" ? sistemas.length > 0 : !!serv;
     if (!comarca || !tipo || !servicoValido) {
@@ -3919,6 +3926,7 @@ function PageNovaOS({
       empresa,
       criado_por: FISCAIS.find(f => String(f.id) === fiscalId)?.email || FISCAIS[2].email,
       os_origem: osVinculada || null,
+      retornoPago: !!retornoPagoAtivo,
       contato
     });
     setPreview(true);
@@ -3968,7 +3976,7 @@ function PageNovaOS({
           tipo: pv.tipo || "",
           prioridade: pv.prioridade || "",
           regiao: COLAR_CIDADES.has((pv.comarca || "").split(" - ")[0]) ? "Colar Metropolitano" : "Interior",
-          observacoes: (pv.observacoes || "") + (obsExtras ? (pv.observacoes ? " | " : "") + obsExtras : ""),
+          observacoes: (pv.observacoes || "") + (obsExtras ? (pv.observacoes ? " | " : "") + obsExtras : "") + (pv.retornoPago ? "\n[RETORNO_PAGO]" : ""),
           os_origem: pv.os_origem || null,
           data_os: pv.data_os || new Date().toISOString().slice(0, 10),
           status: "Aberta",
@@ -4174,7 +4182,13 @@ function PageNovaOS({
       color: "var(--red)",
       marginTop: 3
     }
-  }, "\u26a0\ufe0f N\xE3o encontrei essa OS \u2014 confira o n\xFAmero. Sem a OS original, a garantia de servi\xE7o (90 dias) n\xE3o \xE9 aplicada e essa Corre\xE7\xE3o cobra como presencial normal.")))), /*#__PURE__*/React.createElement("div", {
+  }, "\u26a0\ufe0f N\xE3o encontrei essa OS \u2014 confira o n\xFAmero. Sem a OS original, a garantia de servi\xE7o (90 dias) n\xE3o \xE9 aplicada e essa Corre\xE7\xE3o cobra como presencial normal."),
+    origemPaga && React.createElement("div", { style: { marginTop: 8, padding: "10px 12px", borderRadius: 8, background: "#eff6ff", border: "1px solid #93c5fd", fontSize: 12 } },
+      React.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" } },
+        React.createElement("input", { type: "checkbox", checked: !!retornoPagoAtivo, onChange: e => setRetornoPagoSel(e.target.checked), style: { marginTop: 2 } }),
+        React.createElement("span", null, React.createElement("strong", null, "Retorno de OS j\u00e1 paga"), " \u2014 a OS ", osVinculada, " j\u00e1 foi conclu\u00edda e medida. Marcado: cobra s\u00f3 as pe\u00e7as e a fra\u00e7\u00e3o de di\u00e1ria delas (sem atendimento, km e di\u00e1ria base) e n\u00e3o replica km/pe\u00e7as da OS original.")),
+      !origemDentro90 && React.createElement("div", { style: { marginTop: 6, color: "var(--red)", fontWeight: 600 } }, "\u26a0\ufe0f A OS original tem " + diasDaOrigem + " dias (mais de 90): fora da garantia de servi\u00e7o isto \u00e9 um atendimento novo e cobra a visita normal. Desmarcado por padr\u00e3o.")
+    )))), /*#__PURE__*/React.createElement("div", {
     className: "form-grid"
   }, /*#__PURE__*/React.createElement("div", {
     className: "fg"
@@ -5557,6 +5571,7 @@ function PageHistorico({
     sel.tipo !== "Atendimento Remoto" && (() => {
       const temSP = (sel.observacoes || "").includes("[SO_PECAS]");
       const temMV = (sel.observacoes || "").includes("[MESMA_VISITA]");
+      const temRP = (sel.observacoes || "").includes("[RETORNO_PAGO]");
       return React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", borderRadius: 8, background: temSP ? "#eff6ff" : "var(--surface)", border: temSP ? "1px solid #93c5fd" : "1px solid var(--border)" } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
           React.createElement("div", null,
@@ -5565,9 +5580,11 @@ function PageHistorico({
           ),
           React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
             React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap" }, onClick: () => toggleSoPecas("[SO_PECAS]"), disabled: salvandoHist }, temSP ? "✕ Voltar a cobrar a visita" : "🔧 Cobrar só peças"),
-            React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap", background: temMV ? "#eff6ff" : undefined }, onClick: () => toggleSoPecas("[MESMA_VISITA]"), disabled: salvandoHist }, temMV ? "✕ Remover 'mesma visita'" : "🚗 Mesma visita de outra OS"))
+            React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap", background: temMV ? "#eff6ff" : undefined }, onClick: () => toggleSoPecas("[MESMA_VISITA]"), disabled: salvandoHist }, temMV ? "✕ Remover 'mesma visita'" : "🚗 Mesma visita de outra OS"),
+            React.createElement("button", { className: "btn btn-sm", style: { whiteSpace: "nowrap", background: temRP ? "#eff6ff" : undefined }, onClick: () => toggleSoPecas("[RETORNO_PAGO]"), disabled: salvandoHist }, temRP ? "✕ Remover 'retorno de OS paga'" : "↩️ Retorno de OS já paga"))
         ),
-        temMV && React.createElement("div", { style: { fontSize: 11, color: "#1d4ed8", marginTop: 6 } }, "Mesma visita: cobra atendimento e peças; não cobra km nem a diária base (o km/diária ficam na outra OS).")
+        temMV && React.createElement("div", { style: { fontSize: 11, color: "#1d4ed8", marginTop: 6 } }, "Mesma visita: cobra atendimento e peças; não cobra km nem a diária base (o km/diária ficam na outra OS)."),
+        temRP && React.createElement("div", { style: { fontSize: 11, color: "#1d4ed8", marginTop: 6 } }, "Retorno de OS já paga: cobra só as peças e a fração de diária delas; sem atendimento, km nem diária base.")
       );
     })(),
     sel.status === "Conclu\xEDda" && (() => {
@@ -6441,6 +6458,7 @@ const rotaDaOS = obs => { const m = /Rota:\s*([^|\n<]+)/i.exec(obs || ""); retur
 // é paga UMA vez, na Correção; a 1ª OS (insatisfatória) fica fora da medição. Regra de 19/10/2026.
 function dadosPrimeiraOS(o, todasOS) {
   if (!o || o.tipo !== "Correção" || !o.os_origem) return null;
+  if (retornoPagoOS(o)) return null; // retorno de OS já paga: km e peças da original já foram pagos, não replicar
   const orig = (todasOS || []).find(x => x.numero === o.os_origem);
   if (!orig) return null;
   let r = {};
@@ -6488,9 +6506,9 @@ function PageLancamentoManual({
       const _isPortal = s.includes("portal") || s.includes("detector");
       const _isRaio = s.includes("raio") || s.includes("scanner");
       const _isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal && !_isRaio));
-      if (!isCorrecaoOS && _isPortal) qtdPortal++;
-      if (!isCorrecaoOS && _isRaio) qtdRaio++;
-      if (!isCorrecaoOS && _isPres) qtdAlarme++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && _isPortal) qtdPortal++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && _isRaio) qtdRaio++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && _isPres) qtdAlarme++;
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const kmOS = (isCorrecaoOS || semVisitaOS(o)) ? 0 : (parseFloat(r.km || 0) || 0);
@@ -6510,7 +6528,7 @@ function PageLancamentoManual({
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       const tipoOS = isCorrecaoOS ? "correcao" : (_isPortal && _isPres ? "portal+pres" : _isPortal ? "portal" : _isRaio ? "raio" : s.includes("remot") ? "rem" : "pres");
-      const vuOS = isCorrecaoOS ? 0 : ((_isPortal ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0)));
+      const vuOS = (isCorrecaoOS || retornoPagoOS(o)) ? 0 : ((_isPortal ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0)));
       const valorKmOS = Number((kmOS * (ANEXO_IV.find(a => a.id === "km")?.vu || 0)).toFixed(2));
       const valorDiariaOS = fracaoTotalOS1 * (ANEXO_IV.find(a => a.id === "diaria")?.vu || 0);
       const totalOS = vuOS + valorKmOS + valorDiariaOS + valorMateriaisOS;
@@ -7292,9 +7310,9 @@ function PageMedicao({
       const _isPortal2 = s.includes("portal") || s.includes("detector");
       const _isRaio2 = s.includes("raio") || s.includes("scanner");
       const _isPres2 = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_isPortal2 && !_isRaio2));
-      if (!isCorrecaoOS2 && _isPortal2) qtdPortal++;
-      if (!isCorrecaoOS2 && _isRaio2) qtdRaio++;
-      if (!isCorrecaoOS2 && _isPres2) qtdAlarme++;
+      if (!(isCorrecaoOS2 || retornoPagoOS(o)) && _isPortal2) qtdPortal++;
+      if (!(isCorrecaoOS2 || retornoPagoOS(o)) && _isRaio2) qtdRaio++;
+      if (!(isCorrecaoOS2 || retornoPagoOS(o)) && _isPres2) qtdAlarme++;
       let r = {};
       try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
       const kmOS = (isCorrecaoOS2 || semVisitaOS(o)) ? 0 : (parseFloat(r.km || 0) || 0);
@@ -7314,7 +7332,7 @@ function PageMedicao({
       const valorMateriaisOS = pecasOS.filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       brutoMateriais += valorMateriaisOS;
       const tipoOS2 = isCorrecaoOS2 ? "correcao" : (_isPortal2 && _isPres2 ? "portal+pres" : _isPortal2 ? "portal" : _isRaio2 ? "raio" : s.includes("remot") ? "rem" : "pres");
-      const vuOS2 = isCorrecaoOS2 ? 0 : ((_isPortal2 ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio2 ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres2 ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0)));
+      const vuOS2 = (isCorrecaoOS2 || retornoPagoOS(o)) ? 0 : ((_isPortal2 ? (ANEXO_IV.find(a => a.id === "portal")?.vu || 0) : 0) + (_isRaio2 ? (ANEXO_IV.find(a => a.id === "raio")?.vu || 0) : 0) + (_isPres2 ? (ANEXO_IV.find(a => a.id === "pres")?.vu || 0) : 0) || (s.includes("remot") ? (ANEXO_IV.find(a => a.id === "rem")?.vu || 0) : (ANEXO_IV.find(a => a.id === "pres")?.vu || 0)));
       const valorKmOS2 = Number((kmOS * (ANEXO_IV.find(a => a.id === "km")?.vu || 0)).toFixed(2));
       const valorDiariaOS2 = fracaoTotalSalvo * (ANEXO_IV.find(a => a.id === "diaria")?.vu || 0);
       const totalOS2 = vuOS2 + valorKmOS2 + valorDiariaOS2 + valorMateriaisOS;
@@ -7616,7 +7634,7 @@ function PageMedicao({
       osMes.forEach(o => {
         const isCorrecaoOS = isCorrecaoDentroGarantia(o, os); // dentro dos 90d de garantia: só peças, sem atendimento/km/diária
         const s = (o.servico || o.tipo || "").toLowerCase();
-        { const _p = s.includes("portal") || s.includes("detector"), _r = s.includes("raio") || s.includes("scanner"), _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r)); if (!isCorrecaoOS && _p) qtdPortal++; if (!isCorrecaoOS && _r) qtdRaio++; if (!isCorrecaoOS && _a) qtdAlarme++; }
+        { const _p = s.includes("portal") || s.includes("detector"), _r = s.includes("raio") || s.includes("scanner"), _a = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!_p && !_r)); if (!(isCorrecaoOS || retornoPagoOS(o)) && _p) qtdPortal++; if (!(isCorrecaoOS || retornoPagoOS(o)) && _r) qtdRaio++; if (!(isCorrecaoOS || retornoPagoOS(o)) && _a) qtdAlarme++; }
         try {
           const r = JSON.parse(o.retorno_campo || "{}");
           if (!r.historico) {
@@ -7749,7 +7767,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
-      const vuAtend = isCorrecaoOS ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
+      const vuAtend = (isCorrecaoOS || retornoPagoOS(o)) ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
       const materiaisOS = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = (isCorrecaoOS || semVisitaOS(o)) ? 0 : (parseFloat(r.km || 0) || 0);
       const item = dd.find(d => d.numero === o.numero);
@@ -8060,7 +8078,7 @@ function PageMedicao({
       const isRaio = s.includes("raio") || s.includes("scanner");
       const isPortal = s.includes("portal") || s.includes("detector");
       const isPres = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortal && !isRaio));
-      const vuAtend = isCorrecaoOS ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
+      const vuAtend = (isCorrecaoOS || retornoPagoOS(o)) ? 0 : ((isPortal ? ANEXO_IV.find(a => a.id === "portal").vu : 0) + (isRaio ? ANEXO_IV.find(a => a.id === "raio").vu : 0) + (isPres ? ANEXO_IV.find(a => a.id === "pres").vu : 0) || ANEXO_IV.find(a => a.id === "pres").vu);
       const materiaisOS = pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
       const kmOS = (isCorrecaoOS || semVisitaOS(o)) ? 0 : (parseFloat(r.km || 0) || 0);
       const dd = (resultado.diariaDetalhe || []).find(d => d.numero === o.numero);
@@ -8193,7 +8211,7 @@ function PageMedicao({
         const isPortalServ = s.includes("portal") || s.includes("detector");
         const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
         const itemAtend = isRaioServ ? "raio" : isPortalServ ? "portal" : "pres";
-        if (!isCorrecaoOS) usoAprovadoIVAll[itemAtend]++;
+        if (!(isCorrecaoOS || retornoPagoOS(o))) usoAprovadoIVAll[itemAtend]++;
         usoAprovadoIVAll.km += kmOS;
         usoAprovadoIVAll.kmValor += Number((kmOS * vuKmSEI4).toFixed(2));
         const fracaoBase = (isColarOS || (isCorrecaoOS || semVisitaOS(o))) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
@@ -8399,9 +8417,9 @@ function PageMedicao({
       const isRaioServ = s.includes("raio") || s.includes("scanner");
       const isPortalServ = s.includes("portal") || s.includes("detector");
       const isPresServ_ = !s.includes("remot") && (s.includes("alarme") || s.includes("cftv") || s.includes("acesso") || (!isPortalServ && !isRaioServ));
-      if (!isCorrecaoOS && isPortalServ) p.qtdPortal++;
-      if (!isCorrecaoOS && isRaioServ) p.qtdRaio++;
-      if (!isCorrecaoOS && isPresServ_) p.qtdAlarme++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isPortalServ) p.qtdPortal++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isRaioServ) p.qtdRaio++;
+      if (!(isCorrecaoOS || retornoPagoOS(o)) && isPresServ_) p.qtdAlarme++;
       const fracaoBase = (isColarOS || (isCorrecaoOS || semVisitaOS(o))) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ_) ? 2.0 : 1.0);
       const fracaoPecasCalc = (isColarOS || isCorrecaoOS) ? 0 : pecasCobraveis(r.pecas).filter(x => x.desc).reduce((a, x) => a + ((FRAC_D[x.cod] || 0) * (parseFloat(x.qtd) || 1)), 0);
       const fracaoDeslocamento = (isColarOS || (isCorrecaoOS || semVisitaOS(o))) ? 0 : kmOS * FRACAO_KM_ANEXO_VI;
@@ -12371,7 +12389,7 @@ function PageControleAtivos() {
               aprovado[p.cod] = (aprovado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
             }
           });
-          if (!isCorrecaoOS) aprovadoIV[itemAtend]++;
+          if (!(isCorrecaoOS || retornoPagoOS(o))) aprovadoIV[itemAtend]++;
           aprovadoIV.km += kmOS;
           aprovadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           aprovadoIV.diaria += fracaoTotal;
@@ -12390,7 +12408,7 @@ function PageControleAtivos() {
               reservado[p.cod] = (reservado[p.cod] || 0) + (parseFloat(p.qtd) || 1);
             }
           });
-          if (!isCorrecaoOS) reservadoIV[itemAtend]++;
+          if (!(isCorrecaoOS || retornoPagoOS(o))) reservadoIV[itemAtend]++;
           reservadoIV.km += kmOS;
           reservadoIV.kmValor += Number((kmOS * vuKmD).toFixed(2));
           reservadoIV.diaria += fracaoTotal;

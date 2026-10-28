@@ -38,7 +38,12 @@ const GARANTIA_SERVICO_DIAS = 90;
 const CORRECAO_GARANTIA_SO_PECAS = false;
 // Marcador [MESMA_VISITA] (Histórico): OS atendida na mesma visita de outra OS — cobra atendimento e peças, mas NÃO km nem diária.
 function semVisitaOS(o) {
-  return !!o && (o.observacoes || "").indexOf("[MESMA_VISITA]") >= 0;
+  return !!o && ((o.observacoes || "").indexOf("[MESMA_VISITA]") >= 0 || retornoPagoOS(o));
+}
+// Marcador [RETORNO_PAGO]: retorno (dentro da garantia de 90 dias) de OS que JÁ FOI PAGA em medição anterior.
+// Cobra só as peças e a fração de diária delas: sem atendimento, sem km, sem diária base. (semVisitaOS cobre km/base.)
+function retornoPagoOS(o) {
+  return !!o && (o.observacoes || "").indexOf("[RETORNO_PAGO]") >= 0;
 }
 function isCorrecaoDentroGarantia(o, todasOS, dias) {
   // Marcador por OS [SO_PECAS] (Histórico): fiscalização decidiu que esta OS só cobra peças (sem atendimento/km/diária)
