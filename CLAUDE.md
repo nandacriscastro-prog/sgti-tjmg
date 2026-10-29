@@ -133,7 +133,7 @@ Sistema de gestão de contratos de segurança eletrônica (CFTV, alarme, portal 
 ### Medições travadas (`MEDICOES_TRAVADAS_181`) — desde 24/09/2026
 - Constante no `index.html` **e** no `alvo/index.html` (manter as duas iguais) com o **valor bruto aprovado** de períodos já fechados, chave `"AAAA-MM-DD_AAAA-MM-DD"` (dtIni_dtFim):
   - `"2026-07-20_2026-08-19": 49453.60` — Agosto/2026, aprovado em planilha, travado em 24/09/2026.
-  - Setembro/2026 (`127308.74`) está **comentado — desativado a pedido da fiscalização**. Não reativar sem pedido explícito.
+  - `"2026-08-20_2026-09-19": 127302.27` — Setembro/2026, travado em 29/10/2026 a pedido da Fernanda ("não mexer nas fechadas"); marcadores como `[SO_PECAS]` nas OS 181-92-R/181-62-2R não alteram mais o período.
 - Quando o período está travado, `bruto = MEDICOES_TRAVADAS_181[chave] ?? brutoCalculado` — o valor aprovado prevalece sobre o recálculo em: Resumo da Medição, Lançamento Manual, Planilha SEI (`totalGeral`/`brutoSEI`), aba "Total por OS" do Excel e portal Alvo. A tela mostra "🔒 Total bruto (aprovado)".
 - Motivo: mudanças de regra/fórmula posteriores não podem alterar retroativamente o valor de uma medição já aprovada. **Ao fechar um novo período, a Fernanda decide se trava** — só então adicionar a chave.
 
