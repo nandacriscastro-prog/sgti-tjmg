@@ -115,3 +115,9 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - `tecnicos_app`: RLS habilitado, sem policies de acesso direto; auditar RPCs SECURITY DEFINER separadamente.
 - Risco: políticas amplas permitem operações dentro dos grants SQL disponíveis; verificar grants e fluxo real de login antes de restringir. Não alterar produção sem migração testada.
 - [ ] Auditar privilégios SQL de anon/authenticated, roles de usuários, policies e funções definer, exposição REST e dependências de leitura pública; elaborar migração com testes de regressão.
+
+### Cadastro de usuários (estrutura informada em 06/11/2026)
+- `public.usuarios_sistema`: id bigint, email text, senha text, nome text, matricula text nullable, equipe text nullable, setor text nullable, criado_em timestamptz nullable.
+- A existência de `senha` não comprova texto puro nem uso atual; auditar autenticação e armazenamento sem extrair valores. Policy `authenticated_all` exige atenção especial por potencial exposição de credenciais.
+- [ ] Verificar uso de `usuarios_sistema.senha` no código e se login efetivo usa Supabase Auth; planejar migração/remoção segura somente após comprovar dependências.
+- [ ] Inspecionar grants de SELECT e acesso direto da tabela; nunca exportar hashes/senhas em relatório.
