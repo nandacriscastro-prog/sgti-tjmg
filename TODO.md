@@ -100,3 +100,9 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - Há atividade recente, apesar de o fluxo operacional usual relatado ser transcrição de texto e avaliação por servidores. **Origem e dependência dos arquivos não determinadas.**
 - [ ] Inventariar metadados agregados por prefixo/extensão e datas sem expor nomes sensíveis, URLs ou conteúdo; verificar consumidores antes de mudar acesso público.
 - [ ] Preservar os 103 objetos e metadados; não apagar ou mover antes de confirmar vínculo com OS e estratégia de migração.
+
+### Requisito operacional confirmado — PDFs de OS (06/11/2026)
+- Os PDFs gerados das OS permanecem salvos no SGTI e são reabertos posteriormente.
+- A correção de segurança **deve preservar emissão, armazenamento, vínculo com a OS e reabertura/download histórico**.
+- Não tornar o bucket privado nem alterar URLs existentes antes de mapear referências persistidas no banco e leitores do PDF; preparar acesso autenticado/URLs assinadas com testes de regressão e rollback.
+- O fato de haver 74 PDFs no Storage não comprova sozinho que todos sejam OS; validar vínculo pelo código e metadados sem divulgar nomes sensíveis.
