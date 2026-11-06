@@ -38,3 +38,31 @@ Backlog rastreável no git. Ver `CLAUDE.md` para contexto/arquitetura completos.
 - [x] `FRAC_D`/`FRACAO_KM_ANEXO_VI` unificados em `calc-medicao.js` (15/09)
 - [ ] Restante da lógica de cálculo ainda duplicada em vários blocos do `index.html` + `/alvo` — atualizar `calcularFracaoOS()` (hoje com regra antiga e sem uso) e passar a usá-la em todos os blocos, ou removê-la
 - [ ] Fluxo de publish exige colar PAT manualmente toda sessão — avaliar salvar credencial no Git Credential Manager do Windows
+
+
+## Auditoria F0 de segurança — 06/11/2026 (branch isolada)
+
+> Registro de planejamento; **não comprova correção ou mitigação**. Nenhuma alteração em produção deve ser feita sem homologação. O repositório estava público na consulta inicial.
+
+### P0 — Incidente potencial: chave privilegiada exposta
+- [ ] Confirmar por inspeção local do `index.html` e do histórico Git se `SB_SVC`, `service_role`, `sb_secret_` ou outras credenciais privilegiadas foram expostas. A documentação registra exposição anterior; a leitura remota integral do HTML não foi possível nesta auditoria inicial.
+- [ ] Tratar como comprometida qualquer chave privilegiada que tenha sido publicada; inventariar dependências e executar rotação/revogação no painel Supabase com janela de contingência. **Remover do código não revoga o segredo nem apaga o histórico.**
+- [ ] Verificar logs de autenticação, banco e storage conforme retenção disponível; investigar uso anômalo sem presumir que houve acesso indevido.
+- [ ] Substituir operações privilegiadas no navegador por autenticação de usuário + RLS/storage policies mínimas ou backend controlado; testar uploads, leitura e remoção de anexos.
+- [ ] Verificar GitHub Pages, Netlify e URLs alternativas: tornar o repositório privado, isoladamente, **não remove páginas já publicadas**.
+- [ ] Examinar arquivos versionados e histórico para outros segredos/dados sensíveis; planejar eventual limpeza de histórico somente depois de rotação e com avaliação de impacto.
+
+### P1 — Mapeamento técnico e autorização
+- [ ] Inventariar tabelas, views, funções/RPCs, triggers, policies RLS, buckets e grants do Supabase por exportação de esquema **sem dados reais nem segredos**.
+- [ ] Mapear fluxos de login, sessão, portal Alvo, app técnico, chamados de garantia, ordens de serviço, `retorno_campo`, patrimônios, fotos, PDFs e medições.
+- [ ] Identificar dependências de leitura pública em `ordens_servico` e `portais_garantia`; planejar substituição por endpoints ou políticas específicas, sem quebrar o portal Alvo.
+- [ ] Validar a regra vigente de reabertura da mesma OS com sufixos `-R` e o vínculo por ID estável para a fiscalização.
+- [ ] Definir plano de rollback e testes de regressão: login, OS, upload, relatório, Alvo, medições e garantia.
+
+### P2 — Aplicativo SGTI Fiscalização (futuro, separado)
+- [ ] Acesso somente para fiscais TJMG via Supabase Auth + RLS.
+- [ ] Fiscalização presencial e documental; evidências independentes do relatório da contratada.
+- [ ] Legendas **abaixo** das fotos: pavimento, localização, equipamento e patrimônio.
+- [ ] Dois PDFs independentes: relatório principal com fotos menores e anexo fotográfico ampliado, com numeração consistente.
+
+**Limite da auditoria atual:** metadados do repositório, `CLAUDE.md`, `TODO.md` e árvore de arquivos foram consultados. O conector não retornou conteúdo do `index.html` de ~3,3 MB, portanto não há confirmação de ausência/presença atual da chave, nem validação do Supabase em produção.
