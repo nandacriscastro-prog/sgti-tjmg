@@ -106,3 +106,12 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - A correção de segurança **deve preservar emissão, armazenamento, vínculo com a OS e reabertura/download histórico**.
 - Não tornar o bucket privado nem alterar URLs existentes antes de mapear referências persistidas no banco e leitores do PDF; preparar acesso autenticado/URLs assinadas com testes de regressão e rollback.
 - O fato de haver 74 PDFs no Storage não comprova sozinho que todos sejam OS; validar vínculo pelo código e metadados sem divulgar nomes sensíveis.
+
+
+### Auditoria confirmada das policies public (06/11/2026)
+- 14 tabelas com policy `authenticated_all` (role authenticated, ALL, USING true, WITH CHECK true): atas_portais, chamados_portal, configuracoes, contratos_demanda_portal, demandas_cotesi, estoque_cobens, estoque_comarcas, estoque_cotesi, notas_fiscais, numeracao, ordens_servico, portais_garantia, unidades_estoque, usuarios_sistema.
+- `ordens_servico` e `portais_garantia` possuem adicionalmente `leitura_publica`, SELECT, role `public`, USING true. `public` inclui anon e authenticated.
+- `sla_manual`: SELECT anon/authenticated USING true; INSERT, UPDATE, DELETE para authenticated com true.
+- `tecnicos_app`: RLS habilitado, sem policies de acesso direto; auditar RPCs SECURITY DEFINER separadamente.
+- Risco: políticas amplas permitem operações dentro dos grants SQL disponíveis; verificar grants e fluxo real de login antes de restringir. Não alterar produção sem migração testada.
+- [ ] Auditar privilégios SQL de anon/authenticated, roles de usuários, policies e funções definer, exposição REST e dependências de leitura pública; elaborar migração com testes de regressão.
