@@ -121,3 +121,12 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - A existência de `senha` não comprova texto puro nem uso atual; auditar autenticação e armazenamento sem extrair valores. Policy `authenticated_all` exige atenção especial por potencial exposição de credenciais.
 - [ ] Verificar uso de `usuarios_sistema.senha` no código e se login efetivo usa Supabase Auth; planejar migração/remoção segura somente após comprovar dependências.
 - [ ] Inspecionar grants de SELECT e acesso direto da tabela; nunca exportar hashes/senhas em relatório.
+
+
+## Decisão aprovada — migração de autenticação (06/11/2026)
+- Usuária autorizou **desenvolver e testar na branch isolada** a migração do SGTI principal para Supabase Auth, preservando interface de login por e-mail e senha. **Sem mudanças em produção sem nova autorização.**
+- SGTI principal usa hoje e-mail e senha próprios; seis registros em `public.usuarios_sistema` (nenhum vazio; comprimentos 7: 1, 8: 5; nenhum padrão bcrypt). Suspeita forte de armazenamento inseguro, a confirmar no código; não consultar nem registrar valores de senhas.
+- Contas existentes no Supabase Auth foram destinadas ao SGTI Técnico, ainda não utilizado: não presumir vínculo com os seis usuários do principal, nem sobrescrever essas contas.
+- Preparar mapeamento seguro de usuários por identificador `auth.uid()`, revisão das políticas RLS e das permissões de leitura de `usuarios_sistema`; fluxo de convite/redefinição de senha, homologação e plano de reversão.
+- Não copiar senhas legadas para Auth, não remover `senha` antes de homologação e não alterar contas, políticas ou dados de produção nesta etapa.
+- Prioridade independente e urgente: conter exposição da `service_role` no HTML público, coordenar rotação/revogação da credencial e corrigir upload anônimo irrestrito preservando PDFs históricos.
