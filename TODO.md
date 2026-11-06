@@ -93,3 +93,10 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - Isto reduz a dependência operacional atual de upload no Storage, mas **não comprova ausência de outros consumidores, objetos existentes ou fluxos opcionais**. Verificar código publicado, integrações, logs e conteúdo antes de bloquear.
 - Priorizar contenção da policy `Anon upload 1thy3kd_0` e rotação da credencial privilegiada; mudanças no Supabase em produção exigem autorização operacional específica e plano de rollback.
 - No SGTI Fiscalização, manter relatório textual da contratada distinto do parecer e das evidências da fiscalização.
+
+
+### Inventário storage.objects (consulta agregada, 06/11/2026)
+- Bucket `os-anexos`: **103 objetos**; primeiro `created_at` 2026-07-31 19:06:59.945664+00; último 2026-11-05 13:52:33.47235+00.
+- Há atividade recente, apesar de o fluxo operacional usual relatado ser transcrição de texto e avaliação por servidores. **Origem e dependência dos arquivos não determinadas.**
+- [ ] Inventariar metadados agregados por prefixo/extensão e datas sem expor nomes sensíveis, URLs ou conteúdo; verificar consumidores antes de mudar acesso público.
+- [ ] Preservar os 103 objetos e metadados; não apagar ou mover antes de confirmar vínculo com OS e estratégia de migração.
