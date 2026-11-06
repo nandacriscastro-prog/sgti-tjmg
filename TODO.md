@@ -66,3 +66,14 @@ Backlog rastreável no git. Ver `CLAUDE.md` para contexto/arquitetura completos.
 - [ ] Dois PDFs independentes: relatório principal com fotos menores e anexo fotográfico ampliado, com numeração consistente.
 
 **Limite da auditoria atual:** metadados do repositório, `CLAUDE.md`, `TODO.md` e árvore de arquivos foram consultados. O conector não retornou conteúdo do `index.html` de ~3,3 MB, portanto não há confirmação de ausência/presença atual da chave, nem validação do Supabase em produção.
+
+
+### Evidência confirmada — Storage (capturas do painel em 06/11/2026)
+- Bucket `os-anexos` marcado como PUBLIC.
+- Policy `Permitir leitura anexos OS`: role `anon`, SELECT, `USING (bucket_id = 'os-anexos'::text)`.
+- Policy `Permitir upload anexos OS`: role `anon`, INSERT, `WITH CHECK (bucket_id = 'os-anexos'::text)`.
+- Policy `Anon upload 1thy3kd_0`: role `anon`, INSERT, `WITH CHECK (true)`, sem restrição de bucket. Políticas permissivas podem se combinar por OR; revisar antes de qualquer deploy.
+- [ ] Confirmar `pg_policies` (permissive/restrictive, roles e condições) e configuração dos demais buckets; avaliar impacto de remover policy global.
+- [ ] Inventariar consumidores de URLs públicas e uploads anônimos (SGTI, Alvo, técnico, garantia); migrar para upload autenticado e download autorizado/URLs assinadas.
+- [ ] Remover policy anônima irrestrita somente após preparar e testar substituição, salvo contenção emergencial aprovada pelo responsável.
+- [ ] Revisar tipos, tamanhos, paths, quotas e retenção; auditar objetos potencialmente inseridos indevidamente.
