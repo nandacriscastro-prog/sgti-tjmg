@@ -139,3 +139,10 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - `PageLogin` autentica com Auth, mas aceita qualquer conta Auth válida não encontrada no cadastro local, criando sessão mínima. Bloquear acesso sem vínculo autorizado; usar `auth.uid()` e cadastro de autorização, com testes de usuário desconhecido.
 - `sbFetch` usa token de Auth quando disponível, mas faz fallback para chave pública; revisar fluxo de expiração e endpoints públicos antes de mudar comportamento.
 - Próximo passo de implementação: mapear caminhos de autorização, remover credenciais estáticas do frontend e substituir upload com `service_role`; preparar testes em ambiente isolado. Não tocar produção sem nova aprovação.
+
+
+### Confirmação da versão de produção (06/11/2026)
+- Usuária confirmou explicitamente que o arquivo fornecido `index (3).html` é cópia da versão em produção do SGTI principal.
+- Implementar correções contra essa versão; antes de editar `index.html` na branch, validar equivalência com o arquivo enviado e identificar diferenças. Não assumir que todo conteúdo de `index.html` no GitHub corresponde byte a byte ao upload.
+- Primeiro pacote de correções planejado: (1) impedir acesso a usuário autenticado sem vínculo autorizado, (2) remover credenciais e consulta da coluna `senha` do navegador, (3) substituir uso da `service_role` em upload por arquitetura segura, (4) testes negativos de autenticação e regressão de OS/PDF.
+- Nenhuma alteração de produção autorizada. Rotação/revogação da chave exposta requer coordenação urgente e aprovação operacional específica.
