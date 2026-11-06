@@ -77,3 +77,11 @@ Backlog rastreável no git. Ver `CLAUDE.md` para contexto/arquitetura completos.
 - [ ] Inventariar consumidores de URLs públicas e uploads anônimos (SGTI, Alvo, técnico, garantia); migrar para upload autenticado e download autorizado/URLs assinadas.
 - [ ] Remover policy anônima irrestrita somente após preparar e testar substituição, salvo contenção emergencial aprovada pelo responsável.
 - [ ] Revisar tipos, tamanhos, paths, quotas e retenção; auditar objetos potencialmente inseridos indevidamente.
+
+
+### Confirmação via pg_policies (06/11/2026)
+Consulta somente leitura em `pg_policies` mostrou exatamente três policies em `storage.objects`, todas PERMISSIVE e com role `anon`:
+1. `Anon upload 1thy3kd_0` — INSERT; `with_check = true`.
+2. `Permitir leitura anexos OS` — SELECT; `qual = (bucket_id = 'os-anexos'::text)`.
+3. `Permitir upload anexos OS` — INSERT; `with_check = (bucket_id = 'os-anexos'::text)`.
+Não houve policies `authenticated` retornadas nesta consulta. Isso confirma risco de INSERT anônimo amplo, mas não comprova exploração. Recomendação: conter policy global em janela coordenada, preservar evidências e rotacionar service_role exposta; não publicar alterações sem validação de dependências.
