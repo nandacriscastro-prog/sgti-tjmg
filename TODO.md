@@ -85,3 +85,11 @@ Consulta somente leitura em `pg_policies` mostrou exatamente três policies em `
 2. `Permitir leitura anexos OS` — SELECT; `qual = (bucket_id = 'os-anexos'::text)`.
 3. `Permitir upload anexos OS` — INSERT; `with_check = (bucket_id = 'os-anexos'::text)`.
 Não houve policies `authenticated` retornadas nesta consulta. Isso confirma risco de INSERT anônimo amplo, mas não comprova exploração. Recomendação: conter policy global em janela coordenada, preservar evidências e rotacionar service_role exposta; não publicar alterações sem validação de dependências.
+
+
+### Fluxo operacional confirmado pelo responsável (06/11/2026)
+- O SGTI principal em produção é utilizado por servidores TJMG que **transcrevem o texto** do relatório encaminhado pela contratada e registram avaliação `Satisfatório`/`Insatisfatório`.
+- No fluxo atual relatado, servidores **não fazem upload de fotos ou documentos**; o SGTI Técnico **ainda não está em uso**.
+- Isto reduz a dependência operacional atual de upload no Storage, mas **não comprova ausência de outros consumidores, objetos existentes ou fluxos opcionais**. Verificar código publicado, integrações, logs e conteúdo antes de bloquear.
+- Priorizar contenção da policy `Anon upload 1thy3kd_0` e rotação da credencial privilegiada; mudanças no Supabase em produção exigem autorização operacional específica e plano de rollback.
+- No SGTI Fiscalização, manter relatório textual da contratada distinto do parecer e das evidências da fiscalização.
