@@ -146,3 +146,10 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - Implementar correções contra essa versão; antes de editar `index.html` na branch, validar equivalência com o arquivo enviado e identificar diferenças. Não assumir que todo conteúdo de `index.html` no GitHub corresponde byte a byte ao upload.
 - Primeiro pacote de correções planejado: (1) impedir acesso a usuário autenticado sem vínculo autorizado, (2) remover credenciais e consulta da coluna `senha` do navegador, (3) substituir uso da `service_role` em upload por arquitetura segura, (4) testes negativos de autenticação e regressão de OS/PDF.
 - Nenhuma alteração de produção autorizada. Rotação/revogação da chave exposta requer coordenação urgente e aprovação operacional específica.
+
+
+### Protótipo local de hardening — NÃO PUBLICAR (06/11/2026)
+- Confirmada equivalência byte a byte entre o `index (3).html` enviado e `index.html` na branch (Git blob SHA `cf813265768e1ededf2ec1ca07abd81f62690bae`).
+- Gerado candidato local de homologação a partir do HTML: remove `SB_SVC` e senhas fixas, reduz projeção de `usuarios_sistema`, rejeita login Auth sem cadastro local, exige token para upload e desativa temporariamente administração legada de usuários que grava senhas.
+- **Bloqueadores para publicação:** upload requer nova política Storage para `authenticated` (a atual é apenas `anon`); usuários do principal precisam de Auth e autorização mapeados; RLS de todas as tabelas permanece permissiva; checagem de autorização no frontend não substitui política RLS no servidor; validar geração e consulta de PDFs e recuperação de sessão.
+- Protótipo não foi commitado nem publicado; teste sintático JS concluído, testes funcionais e de integração pendentes. Não confundir protótipo com correção de segurança concluída.
