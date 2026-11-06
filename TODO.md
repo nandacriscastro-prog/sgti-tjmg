@@ -130,3 +130,12 @@ Não houve policies `authenticated` retornadas nesta consulta. Isso confirma ris
 - Preparar mapeamento seguro de usuários por identificador `auth.uid()`, revisão das políticas RLS e das permissões de leitura de `usuarios_sistema`; fluxo de convite/redefinição de senha, homologação e plano de reversão.
 - Não copiar senhas legadas para Auth, não remover `senha` antes de homologação e não alterar contas, políticas ou dados de produção nesta etapa.
 - Prioridade independente e urgente: conter exposição da `service_role` no HTML público, coordenar rotação/revogação da credencial e corrigir upload anônimo irrestrito preservando PDFs históricos.
+
+
+### Revisão direta do HTML fornecido — correção do diagnóstico (06/11/2026)
+- `index (3).html` já implementa Supabase Auth (`authLogin`, refresh, logout e troca de senha). A migração **não começa do zero**; verificar se esse arquivo corresponde à versão atualmente publicada.
+- Há credenciais/senhas literais no array `USUARIOS` e uma `service_role` no JavaScript entregue ao navegador. **Não transcrever valores** para documentação, issues ou commits.
+- `loadUsuariosDinamicos()` consulta `usuarios_sistema?select=*`, trazendo também a coluna `senha`, e a copia para objetos de usuário. Remover leitura e propagação da coluna após definir migração segura.
+- `PageLogin` autentica com Auth, mas aceita qualquer conta Auth válida não encontrada no cadastro local, criando sessão mínima. Bloquear acesso sem vínculo autorizado; usar `auth.uid()` e cadastro de autorização, com testes de usuário desconhecido.
+- `sbFetch` usa token de Auth quando disponível, mas faz fallback para chave pública; revisar fluxo de expiração e endpoints públicos antes de mudar comportamento.
+- Próximo passo de implementação: mapear caminhos de autorização, remover credenciais estáticas do frontend e substituir upload com `service_role`; preparar testes em ambiente isolado. Não tocar produção sem nova aprovação.
