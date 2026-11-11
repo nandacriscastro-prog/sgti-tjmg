@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1793275527 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1794392339 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -2265,6 +2265,7 @@ function gerarHTMLAtendimentoRemoto(d) {
     <div class="chkline">${chk(d.sistemas.includes("CFTV"))} Sistema de Videomonitoramento – CFTV (configuração básica, reset, orientação para localização de imagem gravada, orientação para backup de imagens)</div>
     <div class="chkline">${chk(d.sistemas.includes("Portal"))} Portal Detector de Metal (configuração básica, reset, ajuste de sensibilidade e sonoro, teste e detecção)</div>
     <div class="chkline">${chk(d.sistemas.includes("Scanner"))} Scanner Raio X (configuração básica, reset, ajuste de sensibilidade, teste e detecção)</div>
+    <div class="chkline">${chk(d.sistemas.includes("Acesso"))} Controle de Acesso (configuração básica, reset, cadastro de usuários/credenciais, teste de funcionamento)</div>
   </td></tr>
 </table>
 <table><tr><td style="background:#fff3cd;border:1.5px solid #e0a800">
@@ -2874,7 +2875,7 @@ function abrirEmailRota(criadas, rotaNome, htmlRota) {
   toast("E-mail da rota aberto. Salve o PDF combinado e anexe.", "ok");
 }
 function PageAtendimentoRemoto({ os: todasOS, reload }) {
-  const SISTEMAS_REM = ["Alarme", "CFTV", "Portal", "Scanner"];
+  const SISTEMAS_REM = ["Alarme", "CFTV", "Portal", "Scanner", "Acesso"];
   const proximoNum = (() => {
     const nums = (todasOS || []).map(o => {
       const m = /^OS-REM-2026-(\d+)$/.exec(o.numero || "");
@@ -3022,7 +3023,7 @@ function PageAtendimentoRemoto({ os: todasOS, reload }) {
       ),
       React.createElement("div", { className: "fg", style: { marginBottom: 6 } }, React.createElement("label", null, "Sistema / equipamento afetado")),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, marginBottom: 14 } },
-        [["Alarme", "Sistema de Alarme"], ["CFTV", "Videomonitoramento (CFTV)"], ["Portal", "Portal detector de metal"], ["Scanner", "Scanner Raio X"]].map(([k, l]) =>
+        [["Alarme", "Sistema de Alarme"], ["CFTV", "Videomonitoramento (CFTV)"], ["Portal", "Portal detector de metal"], ["Scanner", "Scanner Raio X"], ["Acesso", "Controle de acesso"]].map(([k, l]) =>
           React.createElement("label", {
             key: k,
             style: {
