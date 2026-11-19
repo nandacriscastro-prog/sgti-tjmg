@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1794392339 -->
+<title>SGTI — Sistema de Gestão TJMG</title><!-- build:1795117946 -->
 <script>(function(){try{if(localStorage.getItem("sgti_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -9082,7 +9082,8 @@ function PageMedicao({
       (resultado.osMes || []).forEach(o => {
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
-        const kmOS = parseFloat(r.km || 0) || 0;
+        const _semV = isCorrecaoDentroGarantia(o, os) || semVisitaOS(o);
+        const kmOS = _semV ? 0 : (parseFloat(r.km || 0) || 0); // mesma regra da medição: Só peças / Mesma visita / Retorno pago não cobram km
         const oc = (resultado.ocorrenciasAtraso||[]).find(x=>x.numero===o.numero);
         linhasOS.push([o.numero, o.comarca||"", o.contrato||"", o.data_os||"", o.data_conclusao||r.dtconc||"", o.servico||o.tipo||"", kmOS, Number((kmOS*ANEXO_IV.find(a=>a.id==="km").vu).toFixed(2)), oc?oc.diasAtraso:0, oc?oc.pts:0]);
       });
@@ -9114,14 +9115,15 @@ function PageMedicao({
         let r = {};
         try { r = JSON.parse(o.retorno_campo || "{}"); } catch (e) {}
         const valorPecas = Number((pecasCobraveis(r.pecas).filter(p => p.desc).reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0)).toFixed(2));
-        const kmOS = parseFloat(r.km || 0) || 0;
+        const _semV = isCorrecaoDentroGarantia(o, os) || semVisitaOS(o);
+        const kmOS = _semV ? 0 : (parseFloat(r.km || 0) || 0); // mesma regra da medição: Só peças / Mesma visita / Retorno pago não cobram km
         const valorKm = Number((kmOS * valorKmUnit).toFixed(2));
         const d = (resultado.diariaDetalhe || []).find(x => x.numero === o.numero);
         const valorDiaria = Number(((d ? d.fracaoTotal : 0) * valorDiariaUnit).toFixed(2));
         const isRaioServOS = /raio|scanner/i.test(o.servico || o.tipo || "");
         const isPortalServOS = /portal|detector/i.test(o.servico || o.tipo || "");
         const isPresServOS = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServOS && !isRaioServOS));
-        const valorAtend = (isPortalServOS ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServOS ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServOS ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
+        const valorAtend = (isCorrecaoDentroGarantia(o, os) || retornoPagoOS(o)) ? 0 : (isPortalServOS ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServOS ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServOS ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
         const mRota = /Rota:\s*([^|]+)/i.exec(o.observacoes || "");
         const rota = mRota ? mRota[1].trim() : "";
         linhasOSTot.push({ numero: o.numero, comarca: o.comarca || "", rota, valorPecas, valorKm, valorDiaria, valorAtend: Number(valorAtend.toFixed(2)) });
@@ -9173,15 +9175,16 @@ function PageMedicao({
         const isRaioServ = /raio|scanner/i.test(o.servico || o.tipo || "");
         const isPortalServ = /portal|detector/i.test(o.servico || o.tipo || "");
         const isPresServ = !/(remot)/i.test(o.servico || o.tipo || "") && (/alarme|cftv|acesso/i.test(o.servico || o.tipo || "") || (!isPortalServ && !isRaioServ));
-        const fracaoBase = d.regiao === "Colar Metropolitano" ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
+        const fracaoBase = (d.regiao === "Colar Metropolitano" || isCorrecaoDentroGarantia(o, os) || semVisitaOS(o)) ? 0 : (isRaioServ ? 1.25 : (isPortalServ && isPresServ) ? 2.0 : 1.0);
         const pecasOS = pecasCobraveis(r.pecas).filter(p => p.desc);
-        const fracaoPecas = pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
+        const fracaoPecas = isCorrecaoDentroGarantia(o, os) ? 0 : pecasOS.reduce((a, p) => a + ((FRAC_D[p.cod] || 0) * (parseFloat(p.qtd) || 1)), 0);
         const pecasTxt = pecasOS.length ? pecasOS.map(p => `[${p.cod || "?"}] ${p.desc} ×${p.qtd}`).join(" | ") : "—";
         const valorMateriaisOS = pecasOS.reduce((a, p) => a + ((p.cod === "RSD" ? getRsdVu(p) : (PRECO_ANEXO_V[p.cod] || 0)) * (parseFloat(p.qtd) || 1)), 0);
-        const kmOS = parseFloat(r.km || 0) || 0;
+        const _semV = isCorrecaoDentroGarantia(o, os) || semVisitaOS(o);
+        const kmOS = _semV ? 0 : (parseFloat(r.km || 0) || 0); // mesma regra da medição: Só peças / Mesma visita / Retorno pago não cobram km
         const valorKmOS = kmOS * valorKmUnitDet;
         const valorDiariaOS = (d.fracaoTotal || 0) * valorDiariaUnitDet;
-        const valorAtendOS = (isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
+        const valorAtendOS = (isCorrecaoDentroGarantia(o, os) || retornoPagoOS(o)) ? 0 : (isPortalServ ? ANEXO_IV.find(a=>a.id==="portal").vu : 0) + (isRaioServ ? ANEXO_IV.find(a=>a.id==="raio").vu : 0) + (isPresServ ? ANEXO_IV.find(a=>a.id==="pres").vu : 0) || ANEXO_IV.find(a=>a.id==="pres").vu;
         detLinhas.push({ o, r, d, fracaoBase, pecasTxt, fracaoPecas, kmOS, valorDiariaOS, valorKmOS, valorAtendOS, valorMateriaisOS });
       });
       // Colunas de valor fecham exatamente com o total da medição (sem diferença de centavo)
